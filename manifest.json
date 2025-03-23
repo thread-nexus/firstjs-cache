@@ -1,0 +1,32 @@
+{
+  "name": "cache-module",
+  "version": "1.0.0",
+  "description": "Flexible multi-level caching system for ModularX",
+  "main": "index.js",
+  "dependencies": [],
+  "interfaces": [
+    "interfaces/ICacheProvider.ts",
+    "interfaces/ICacheManager.ts",
+    "interfaces/IStorageAdapter.ts"
+  ],
+  "implementations": [
+    "implementations/CacheManager.ts",
+    "implementations/adapters/MemoryStorageAdapter.ts",
+    "implementations/adapters/LocalStorageAdapter.ts",
+    "implementations/adapters/RedisStorageAdapter.ts"
+  ],
+  "hooks": [
+    "hooks/useCache.ts",
+    "hooks/useCachedQuery.ts"
+  ],
+  "utils": [
+    "utils/keyGenerator.ts",
+    "utils/serializer.ts"
+  ],
+  "events": [
+    "events/cacheEvents.ts"
+  ],
+  "config": [
+    "config/defaultConfig.ts"
+  ]
+}
