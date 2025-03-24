@@ -787,7 +787,7 @@ export type CacheKeyGenerator = (...args: any[]) => string;
  */
 export type CacheFunctionWrapper = <T extends (...args: any[]) => Promise<any>>(
     fn: T,
-    keyGenerator?: (...args: T extends ((...args: infer P) => any) ? P : never[]) => string,
+    keyGenerator?: (...args: any[]) => string,
     options?: CacheOptions
 ) => T;
 

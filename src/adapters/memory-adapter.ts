@@ -2,7 +2,7 @@
  * Memory storage adapter implementation
  */
 
-import {CacheOptions, CacheStats, HealthStatus} from '../types/common';
+import {CacheOptions, CacheStats, HealthStatus} from '../types';
 import {ICacheProvider} from '../interfaces/i-cache-provider';
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
 

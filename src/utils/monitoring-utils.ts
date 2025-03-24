@@ -2,7 +2,7 @@
  * Monitoring utilities for cache operations
  */
 
-import {CacheMetrics, LatencyStats, MonitoringConfig} from '../types/common';
+import {CacheMetrics, LatencyStats, MonitoringConfig} from '../types';
 
 /**
  * Default monitoring configuration

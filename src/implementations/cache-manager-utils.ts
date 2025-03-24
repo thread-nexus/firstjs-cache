@@ -5,7 +5,7 @@
 import {CacheOptions} from '../types';
 import {DEFAULT_CONFIG} from '../config/default-config';
 import {ICacheProvider} from '../interfaces/i-cache-provider';
-import {CacheManager} from './cache-manager';
+import {CacheManager} from '../core/cache-manager';
 import {CacheConfig} from '../interfaces/i-cache-config';
 
 /**

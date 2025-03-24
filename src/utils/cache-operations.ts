@@ -1,4 +1,4 @@
-import {CacheOptions} from '../types/common';
+import {CacheOptions} from '../types';
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
 // Update the path to the correct location of ICacheProvider
 import {ICacheProvider} from '../interfaces/ICacheProvider'; // Ensure this file exists or adjust the path

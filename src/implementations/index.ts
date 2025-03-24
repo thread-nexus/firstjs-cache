@@ -2,7 +2,7 @@
  * Re-export all implementations
  */
 
-import {CacheManager} from './cache-manager';
+import {CacheManager} from '../core/cache-manager';
 import {CacheManagerCore} from './cache-manager-core';
 import {CacheMetadata} from './cache-metadata';
 import {CacheManagerStats} from './cache-manager-stats';
