@@ -67,7 +67,7 @@ class RefreshQueue {
 
         // Start processing if not already
         if (!this.isProcessing) {
-            this.process();
+            this.process().then(r => {});
         }
     }
 

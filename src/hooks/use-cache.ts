@@ -136,7 +136,7 @@ export function useCache<T = any>(key: string, fetcher?: () => Promise<T>, optio
     // Fetch on mount if autoFetch is true
     useEffect(() => {
         if (fetcher && options?.autoFetch !== false) {
-            fetchValue();
+            fetchValue().then(r => {});
         }
     }, [fetchValue, fetcher, options?.autoFetch]);
 

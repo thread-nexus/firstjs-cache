@@ -56,10 +56,10 @@ interface BatchResult {
 
 export class CacheManager implements ICacheManager {
     private providers: Map<string, ICacheProvider>;
-    private monitor: CacheMonitoring;
+    private readonly monitor: CacheMonitoring;
     private serializer: { serialize: typeof serialize, deserialize: typeof deserialize };
     private rateLimiter: RateLimiter;
-    private circuitBreaker: CircuitBreaker;
+    private readonly circuitBreaker: CircuitBreaker;
 
     constructor(config: CacheManagerConfig) {
         this.providers = new Map();
@@ -230,7 +230,7 @@ export class CacheManager implements ICacheManager {
             this.validateKey(key);
             this.validateValue(value);
 
-            const serializedValue = await this.serializer.serialize(value);
+            const serializedValue = this.serializer.serialize(value);
             const provider = this.selectProvider(options?.provider);
 
             // Check circuit breaker state

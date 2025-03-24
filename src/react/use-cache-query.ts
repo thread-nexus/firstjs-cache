@@ -196,7 +196,7 @@ export function useCacheQuery<T = any>({
     // Initial fetch
     useEffect(() => {
         if (autoFetch) {
-            fetchData();
+            fetchData().then(r => {});
         } else {
             setIsLoading(false);
         }
@@ -208,7 +208,7 @@ export function useCacheQuery<T = any>({
 
         const checkStale = () => {
             if (isStale() && !isFetching) {
-                fetchData();
+                fetchData().then(r => {});
             }
         };
 
