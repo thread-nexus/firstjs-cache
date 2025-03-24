@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-manager-stats.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-stats.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">6.25% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>2/32</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>0/18</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">25% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/4</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">6.25% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>2/32</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -343,21 +343,22 @@ export class CacheManagerStats extends CacheManagerAdvanced {
    * 
    * @returns Object containing stats for each cache layer
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered">{};</span>
       
       // Gather stats from each provider concurrently
-      const statsPromises = <span class="cstat-no" title="statement not covered" >Array.from(this.providers.entries()).map(</span>
-<span class="fstat-no" title="function not covered" >        as</span>ync ([layerName, provider]): Promise&lt;[string, CacheStats]&gt; =&gt; {
-<span class="cstat-no" title="statement not covered" >          try {</span>
+      const statsPromises = <span class="cstat-no" title="statement not covered">Array.from(this.providers.entries()).map(</span>
+<span class="fstat-no" title="function not covered">        as</span>ync ([layerName, provider]): Promise&lt;[string, CacheStats]&gt; =&gt; {
+<span class="cstat-no" title="statement not covered">          try {</span>
             // Check if the provider implements a getStats method
-<span class="cstat-no" title="statement not covered" >            if (typeof provider.getStats === 'function') {</span>
-              const providerStats = <span class="cstat-no" title="statement not covered" >await provider.getStats();</span>
-<span class="cstat-no" title="statement not covered" >              return [layerName, providerStats];</span>
+<span class="cstat-no" title="statement not covered">            if (typeof provider.getStats === 'function') {</span>
+              const providerStats = <span class="cstat-no"
+                                          title="statement not covered">await provider.getStats();</span>
+<span class="cstat-no" title="statement not covered">              return [layerName, providerStats];</span>
             } else {
               // Default stats for providers that don't implement getStats
-<span class="cstat-no" title="statement not covered" >              return [layerName, {</span>
+<span class="cstat-no" title="statement not covered">              return [layerName, {</span>
                 size: 0,
                 hits: 0, 
                 misses: 0,
@@ -368,9 +369,9 @@ export class CacheManagerStats extends CacheManagerAdvanced {
               }];
             }
           } catch (error) {
-<span class="cstat-no" title="statement not covered" >            this.logError(`Failed to get stats from cache layer ${layerName}`, error);</span>
+<span class="cstat-no" title="statement not covered">            this.logError(`Failed to get stats from cache layer ${layerName}`, error);</span>
             // Return basic stats object on error
-<span class="cstat-no" title="statement not covered" >            return [layerName, {</span>
+<span class="cstat-no" title="statement not covered">            return [layerName, {</span>
               size: 0,
               hits: 0,
               misses: 0,
@@ -385,27 +386,29 @@ export class CacheManagerStats extends CacheManagerAdvanced {
       );
       
       // Wait for all stats to be collected
-      const results = <span class="cstat-no" title="statement not covered" >await Promise.all(statsPromises);</span>
+      const results = <span class="cstat-no" title="statement not covered">await Promise.all(statsPromises);</span>
       
       // Build the stats object from results
-<span class="cstat-no" title="statement not covered" >      for (const [layerName, layerStats] of results) {</span>
-<span class="cstat-no" title="statement not covered" >        stats[layerName] = layerStats;</span>
+<span class="cstat-no" title="statement not covered">      for (const [layerName, layerStats] of results) {</span>
+<span class="cstat-no" title="statement not covered">        stats[layerName] = layerStats;</span>
       }
       
       // Add aggregate statistics
-<span class="cstat-no" title="statement not covered" >      stats['aggregate'] = this.calculateAggregateStats(stats);</span>
+<span class="cstat-no"
+      title="statement not covered">      stats['aggregate'] = this.calculateAggregateStats(stats);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent('stats', { stats });</span>
-<span class="cstat-no" title="statement not covered" >      return stats;</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent('stats', { stats });</span>
+<span class="cstat-no" title="statement not covered">      return stats;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      this.logError('Error collecting cache statistics', error);</span>
+<span class="cstat-no"
+      title="statement not covered">      this.logError('Error collecting cache statistics', error);</span>
       
-<span class="cstat-no" title="statement not covered" >      if (this.config.throwOnErrors) {</span>
-<span class="cstat-no" title="statement not covered" >        throw error;</span>
+<span class="cstat-no" title="statement not covered">      if (this.config.throwOnErrors) {</span>
+<span class="cstat-no" title="statement not covered">        throw error;</span>
       }
       
       // Return empty stats on error
-<span class="cstat-no" title="statement not covered" >      return {};</span>
+<span class="cstat-no" title="statement not covered">      return {};</span>
     }
   }
   
@@ -416,10 +419,10 @@ export class CacheManagerStats extends CacheManagerAdvanced {
    * @returns Aggregated statistics
    * @private
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate calculateAggregateStats(
+<span class="fstat-no" title="function not covered">  pr</span>ivate calculateAggregateStats(
     layerStats: Record&lt;string, CacheStats&gt;
   ): CacheStats {
-    const aggregate: CacheStats = <span class="cstat-no" title="statement not covered" >{</span>
+    const aggregate: CacheStats = <span class="cstat-no" title="statement not covered">{</span>
       size: 0,
       hits: 0,
       misses: 0,
@@ -429,38 +432,39 @@ export class CacheManagerStats extends CacheManagerAdvanced {
       keys: []
     };
     
-<span class="cstat-no" title="statement not covered" >    for (const [layerName, stats] of Object.entries(layerStats)) {</span>
-<span class="cstat-no" title="statement not covered" >      aggregate.size += stats.size || 0;</span>
-<span class="cstat-no" title="statement not covered" >      aggregate.hits += stats.hits || 0;</span>
-<span class="cstat-no" title="statement not covered" >      aggregate.misses += stats.misses || 0;</span>
-<span class="cstat-no" title="statement not covered" >      aggregate.keyCount += stats.keyCount || 0;</span>
-<span class="cstat-no" title="statement not covered" >      aggregate.memoryUsage += stats.memoryUsage || 0;</span>
+<span class="cstat-no"
+      title="statement not covered">    for (const [layerName, stats] of Object.entries(layerStats)) {</span>
+<span class="cstat-no" title="statement not covered">      aggregate.size += stats.size || 0;</span>
+<span class="cstat-no" title="statement not covered">      aggregate.hits += stats.hits || 0;</span>
+<span class="cstat-no" title="statement not covered">      aggregate.misses += stats.misses || 0;</span>
+<span class="cstat-no" title="statement not covered">      aggregate.keyCount += stats.keyCount || 0;</span>
+<span class="cstat-no" title="statement not covered">      aggregate.memoryUsage += stats.memoryUsage || 0;</span>
       
       // Merge keys arrays if they exist
-<span class="cstat-no" title="statement not covered" >      if (stats.keys &amp;&amp; Array.isArray(stats.keys)) {</span>
-<span class="cstat-no" title="statement not covered" >        aggregate.keys = [...aggregate.keys, ...stats.keys];</span>
+<span class="cstat-no" title="statement not covered">      if (stats.keys &amp;&amp; Array.isArray(stats.keys)) {</span>
+<span class="cstat-no" title="statement not covered">        aggregate.keys = [...aggregate.keys, ...stats.keys];</span>
       }
     }
     
-<span class="cstat-no" title="statement not covered" >    return aggregate;</span>
+<span class="cstat-no" title="statement not covered">    return aggregate;</span>
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

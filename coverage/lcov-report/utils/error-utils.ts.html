@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for utils/error-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">utils</a> error-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">66.36% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>73/110</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">71.73% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>66/92</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">60% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>6/10</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">66.97% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>73/109</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -1051,17 +1051,18 @@ export class CacheProviderError extends CacheError {
    * @param provider - Provider name
    * @param operation - Cache operation
    */
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(
+<span class="fstat-no" title="function not covered">  co</span>nstructor(
     message: string,
     provider: string,
     operation?: string,
     key?: string
   ) {
-<span class="cstat-no" title="statement not covered" >    super(CacheErrorCode.PROVIDER_ERROR, message, operation, key, provider);</span>
-<span class="cstat-no" title="statement not covered" >    this.name = 'CacheProviderError';</span>
+<span class="cstat-no" title="statement not covered">    super(CacheErrorCode.PROVIDER_ERROR, message, operation, key, provider);</span>
+<span class="cstat-no" title="statement not covered">    this.name = 'CacheProviderError';</span>
     
     // Ensure proper prototype chain for instanceof checks
-<span class="cstat-no" title="statement not covered" >    Object.setPrototypeOf(this, CacheProviderError.prototype);</span>
+<span class="cstat-no"
+      title="statement not covered">    Object.setPrototypeOf(this, CacheProviderError.prototype);</span>
   }
 }
 &nbsp;
@@ -1076,16 +1077,18 @@ export class CacheOperationError extends CacheError {
    * @param operation - Operation name
    * @param key - Cache key
    */
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(
+<span class="fstat-no" title="function not covered">  co</span>nstructor(
     message: string,
     operation: string,
     key?: string
   ) {
-<span class="cstat-no" title="statement not covered" >    super(CacheErrorCode.OPERATION_ERROR, message, operation, key);</span>
-<span class="cstat-no" title="statement not covered" >    this.name = 'CacheOperationError';</span>
+<span class="cstat-no"
+      title="statement not covered">    super(CacheErrorCode.OPERATION_ERROR, message, operation, key);</span>
+<span class="cstat-no" title="statement not covered">    this.name = 'CacheOperationError';</span>
     
     // Ensure proper prototype chain for instanceof checks
-<span class="cstat-no" title="statement not covered" >    Object.setPrototypeOf(this, CacheOperationError.prototype);</span>
+<span class="cstat-no"
+      title="statement not covered">    Object.setPrototypeOf(this, CacheOperationError.prototype);</span>
   }
 }
 &nbsp;
@@ -1184,7 +1187,7 @@ export function logCacheError(error: unknown, level: 'error' | 'warn' = 'error')
     ? error
     : createCacheError({
         code: CacheErrorCode.UNKNOWN,
-        message: error instanceof Error ? error.message : <span class="branch-1 cbranch-no" title="branch not covered" >String(error)</span>
+        message: error instanceof Error ? error.message : <span class="branch-1 cbranch-no" title="branch not covered">String(error)</span>
       });
   
   const logMessage = formatErrorMessage({
@@ -1194,8 +1197,8 @@ export function logCacheError(error: unknown, level: 'error' | 'warn' = 'error')
     errorMessage: cacheError.message
   });
   
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (level === 'warn') {
-<span class="cstat-no" title="statement not covered" >    console.warn(logMessage);</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (level === 'warn') {
+<span class="cstat-no" title="statement not covered">    console.warn(logMessage);</span>
   } else {
     console.error(logMessage);
   }
@@ -1239,8 +1242,8 @@ export function handleCacheError(
   // Normalize error
   let cacheError: CacheError;
   
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (error instanceof CacheError) {
-<span class="cstat-no" title="statement not covered" >    cacheError = error;</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (error instanceof CacheError) {
+<span class="cstat-no" title="statement not covered">    cacheError = error;</span>
   } else {
     // Determine error code
     let code = errorCode || CacheErrorCode.UNKNOWN;
@@ -1280,11 +1283,11 @@ export function handleCacheError(
         let currentCause: any = error.cause;
         
         while (currentCause) {
-          causes.push(currentCause.message || <span class="branch-1 cbranch-no" title="branch not covered" >String(currentCause))</span>;
+          causes.push(currentCause.message || <span class="branch-1 cbranch-no" title="branch not covered">String(currentCause))</span>;
           currentCause = currentCause.cause;
         }
         
-        <span class="missing-if-branch" title="else path not taken" >E</span>if (causes.length &gt; 0) {
+        <span class="missing-if-branch" title="else path not taken">E</span>if (causes.length &gt; 0) {
           errorMessage += ` (Caused by: ${causes.join(' -&gt; ')})`;
         }
       }
@@ -1293,25 +1296,27 @@ export function handleCacheError(
       try {
         const obj = error as Record&lt;string, any&gt;;
         // Try to get a useful representation of the object
-        <span class="missing-if-branch" title="if path not taken" >I</span>if (obj.message) {
-<span class="cstat-no" title="statement not covered" >          errorMessage = String(obj.message);</span>
-        } else <span class="missing-if-branch" title="if path not taken" >I</span>if (obj.error) {
-<span class="cstat-no" title="statement not covered" >          errorMessage = String(obj.error);</span>
+        <span class="missing-if-branch" title="if path not taken">I</span>if (obj.message) {
+<span class="cstat-no" title="statement not covered">          errorMessage = String(obj.message);</span>
+        } else <span class="missing-if-branch" title="if path not taken">I</span>if (obj.error) {
+<span class="cstat-no" title="statement not covered">          errorMessage = String(obj.error);</span>
         } else if (obj.custom) { // Special case for our test
           errorMessage = String(obj.custom);
-        } else <span class="missing-if-branch" title="else path not taken" >E</span>{
+        } else <span class="missing-if-branch" title="else path not taken">E</span>{
           // Attempt to stringify the object, but handle circular references
-<span class="cstat-no" title="statement not covered" >          try {</span>
-<span class="cstat-no" title="statement not covered" >            errorMessage = JSON.stringify(obj);</span>
+<span class="cstat-no" title="statement not covered">          try {</span>
+<span class="cstat-no" title="statement not covered">            errorMessage = JSON.stringify(obj);</span>
           } catch {
-<span class="cstat-no" title="statement not covered" >            errorMessage = Object.keys(obj).map(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >`${key}: ${String(obj[key])}`)</span>.join(', ');</span>
+<span class="cstat-no" title="statement not covered">            errorMessage = Object.keys(obj).map(<span
+        class="fstat-no" title="function not covered">ke</span>y =&gt; <span class="cstat-no"
+                                                                             title="statement not covered">`${key}: ${String(obj[key])}`)</span>.join(', ');</span>
           }
         }
       } catch {
-<span class="cstat-no" title="statement not covered" >        errorMessage = String(error);</span>
+<span class="cstat-no" title="statement not covered">        errorMessage = String(error);</span>
       }
-    } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >      errorMessage = String(error);</span>
+    } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">      errorMessage = String(error);</span>
     }
     
     cacheError = createCacheError({
@@ -1325,15 +1330,15 @@ export function handleCacheError(
   
   // Log error
   if (logError) {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (logLevel === 'warn') {
-<span class="cstat-no" title="statement not covered" >      console.warn(`Cache error [${context.operation}]: ${cacheError.message}`);</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (logLevel === 'warn') {
+<span class="cstat-no" title="statement not covered">      console.warn(`Cache error [${context.operation}]: ${cacheError.message}`);</span>
     } else {
       console.error(`Cache error [${context.operation}]: ${cacheError.message}`);
     }
   }
   
   // Emit error event
-  <span class="missing-if-branch" title="else path not taken" >E</span>if (typeof emitCacheEvent === 'function') {
+  <span class="missing-if-branch" title="else path not taken">E</span>if (typeof emitCacheEvent === 'function') {
     emitCacheEvent(CacheEventType.ERROR, {
       error: cacheError,
       operation: context.operation,
@@ -1343,28 +1348,28 @@ export function handleCacheError(
   }
   
   // Circuit breaker logic (skip in tests or when explicitly disabled)
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (!skipCircuitBreaker) {
+  <span class="missing-if-branch" title="if path not taken">I</span>if (!skipCircuitBreaker) {
     // Track errors for circuit breaker
-    const key = <span class="cstat-no" title="statement not covered" >`${context.provider || 'default'}:${context.operation}`;</span>
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
+    const key = <span class="cstat-no" title="statement not covered">`${context.provider || 'default'}:${context.operation}`;</span>
+    const now = <span class="cstat-no" title="statement not covered">Date.now();</span>
     
-<span class="cstat-no" title="statement not covered" >    if (!errorTracking[key]) {</span>
-<span class="cstat-no" title="statement not covered" >      errorTracking[key] = { count: 0, lastError: 0 };</span>
+<span class="cstat-no" title="statement not covered">    if (!errorTracking[key]) {</span>
+<span class="cstat-no" title="statement not covered">      errorTracking[key] = { count: 0, lastError: 0 };</span>
     }
     
-    const tracking = <span class="cstat-no" title="statement not covered" >errorTracking[key];</span>
+    const tracking = <span class="cstat-no" title="statement not covered">errorTracking[key];</span>
     
     // Reset counter if enough time has passed
-<span class="cstat-no" title="statement not covered" >    if (now - tracking.lastError &gt; resetTimeout) {</span>
-<span class="cstat-no" title="statement not covered" >      tracking.count = 0;</span>
+<span class="cstat-no" title="statement not covered">    if (now - tracking.lastError &gt; resetTimeout) {</span>
+<span class="cstat-no" title="statement not covered">      tracking.count = 0;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    tracking.count++;</span>
-<span class="cstat-no" title="statement not covered" >    tracking.lastError = now;</span>
+<span class="cstat-no" title="statement not covered">    tracking.count++;</span>
+<span class="cstat-no" title="statement not covered">    tracking.lastError = now;</span>
     
     // Check circuit breaker
-<span class="cstat-no" title="statement not covered" >    if (tracking.count &gt;= maxErrors) {</span>
-      const circuitError = <span class="cstat-no" title="statement not covered" >createCacheError({</span>
+<span class="cstat-no" title="statement not covered">    if (tracking.count &gt;= maxErrors) {</span>
+      const circuitError = <span class="cstat-no" title="statement not covered">createCacheError({</span>
         code: CacheErrorCode.CIRCUIT_OPEN,
         message: 'Error threshold exceeded',
         operation: context.operation,
@@ -1372,11 +1377,11 @@ export function handleCacheError(
       });
       
       // Reset counter to avoid repeated circuit breaks
-<span class="cstat-no" title="statement not covered" >      tracking.count = 0;</span>
+<span class="cstat-no" title="statement not covered">      tracking.count = 0;</span>
       
       // Always emit circuit breaker events
-<span class="cstat-no" title="statement not covered" >      if (typeof emitCacheEvent === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >        emitCacheEvent(CacheEventType.ERROR, {</span>
+<span class="cstat-no" title="statement not covered">      if (typeof emitCacheEvent === 'function') {</span>
+<span class="cstat-no" title="statement not covered">        emitCacheEvent(CacheEventType.ERROR, {</span>
           error: circuitError,
           operation: context.operation,
           key: context.key,
@@ -1385,11 +1390,11 @@ export function handleCacheError(
         });
       }
       
-<span class="cstat-no" title="statement not covered" >      if (throwError) {</span>
-<span class="cstat-no" title="statement not covered" >        throw circuitError;</span>
+<span class="cstat-no" title="statement not covered">      if (throwError) {</span>
+<span class="cstat-no" title="statement not covered">        throw circuitError;</span>
       }
       
-<span class="cstat-no" title="statement not covered" >      return circuitError;</span>
+<span class="cstat-no" title="statement not covered">      return circuitError;</span>
     }
   }
   
@@ -1407,29 +1412,29 @@ export function handleCacheError(
  * @param error - Error value
  * @returns Error object
  */
-export function <span class="fstat-no" title="function not covered" >ensureError(</span>error: unknown): Error {
-<span class="cstat-no" title="statement not covered" >  if (error instanceof Error) {</span>
-<span class="cstat-no" title="statement not covered" >    return error;</span>
+export function <span class="fstat-no" title="function not covered">ensureError(</span>error: unknown): Error {
+<span class="cstat-no" title="statement not covered">  if (error instanceof Error) {</span>
+<span class="cstat-no" title="statement not covered">    return error;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  return new Error(String(error));</span>
+<span class="cstat-no" title="statement not covered">  return new Error(String(error));</span>
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

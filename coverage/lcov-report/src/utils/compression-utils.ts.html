@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/utils/compression-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../../index.html">All files</a> / <a href="index.html">src/utils</a> compression-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">13.43% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>9/67</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">9.52% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>6/63</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">12.5% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/8</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">13.43% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>9/67</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -684,13 +684,14 @@ export const DEFAULT_COMPRESSION_OPTIONS: CompressionOptions = {
  * @param algorithm - Compression algorithm
  * @returns Compressed data
  */
-export async function <span class="fstat-no" title="function not covered" >compress(</span>
+export async function <span class="fstat-no" title="function not covered">compress(</span>
   data: string | Buffer,
-  algorithm: CompressionAlgorithm = <span class="branch-0 cbranch-no" title="branch not covered" >'gzip'</span>
+  algorithm: CompressionAlgorithm = <span class="branch-0 cbranch-no" title="branch not covered">'gzip'</span>
 ): Promise&lt;Buffer&gt; {
-  const buffer = <span class="cstat-no" title="statement not covered" >Buffer.isBuffer(data) ? data : Buffer.from(data);</span>
-  const result = <span class="cstat-no" title="statement not covered" >await compressData(buffer, algorithm);</span>
-<span class="cstat-no" title="statement not covered" >  return result.data;</span>
+  const buffer = <span class="cstat-no"
+                       title="statement not covered">Buffer.isBuffer(data) ? data : Buffer.from(data);</span>
+  const result = <span class="cstat-no" title="statement not covered">await compressData(buffer, algorithm);</span>
+<span class="cstat-no" title="statement not covered">  return result.data;</span>
 }
 &nbsp;
 /**
@@ -700,12 +701,13 @@ export async function <span class="fstat-no" title="function not covered" >compr
  * @param algorithm - Compression algorithm used
  * @returns Decompressed data
  */
-export async function <span class="fstat-no" title="function not covered" >decompress(</span>
+export async function <span class="fstat-no" title="function not covered">decompress(</span>
   data: Buffer,
   algorithm: CompressionAlgorithm
 ): Promise&lt;Buffer&gt; {
-  const result = <span class="cstat-no" title="statement not covered" >await decompressData(data, algorithm);</span>
-<span class="cstat-no" title="statement not covered" >  return Buffer.isBuffer(result) ? result : Buffer.from(result);</span>
+  const result = <span class="cstat-no" title="statement not covered">await decompressData(data, algorithm);</span>
+<span class="cstat-no"
+      title="statement not covered">  return Buffer.isBuffer(result) ? result : Buffer.from(result);</span>
 }
 &nbsp;
 /**
@@ -715,16 +717,17 @@ export async function <span class="fstat-no" title="function not covered" >decom
  * @param options - Compression options
  * @returns Compressed data or original data if below threshold
  */
-export async function <span class="fstat-no" title="function not covered" >compressIfNeeded(</span>
+export async function <span class="fstat-no" title="function not covered">compressIfNeeded(</span>
   data: string | Buffer,
-  options: Partial&lt;CompressionOptions&gt; = <span class="branch-0 cbranch-no" title="branch not covered" >{}</span>
+  options: Partial&lt;CompressionOptions&gt; = <span class="branch-0 cbranch-no" title="branch not covered">{}</span>
 ): Promise&lt;CompressionResult&gt; {
-  const opts = <span class="cstat-no" title="statement not covered" >{ ...DEFAULT_COMPRESSION_OPTIONS, ...options };</span>
+  const opts = <span class="cstat-no"
+                     title="statement not covered">{ ...DEFAULT_COMPRESSION_OPTIONS, ...options };</span>
   // Ensure threshold is defined
-  const threshold = <span class="cstat-no" title="statement not covered" >opts.threshold || DEFAULT_COMPRESSION_OPTIONS.threshold!;</span>
+  const threshold = <span class="cstat-no" title="statement not covered">opts.threshold || DEFAULT_COMPRESSION_OPTIONS.threshold!;</span>
   
-<span class="cstat-no" title="statement not covered" >  if (!opts.enabled) {</span>
-<span class="cstat-no" title="statement not covered" >    return { </span>
+<span class="cstat-no" title="statement not covered">  if (!opts.enabled) {</span>
+<span class="cstat-no" title="statement not covered">    return { </span>
       data: Buffer.isBuffer(data) ? data : Buffer.from(data), 
       compressed: false,
       size: Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data),
@@ -732,11 +735,12 @@ export async function <span class="fstat-no" title="function not covered" >compr
     };
   }
 &nbsp;
-  const buffer = <span class="cstat-no" title="statement not covered" >Buffer.isBuffer(data) ? data : Buffer.from(data);</span>
+  const buffer = <span class="cstat-no"
+                       title="statement not covered">Buffer.isBuffer(data) ? data : Buffer.from(data);</span>
   
   // Don't compress if below threshold
-<span class="cstat-no" title="statement not covered" >  if (buffer.length &lt; threshold) {</span>
-<span class="cstat-no" title="statement not covered" >    return { </span>
+<span class="cstat-no" title="statement not covered">  if (buffer.length &lt; threshold) {</span>
+<span class="cstat-no" title="statement not covered">    return { </span>
       data: buffer, 
       compressed: false,
       size: buffer.length,
@@ -744,14 +748,15 @@ export async function <span class="fstat-no" title="function not covered" >compr
     };
   }
   
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const result = <span class="cstat-no" title="statement not covered" >await compressData(buffer, opts.algorithm);</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
+    const result = <span class="cstat-no"
+                         title="statement not covered">await compressData(buffer, opts.algorithm);</span>
     
     // Use size and originalSize properties instead of compressedSize
-<span class="cstat-no" title="statement not covered" >    if (result.size &amp;&amp; result.originalSize &amp;&amp; result.size &lt; result.originalSize) {</span>
-<span class="cstat-no" title="statement not covered" >      return result;</span>
+<span class="cstat-no" title="statement not covered">    if (result.size &amp;&amp; result.originalSize &amp;&amp; result.size &lt; result.originalSize) {</span>
+<span class="cstat-no" title="statement not covered">      return result;</span>
     } else {
-<span class="cstat-no" title="statement not covered" >      return { </span>
+<span class="cstat-no" title="statement not covered">      return { </span>
         data: buffer, 
         compressed: false,
         size: buffer.length,
@@ -760,8 +765,8 @@ export async function <span class="fstat-no" title="function not covered" >compr
       };
     }
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    console.warn('Compression failed, using uncompressed data', error);</span>
-<span class="cstat-no" title="statement not covered" >    return { </span>
+<span class="cstat-no" title="statement not covered">    console.warn('Compression failed, using uncompressed data', error);</span>
+<span class="cstat-no" title="statement not covered">    return { </span>
       data: buffer, 
       compressed: false,
       size: buffer.length,
@@ -777,19 +782,20 @@ export async function <span class="fstat-no" title="function not covered" >compr
  * @param algorithm - Compression algorithm used
  * @returns Decompressed data
  */
-export async function <span class="fstat-no" title="function not covered" >decompressIfNeeded(</span>
+export async function <span class="fstat-no" title="function not covered">decompressIfNeeded(</span>
   data: Buffer,
   algorithm?: CompressionAlgorithm
 ): Promise&lt;Buffer&gt; {
-<span class="cstat-no" title="statement not covered" >  if (!algorithm) {</span>
-<span class="cstat-no" title="statement not covered" >    return data;</span>
+<span class="cstat-no" title="statement not covered">  if (!algorithm) {</span>
+<span class="cstat-no" title="statement not covered">    return data;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const result = <span class="cstat-no" title="statement not covered" >await decompressData(data, algorithm);</span>
-<span class="cstat-no" title="statement not covered" >    return Buffer.isBuffer(result) ? result : Buffer.from(result);</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
+    const result = <span class="cstat-no" title="statement not covered">await decompressData(data, algorithm);</span>
+<span class="cstat-no"
+      title="statement not covered">    return Buffer.isBuffer(result) ? result : Buffer.from(result);</span>
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    throw new Error(`Decompression failed: ${error instanceof Error ? error.message : String(error)}`);</span>
+<span class="cstat-no" title="statement not covered">    throw new Error(`Decompression failed: ${error instanceof Error ? error.message : String(error)}`);</span>
   }
 }
 &nbsp;
@@ -809,8 +815,8 @@ export async function compressData(
   
   // Skip compression for small payloads
   const threshold = DEFAULT_COMPRESSION_OPTIONS.threshold!;
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (buffer.length &lt; threshold) {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (buffer.length &lt; threshold) {
+<span class="cstat-no" title="statement not covered">    return {</span>
       data: buffer,
       originalSize: buffer.length,
       size: buffer.length,
@@ -830,17 +836,17 @@ export async function compressData(
       // Use zlib.gzip in a real implementation
       compressedData = Buffer.from(`gzip-${buffer.toString('base64')}`);
       break;
-<span class="branch-1 cbranch-no" title="branch not covered" >    case 'deflate':</span>
+<span class="branch-1 cbranch-no" title="branch not covered">    case 'deflate':</span>
       // Use zlib.deflate in a real implementation
-<span class="cstat-no" title="statement not covered" >      compressedData = Buffer.from(`deflate-${buffer.toString('base64')}`);</span>
-<span class="cstat-no" title="statement not covered" >      break;</span>
-<span class="branch-2 cbranch-no" title="branch not covered" >    case 'brotli':</span>
+<span class="cstat-no" title="statement not covered">      compressedData = Buffer.from(`deflate-${buffer.toString('base64')}`);</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
+<span class="branch-2 cbranch-no" title="branch not covered">    case 'brotli':</span>
       // Use zlib.brotliCompress in a real implementation
-<span class="cstat-no" title="statement not covered" >      compressedData = Buffer.from(`brotli-${buffer.toString('base64')}`);</span>
-<span class="cstat-no" title="statement not covered" >      break;</span>
-<span class="branch-3 cbranch-no" title="branch not covered" >    default:</span>
-<span class="cstat-no" title="statement not covered" >      compressedData = buffer;</span>
-<span class="cstat-no" title="statement not covered" >      break;</span>
+<span class="cstat-no" title="statement not covered">      compressedData = Buffer.from(`brotli-${buffer.toString('base64')}`);</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
+<span class="branch-3 cbranch-no" title="branch not covered">    default:</span>
+<span class="cstat-no" title="statement not covered">      compressedData = buffer;</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
   }
   
   return {
@@ -849,7 +855,8 @@ export async function compressData(
     size: compressedData.length, // Use size instead of compressedSize
     originalSize: buffer.length, // Add originalSize property
     compressed: true,
-    compressionRatio: buffer.length &gt; 0 ? compressedData.length / buffer.length : <span class="branch-1 cbranch-no" title="branch not covered" >1</span>
+    compressionRatio: buffer.length &gt; 0 ? compressedData.length / buffer.length : <span class="branch-1 cbranch-no"
+                                                                                           title="branch not covered">1</span>
   };
 }
 &nbsp;
@@ -860,36 +867,39 @@ export async function compressData(
  * @param algorithm - Compression algorithm
  * @returns Decompressed data
  */
-export async function <span class="fstat-no" title="function not covered" >decompressData(</span>
+export async function <span class="fstat-no" title="function not covered">decompressData(</span>
   data: Buffer,
-  algorithm: CompressionAlgorithm = <span class="branch-0 cbranch-no" title="branch not covered" >'gzip'</span>
+  algorithm: CompressionAlgorithm = <span class="branch-0 cbranch-no" title="branch not covered">'gzip'</span>
 ): Promise&lt;Buffer&gt; {
   // In a real implementation, you would use the actual decompression libraries
   // This is a placeholder implementation
-<span class="cstat-no" title="statement not covered" >  switch (algorithm) {</span>
+<span class="cstat-no" title="statement not covered">  switch (algorithm) {</span>
     case 'gzip':
       // Use zlib.gunzip in a real implementation
-<span class="cstat-no" title="statement not covered" >      if (data.toString().startsWith('gzip-')) {</span>
-<span class="cstat-no" title="statement not covered" >        return Buffer.from(data.toString().substring(5), 'base64');</span>
+<span class="cstat-no" title="statement not covered">      if (data.toString().startsWith('gzip-')) {</span>
+<span class="cstat-no"
+      title="statement not covered">        return Buffer.from(data.toString().substring(5), 'base64');</span>
       }
-<span class="cstat-no" title="statement not covered" >      break;</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
     case 'deflate':
       // Use zlib.inflate in a real implementation
-<span class="cstat-no" title="statement not covered" >      if (data.toString().startsWith('deflate-')) {</span>
-<span class="cstat-no" title="statement not covered" >        return Buffer.from(data.toString().substring(8), 'base64');</span>
+<span class="cstat-no" title="statement not covered">      if (data.toString().startsWith('deflate-')) {</span>
+<span class="cstat-no"
+      title="statement not covered">        return Buffer.from(data.toString().substring(8), 'base64');</span>
       }
-<span class="cstat-no" title="statement not covered" >      break;</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
     case 'brotli':
       // Use zlib.brotliDecompress in a real implementation
-<span class="cstat-no" title="statement not covered" >      if (data.toString().startsWith('brotli-')) {</span>
-<span class="cstat-no" title="statement not covered" >        return Buffer.from(data.toString().substring(7), 'base64');</span>
+<span class="cstat-no" title="statement not covered">      if (data.toString().startsWith('brotli-')) {</span>
+<span class="cstat-no"
+      title="statement not covered">        return Buffer.from(data.toString().substring(7), 'base64');</span>
       }
-<span class="cstat-no" title="statement not covered" >      break;</span>
+<span class="cstat-no" title="statement not covered">      break;</span>
     default:
-<span class="cstat-no" title="statement not covered" >      return data;</span>
+<span class="cstat-no" title="statement not covered">      return data;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  throw new Error(`Unsupported compression algorithm: ${algorithm}`);</span>
+<span class="cstat-no" title="statement not covered">  throw new Error(`Unsupported compression algorithm: ${algorithm}`);</span>
 }
 &nbsp;
 /**
@@ -899,48 +909,48 @@ export async function <span class="fstat-no" title="function not covered" >decom
  * @param threshold - Size threshold in bytes
  * @returns Whether data should be compressed
  */
-export function <span class="fstat-no" title="function not covered" >shouldCompress(</span>data: Buffer | string | any, options?: CompressionOptions): boolean {
-  const threshold = <span class="cstat-no" title="statement not covered" >options?.threshold || 1024;</span>
-  let size = <span class="cstat-no" title="statement not covered" >0;</span>
+export function <span class="fstat-no" title="function not covered">shouldCompress(</span>data: Buffer | string | any, options?: CompressionOptions): boolean {
+  const threshold = <span class="cstat-no" title="statement not covered">options?.threshold || 1024;</span>
+  let size = <span class="cstat-no" title="statement not covered">0;</span>
   
-<span class="cstat-no" title="statement not covered" >  if (Buffer.isBuffer(data)) {</span>
-<span class="cstat-no" title="statement not covered" >    size = data.length;</span>
-  } else <span class="cstat-no" title="statement not covered" >if (typeof data === 'string') {</span>
-<span class="cstat-no" title="statement not covered" >    size = Buffer.byteLength(data);</span>
+<span class="cstat-no" title="statement not covered">  if (Buffer.isBuffer(data)) {</span>
+<span class="cstat-no" title="statement not covered">    size = data.length;</span>
+  } else <span class="cstat-no" title="statement not covered">if (typeof data === 'string') {</span>
+<span class="cstat-no" title="statement not covered">    size = Buffer.byteLength(data);</span>
   } else {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const json = <span class="cstat-no" title="statement not covered" >JSON.stringify(data);</span>
-<span class="cstat-no" title="statement not covered" >      size = Buffer.byteLength(json);</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const json = <span class="cstat-no" title="statement not covered">JSON.stringify(data);</span>
+<span class="cstat-no" title="statement not covered">      size = Buffer.byteLength(json);</span>
     } catch {
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
   
-<span class="cstat-no" title="statement not covered" >  return size &gt;= threshold;</span>
+<span class="cstat-no" title="statement not covered">  return size &gt;= threshold;</span>
 }
 &nbsp;
-export function <span class="fstat-no" title="function not covered" >validateAlgorithm(</span>algorithm?: CompressionAlgorithm): CompressionAlgorithm {
-<span class="cstat-no" title="statement not covered" >  if (!algorithm || !['gzip', 'deflate', 'brotli'].includes(algorithm)) {</span>
-<span class="cstat-no" title="statement not covered" >    return 'gzip';</span>
+export function <span class="fstat-no" title="function not covered">validateAlgorithm(</span>algorithm?: CompressionAlgorithm): CompressionAlgorithm {
+<span class="cstat-no" title="statement not covered">  if (!algorithm || !['gzip', 'deflate', 'brotli'].includes(algorithm)) {</span>
+<span class="cstat-no" title="statement not covered">    return 'gzip';</span>
   }
-<span class="cstat-no" title="statement not covered" >  return algorithm;</span>
+<span class="cstat-no" title="statement not covered">  return algorithm;</span>
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

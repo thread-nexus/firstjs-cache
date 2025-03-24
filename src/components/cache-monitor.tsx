@@ -6,103 +6,103 @@ import {subscribeToCacheEvents} from '../events/cache-events';
 
 // Create a simple implementation
 const getCacheStats = async (): Promise<Record<string, any>> => {
-  try {
-    // You can replace this with an actual implementation that fetches from your cache manager
-    return {
-      memory: {
-        hits: 0,
-        misses: 0,
-        keyCount: 0,
-        size: 0,
-        memoryUsage: 0
-      }
-    };
-  } catch (error) {
-    console.error('Error fetching cache stats:', error);
-    return {};
-  }
+    try {
+        // You can replace this with an actual implementation that fetches from your cache manager
+        return {
+            memory: {
+                hits: 0,
+                misses: 0,
+                keyCount: 0,
+                size: 0,
+                memoryUsage: 0
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching cache stats:', error);
+        return {};
+    }
 };
 
 interface CacheMonitorProps {
-  refreshInterval?: number;
-  showDetails?: boolean;
+    refreshInterval?: number;
+    showDetails?: boolean;
 }
 
 /**
  * Component for monitoring cache statistics and operations
  */
-export function CacheMonitor({ 
-  refreshInterval = 5000,
-  showDetails = false 
-}: CacheMonitorProps) {
-  const [stats, setStats] = useState<Record<string, any>>({});
-  const [events, setEvents] = useState<any[]>([]);
+export function CacheMonitor({
+                                 refreshInterval = 5000,
+                                 showDetails = false
+                             }: CacheMonitorProps) {
+    const [stats, setStats] = useState<Record<string, any>>({});
+    const [events, setEvents] = useState<any[]>([]);
 
-  // Fetch cache stats periodically
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const statsData = await getCacheStats();
-        setStats(statsData);
-      } catch (error) {
-        console.error('Error fetching stats:', error);
-      }
-    };
+    // Fetch cache stats periodically
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const statsData = await getCacheStats();
+                setStats(statsData);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        };
 
-    fetchStats();
-    const interval = setInterval(fetchStats, refreshInterval);
-    return () => clearInterval(interval);
-  }, [refreshInterval]);
+        fetchStats().then(r => {});
+        const interval = setInterval(fetchStats, refreshInterval);
+        return () => clearInterval(interval);
+    }, [refreshInterval]);
 
-  // Subscribe to cache events
-  useEffect(() => {
-    return subscribeToCacheEvents('all', (event) => {
-      setEvents(prev => [...prev.slice(-99), event]);
-    });
-  }, []);
+    // Subscribe to cache events
+    useEffect(() => {
+        return subscribeToCacheEvents('all', (event) => {
+            setEvents(prev => [...prev.slice(-99), event]);
+        });
+    }, []);
 
-  return (
-    <div className="cache-monitor">
-      <h3>Cache Statistics</h3>
-      <div className="stats-grid">
-        {Object.entries(stats).map(([provider, providerStats]) => (
-          <div key={provider} className="provider-stats">
-            <h4>{provider}</h4>
-            <div>Hits: {providerStats.hits}</div>
-            <div>Misses: {providerStats.misses}</div>
-            <div>Keys: {providerStats.keyCount}</div>
-            <div>Size: {formatBytes(providerStats.size)}</div>
-          </div>
-        ))}
-      </div>
+    return (
+        <div className="cache-monitor">
+            <h3>Cache Statistics</h3>
+            <div className="stats-grid">
+                {Object.entries(stats).map(([provider, providerStats]) => (
+                    <div key={provider} className="provider-stats">
+                        <h4>{provider}</h4>
+                        <div>Hits: {providerStats.hits}</div>
+                        <div>Misses: {providerStats.misses}</div>
+                        <div>Keys: {providerStats.keyCount}</div>
+                        <div>Size: {formatBytes(providerStats.size)}</div>
+                    </div>
+                ))}
+            </div>
 
-      {showDetails && (
-        <div className="events-log">
-          <h3>Recent Events</h3>
-          <div className="events-list">
-            {events.map((event, index) => (
-              <div key={index} className="event-item">
+            {showDetails && (
+                <div className="events-log">
+                    <h3>Recent Events</h3>
+                    <div className="events-list">
+                        {events.map((event, index) => (
+                            <div key={index} className="event-item">
                 <span className="event-time">
                   {new Date(event.timestamp).toLocaleTimeString()}
                 </span>
-                <span className="event-type">{event.type}</span>
-                <span className="event-key">{event.key}</span>
-              </div>
-            ))}
-          </div>
+                                <span className="event-type">{event.type}</span>
+                                <span className="event-key">{event.key}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 // Helper function to format bytes
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }
 
 // Default styles
@@ -166,7 +166,7 @@ const styles = `
 
 // Inject styles
 if (typeof document !== 'undefined') {
-  const styleEl = document.createElement('style');
-  styleEl.textContent = styles;
-  document.head.appendChild(styleEl);
+    const styleEl = document.createElement('style');
+    styleEl.textContent = styles;
+    document.head.appendChild(styleEl);
 }

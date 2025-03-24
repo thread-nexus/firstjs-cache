@@ -6,9 +6,9 @@ jest.setTimeout(10000);
 
 // Mock performance.now() if not available in test environment
 if (typeof performance === 'undefined') {
-  global.performance = {
-    now: () => Date.now()
-  };
+    global.performance = {
+        now: () => Date.now()
+    };
 }
 
 // Silence console errors/warnings during tests
@@ -17,21 +17,21 @@ const originalConsoleError = console.error;
 const originalConsoleWarn = console.warn;
 
 console.error = (...args) => {
-  if (args[0] && args[0].includes && args[0].includes('Warning:')) {
-    return;
-  }
-  originalConsoleError(...args);
+    if (args[0] && args[0].includes && args[0].includes('Warning:')) {
+        return;
+    }
+    originalConsoleError(...args);
 };
 
 console.warn = (...args) => {
-  if (args[0] && args[0].includes && args[0].includes('Warning:')) {
-    return;
-  }
-  originalConsoleWarn(...args);
+    if (args[0] && args[0].includes && args[0].includes('Warning:')) {
+        return;
+    }
+    originalConsoleWarn(...args);
 };
 
 // Clean up function to restore console methods after tests
 afterAll(() => {
-  console.error = originalConsoleError;
-  console.warn = originalConsoleWarn;
+    console.error = originalConsoleError;
+    console.warn = originalConsoleWarn;
 });

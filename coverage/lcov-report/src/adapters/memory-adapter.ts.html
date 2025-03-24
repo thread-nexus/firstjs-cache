@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/adapters/memory-adapter.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../../index.html">All files</a> / <a href="index.html">src/adapters</a> memory-adapter.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">48.02% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>73/152</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">55.05% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>49/89</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">38.88% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>7/18</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">48.34% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>73/151</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -1123,43 +1123,44 @@ export class MemoryAdapter implements ICacheProvider {
       }
   
       // Check expiration
-      <span class="missing-if-branch" title="if path not taken" >I</span>if (meta?.expiresAt &amp;&amp; Date.now() &gt; meta.expiresAt) {
-<span class="cstat-no" title="statement not covered" >        this.store.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        this.metadata.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        this.stats.misses++;</span>
-<span class="cstat-no" title="statement not covered" >        return null;</span>
+      <span class="missing-if-branch" title="if path not taken">I</span>if (meta?.expiresAt &amp;&amp; Date.now() &gt; meta.expiresAt) {
+<span class="cstat-no" title="statement not covered">        this.store.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        this.metadata.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        this.stats.misses++;</span>
+<span class="cstat-no" title="statement not covered">        return null;</span>
   }
     
       this.stats.hits++;
       
       // Update last accessed time
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (this.updateAgeOnGet &amp;&amp; meta) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (this.updateAgeOnGet &amp;&amp; meta) {
         meta.lastAccessed = Date.now();
       }
 &nbsp;
       // Handle decompression if needed
-      <span class="missing-if-branch" title="if path not taken" >I</span>if (meta?.compressed &amp;&amp; Buffer.isBuffer(value)) {
-<span class="cstat-no" title="statement not covered" >        try {</span>
-          const decompressed = <span class="cstat-no" title="statement not covered" >await decompressData(value);</span>
-<span class="cstat-no" title="statement not covered" >          if (typeof decompressed === 'string') {</span>
-<span class="cstat-no" title="statement not covered" >            try {</span>
-<span class="cstat-no" title="statement not covered" >              return JSON.parse(decompressed) as T;</span>
+      <span class="missing-if-branch" title="if path not taken">I</span>if (meta?.compressed &amp;&amp; Buffer.isBuffer(value)) {
+<span class="cstat-no" title="statement not covered">        try {</span>
+          const decompressed = <span class="cstat-no" title="statement not covered">await decompressData(value);</span>
+<span class="cstat-no" title="statement not covered">          if (typeof decompressed === 'string') {</span>
+<span class="cstat-no" title="statement not covered">            try {</span>
+<span class="cstat-no" title="statement not covered">              return JSON.parse(decompressed) as T;</span>
             } catch (e) {
               // If parsing fails, return the string value
-<span class="cstat-no" title="statement not covered" >              return decompressed as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">              return decompressed as unknown as T;</span>
             }
           }
-<span class="cstat-no" title="statement not covered" >          return decompressed as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">          return decompressed as unknown as T;</span>
         } catch (e) {
           // If decompression fails, return the raw value
-<span class="cstat-no" title="statement not covered" >          return value as T;</span>
+<span class="cstat-no" title="statement not covered">          return value as T;</span>
         }
       }
       
       return value as T;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error(`Error getting cache key ${key}:`, error);</span>
-<span class="cstat-no" title="statement not covered" >      return null;</span>
+<span class="cstat-no"
+      title="statement not covered">      console.error(`Error getting cache key ${key}:`, error);</span>
+<span class="cstat-no" title="statement not covered">      return null;</span>
     }
   }
 &nbsp;
@@ -1181,28 +1182,28 @@ export class MemoryAdapter implements ICacheProvider {
       
       // Handle compression if enabled
       if (options?.compression) {
-        const threshold = options.compressionThreshold || <span class="branch-1 cbranch-no" title="branch not covered" >1024;</span>
+        const threshold = options.compressionThreshold || <span class="branch-1 cbranch-no" title="branch not covered">1024;</span>
         
         // Only compress string values or objects that can be stringified
         if (typeof value === 'string' || (typeof value === 'object' &amp;&amp; value !== null)) {
           try {
-            const serialized = typeof value === 'string' ? <span class="branch-0 cbranch-no" title="branch not covered" >value </span>: JSON.stringify(value);
+            const serialized = typeof value === 'string' ? <span class="branch-0 cbranch-no" title="branch not covered">value </span>: JSON.stringify(value);
             
             if (Buffer.byteLength(serialized, 'utf8') &gt; threshold) {
               const compressedData = await compressData(serialized);
               processedValue = compressedData as unknown as T;
               compressed = true;
-              size = Buffer.isBuffer(compressedData) ? <span class="branch-0 cbranch-no" title="branch not covered" >compressedData.length </span>: 0;
-            } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >              size = Buffer.byteLength(serialized, 'utf8');</span>
+              size = Buffer.isBuffer(compressedData) ? <span class="branch-0 cbranch-no" title="branch not covered">compressedData.length </span>: 0;
+            } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">              size = Buffer.byteLength(serialized, 'utf8');</span>
             }
           } catch (e) {
-<span class="cstat-no" title="statement not covered" >            console.error('Compression error:', e);</span>
+<span class="cstat-no" title="statement not covered">            console.error('Compression error:', e);</span>
             // Fallback to uncompressed
-<span class="cstat-no" title="statement not covered" >            size = this.calculateSize(value);</span>
+<span class="cstat-no" title="statement not covered">            size = this.calculateSize(value);</span>
           }
-        } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >          size = this.calculateSize(value);</span>
+        } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">          size = this.calculateSize(value);</span>
         }
       } else {
         size = this.calculateSize(value);
@@ -1251,7 +1252,7 @@ export class MemoryAdapter implements ICacheProvider {
     try {
       const existed = this.store.has(key);
       
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (existed) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (existed) {
         this.store.delete(key);
         this.metadata.delete(key);
         this.stats.deletes++;
@@ -1262,84 +1263,86 @@ export class MemoryAdapter implements ICacheProvider {
   
       return existed;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error(`Error deleting cache key ${key}:`, error);</span>
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no"
+      title="statement not covered">      console.error(`Error deleting cache key ${key}:`, error);</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
   /**
    * Check if a key exists in the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync has(key: string): Promise&lt;boolean&gt; {
-    const value = <span class="cstat-no" title="statement not covered" >await this.get(key);</span>
-<span class="cstat-no" title="statement not covered" >    return value !== null;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync has(key: string): Promise&lt;boolean&gt; {
+    const value = <span class="cstat-no" title="statement not covered">await this.get(key);</span>
+<span class="cstat-no" title="statement not covered">    return value !== null;</span>
   }
   /**
    * Clear all values from the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const count = <span class="cstat-no" title="statement not covered" >this.store.size;</span>
-<span class="cstat-no" title="statement not covered" >      this.store.clear();</span>
-<span class="cstat-no" title="statement not covered" >      this.metadata.clear();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const count = <span class="cstat-no" title="statement not covered">this.store.size;</span>
+<span class="cstat-no" title="statement not covered">      this.store.clear();</span>
+<span class="cstat-no" title="statement not covered">      this.metadata.clear();</span>
       
       // Reset stats
-<span class="cstat-no" title="statement not covered" >      this.stats.size = 0;</span>
+<span class="cstat-no" title="statement not covered">      this.stats.size = 0;</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: count });</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: count });</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error('Error clearing cache:', error);</span>
+<span class="cstat-no" title="statement not covered">      console.error('Error clearing cache:', error);</span>
     }
   }
 &nbsp;
   /**
    * Get multiple values from the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getMany&lt;T = any&gt;(keys: string[]): Promise&lt;Record&lt;string, T | null&gt;&gt; {
-    const result: Record&lt;string, T | null&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getMany&lt;T = any&gt;(keys: string[]): Promise&lt;Record&lt;string, T | null&gt;&gt; {
+    const result: Record&lt;string, T | null&gt; = <span class="cstat-no" title="statement not covered">{};</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const key of keys) {</span>
-<span class="cstat-no" title="statement not covered" >      result[key] = await this.get&lt;T&gt;(key);</span>
+<span class="cstat-no" title="statement not covered">    for (const key of keys) {</span>
+<span class="cstat-no" title="statement not covered">      result[key] = await this.get&lt;T&gt;(key);</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    return result;</span>
+<span class="cstat-no" title="statement not covered">    return result;</span>
   }
 &nbsp;
   /**
    * Set multiple values in the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync setMany&lt;T = any&gt;(entries: Record&lt;string, T&gt;, options?: {
+<span class="fstat-no" title="function not covered">  as</span>ync setMany&lt;T = any&gt;(entries: Record&lt;string, T&gt;, options?: {
     ttl?: number;
     tags?: string[];
     compression?: boolean;
     compressionThreshold?: number;
   }): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    for (const [key, value] of Object.entries(entries)) {</span>
-<span class="cstat-no" title="statement not covered" >      await this.set(key, value, options);</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, value] of Object.entries(entries)) {</span>
+<span class="cstat-no" title="statement not covered">      await this.set(key, value, options);</span>
     }
   }
 &nbsp;
   /**
    * Invalidate cache entries by tag
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync invalidateByTag(tag: string): Promise&lt;void&gt; {
-    let count = <span class="cstat-no" title="statement not covered" >0;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync invalidateByTag(tag: string): Promise&lt;void&gt; {
+    let count = <span class="cstat-no" title="statement not covered">0;</span>
     
     // Find keys with the specified tag
-    const keysToInvalidate: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
-<span class="cstat-no" title="statement not covered" >    for (const [key, meta] of this.metadata.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >      if (meta.tags.includes(tag)) {</span>
-<span class="cstat-no" title="statement not covered" >        keysToInvalidate.push(key);</span>
+    const keysToInvalidate: string[] = <span class="cstat-no" title="statement not covered">[];</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, meta] of this.metadata.entries()) {</span>
+<span class="cstat-no" title="statement not covered">      if (meta.tags.includes(tag)) {</span>
+<span class="cstat-no" title="statement not covered">        keysToInvalidate.push(key);</span>
       }
     }
     
     // Delete each key
-<span class="cstat-no" title="statement not covered" >    for (const key of keysToInvalidate) {</span>
-      const deleted = <span class="cstat-no" title="statement not covered" >await this.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >      if (deleted) <span class="cstat-no" title="statement not covered" >count++;</span></span>
+<span class="cstat-no" title="statement not covered">    for (const key of keysToInvalidate) {</span>
+      const deleted = <span class="cstat-no" title="statement not covered">await this.delete(key);</span>
+<span class="cstat-no" title="statement not covered">      if (deleted) <span class="cstat-no"
+                                                                              title="statement not covered">count++;</span></span>
     }
     
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.INVALIDATE, {</span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.INVALIDATE, {</span>
       tag,
       entriesRemoved: count
     });
@@ -1348,13 +1351,15 @@ export class MemoryAdapter implements ICacheProvider {
   /**
    * Get cache statistics
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
-    const totalTtl = <span class="cstat-no" title="statement not covered" >Array.from(this.metadata.values())</span>
-      .map(<span class="fstat-no" title="function not covered" >me</span>ta =&gt; (<span class="cstat-no" title="statement not covered" >meta.expiresAt ? meta.expiresAt - meta.createdAt : 0)</span>)
-      .reduce(<span class="fstat-no" title="function not covered" >(s</span>um, ttl) =&gt; <span class="cstat-no" title="statement not covered" >sum + ttl,</span> 0);
-    const avgTtl = <span class="cstat-no" title="statement not covered" >this.metadata.size &gt; 0 ? totalTtl / this.metadata.size : 0;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
+    const totalTtl = <span class="cstat-no" title="statement not covered">Array.from(this.metadata.values())</span>
+      .map(<span class="fstat-no" title="function not covered">me</span>ta =&gt; (<span class="cstat-no"
+                                                                                        title="statement not covered">meta.expiresAt ? meta.expiresAt - meta.createdAt : 0)</span>)
+      .reduce(<span class="fstat-no" title="function not covered">(s</span>um, ttl) =&gt; <span class="cstat-no"
+                                                                                                title="statement not covered">sum + ttl,</span> 0);
+    const avgTtl = <span class="cstat-no" title="statement not covered">this.metadata.size &gt; 0 ? totalTtl / this.metadata.size : 0;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="cstat-no" title="statement not covered">    return {</span>
       hits: this.stats.hits,
       misses: this.stats.misses,
       keyCount: this.store.size,
@@ -1371,8 +1376,8 @@ export class MemoryAdapter implements ICacheProvider {
   /**
    * Get metadata for a key
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getMetadata(key: string): Promise&lt;any | null&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.metadata.get(key) || null;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getMetadata(key: string): Promise&lt;any | null&gt; {
+<span class="cstat-no" title="statement not covered">    return this.metadata.get(key) || null;</span>
   }
 &nbsp;
   /**
@@ -1390,27 +1395,27 @@ export class MemoryAdapter implements ICacheProvider {
    * Calculate size of a value
    */
   private calculateSize(value: any): number {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (value === null || value === undefined) {
-<span class="cstat-no" title="statement not covered" >      return 8;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (value === null || value === undefined) {
+<span class="cstat-no" title="statement not covered">      return 8;</span>
     }
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof value === 'string') {
-<span class="cstat-no" title="statement not covered" >      return Buffer.byteLength(value, 'utf8');</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (typeof value === 'string') {
+<span class="cstat-no" title="statement not covered">      return Buffer.byteLength(value, 'utf8');</span>
     }
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof value === 'number' || typeof value === 'boolean') {
-<span class="cstat-no" title="statement not covered" >      return 8;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (typeof value === 'number' || typeof value === 'boolean') {
+<span class="cstat-no" title="statement not covered">      return 8;</span>
     }
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (Buffer.isBuffer(value)) {
-<span class="cstat-no" title="statement not covered" >      return value.length;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (Buffer.isBuffer(value)) {
+<span class="cstat-no" title="statement not covered">      return value.length;</span>
     }
     
     try {
       const serialized = JSON.stringify(value);
       return Buffer.byteLength(serialized, 'utf8');
     } catch (e) {
-<span class="cstat-no" title="statement not covered" >      return 1024; </span>// Default size if serialization fails
+<span class="cstat-no" title="statement not covered">      return 1024; </span>// Default size if serialization fails
     }
   }
 &nbsp;
@@ -1419,13 +1424,14 @@ export class MemoryAdapter implements ICacheProvider {
    * @param requiredSize Size of the new item being added
    * @throws Error if unable to free enough space after maximum eviction attempts
    */
-  private async ensureCapacity(requiredSize: number = <span class="branch-0 cbranch-no" title="branch not covered" >0)</span>: Promise&lt;void&gt; {
+  private async ensureCapacity(requiredSize: number = <span class="branch-0 cbranch-no"
+                                                            title="branch not covered">0)</span>: Promise&lt;void&gt; {
     let evictionAttempts = 0;
     
     // Check item count limit
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (this.store.size &gt;= this.maxItems) {
-<span class="cstat-no" title="statement not covered" >      await this.evictLRU();</span>
-<span class="cstat-no" title="statement not covered" >      evictionAttempts++;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (this.store.size &gt;= this.maxItems) {
+<span class="cstat-no" title="statement not covered">      await this.evictLRU();</span>
+<span class="cstat-no" title="statement not covered">      evictionAttempts++;</span>
     }
     
     // Check size limit
@@ -1436,29 +1442,29 @@ export class MemoryAdapter implements ICacheProvider {
     const targetSize = this.maxSize - requiredSize;
     
     // If we already have enough space, return early
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (currentSize &lt;= targetSize) {
+    <span class="missing-if-branch" title="else path not taken">E</span>if (currentSize &lt;= targetSize) {
       return;
     }
     
-<span class="cstat-no" title="statement not covered" >    while (currentSize &gt; targetSize &amp;&amp; this.store.size &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered">    while (currentSize &gt; targetSize &amp;&amp; this.store.size &gt; 0) {</span>
       // Safety check to prevent endless loops
-<span class="cstat-no" title="statement not covered" >      if (evictionAttempts &gt;= this.maxEvictionAttempts) {</span>
-<span class="cstat-no" title="statement not covered" >        throw new Error(`Unable to free enough space after ${evictionAttempts} eviction attempts. Current size: ${currentSize}, Target size: ${targetSize}`);</span>
+<span class="cstat-no" title="statement not covered">      if (evictionAttempts &gt;= this.maxEvictionAttempts) {</span>
+<span class="cstat-no" title="statement not covered">        throw new Error(`Unable to free enough space after ${evictionAttempts} eviction attempts. Current size: ${currentSize}, Target size: ${targetSize}`);</span>
       }
       
-<span class="cstat-no" title="statement not covered" >      await this.evictLRU();</span>
-<span class="cstat-no" title="statement not covered" >      evictionAttempts++;</span>
+<span class="cstat-no" title="statement not covered">      await this.evictLRU();</span>
+<span class="cstat-no" title="statement not covered">      evictionAttempts++;</span>
       
       // Recalculate size after eviction
-<span class="cstat-no" title="statement not covered" >      currentSize = this.calculateTotalSize();</span>
+<span class="cstat-no" title="statement not covered">      currentSize = this.calculateTotalSize();</span>
       
       // If we've made no progress in freeing space, break to avoid infinite loop
-<span class="cstat-no" title="statement not covered" >      if (currentSize &gt;= initialSize &amp;&amp; evictionAttempts &gt; 1) {</span>
-<span class="cstat-no" title="statement not covered" >        throw new Error(`Unable to free space: size not decreasing after ${evictionAttempts} eviction attempts`);</span>
+<span class="cstat-no" title="statement not covered">      if (currentSize &gt;= initialSize &amp;&amp; evictionAttempts &gt; 1) {</span>
+<span class="cstat-no" title="statement not covered">        throw new Error(`Unable to free space: size not decreasing after ${evictionAttempts} eviction attempts`);</span>
       }
       
       // Update our reference point for the next iteration
-<span class="cstat-no" title="statement not covered" >      initialSize = currentSize;</span>
+<span class="cstat-no" title="statement not covered">      initialSize = currentSize;</span>
     }
   }
 &nbsp;
@@ -1466,33 +1472,33 @@ export class MemoryAdapter implements ICacheProvider {
    * Evict least recently used item
    * @returns The key that was evicted, or null if no items to evict
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate async evictLRU(): Promise&lt;string | null&gt; {
-    let oldestKey: string | null = <span class="cstat-no" title="statement not covered" >null;</span>
-    let oldestAccess = <span class="cstat-no" title="statement not covered" >Infinity;</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate async evictLRU(): Promise&lt;string | null&gt; {
+    let oldestKey: string | null = <span class="cstat-no" title="statement not covered">null;</span>
+    let oldestAccess = <span class="cstat-no" title="statement not covered">Infinity;</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const [key, meta] of this.metadata.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >      if (meta.lastAccessed &lt; oldestAccess) {</span>
-<span class="cstat-no" title="statement not covered" >        oldestAccess = meta.lastAccessed;</span>
-<span class="cstat-no" title="statement not covered" >        oldestKey = key;</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, meta] of this.metadata.entries()) {</span>
+<span class="cstat-no" title="statement not covered">      if (meta.lastAccessed &lt; oldestAccess) {</span>
+<span class="cstat-no" title="statement not covered">        oldestAccess = meta.lastAccessed;</span>
+<span class="cstat-no" title="statement not covered">        oldestKey = key;</span>
       }
     }
     
-<span class="cstat-no" title="statement not covered" >    if (oldestKey) {</span>
-<span class="cstat-no" title="statement not covered" >      await this.delete(oldestKey);</span>
+<span class="cstat-no" title="statement not covered">    if (oldestKey) {</span>
+<span class="cstat-no" title="statement not covered">      await this.delete(oldestKey);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.EXPIRE, {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.EXPIRE, {</span>
         key: oldestKey,
         reason: 'lru'
       });
       
-<span class="cstat-no" title="statement not covered" >      return oldestKey;</span>
+<span class="cstat-no" title="statement not covered">      return oldestKey;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    return null;</span>
+<span class="cstat-no" title="statement not covered">    return null;</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="fstat-no" title="function not covered">  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
+<span class="cstat-no" title="statement not covered">    return {</span>
       healthy: true,
       lastCheck: new Date(),
       message: 'Memory adapter operational',
@@ -1502,21 +1508,21 @@ export class MemoryAdapter implements ICacheProvider {
 }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-manager-advanced.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-advanced.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-advanced.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">8.33% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>5/60</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">27.27% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>3/11</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">7.14% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/14</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">8.33% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>5/60</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -579,12 +580,13 @@ export class CacheManagerAdvanced {
     this.providerManager = new CacheProviderManager();
     
     // Initialize providers
-    options.providers?.forEach(<span class="fstat-no" title="function not covered" >({</span> name, instance, priority }) =&gt; {
-<span class="cstat-no" title="statement not covered" >      this.providerManager.registerProvider(name, instance, priority);</span>
+    options.providers?.forEach(<span class="fstat-no" title="function not covered">({</span> name, instance, priority }) =&gt; {
+<span class="cstat-no" title="statement not covered">      this.providerManager.registerProvider(name, instance, priority);</span>
     });
 &nbsp;
     // Initialize compute manager
-    this.compute = new CacheCompute(this.providerManager.getProvider('primary') || <span class="branch-1 cbranch-no" title="branch not covered" >options.providers?.[0]?.instance!,</span> {
+    this.compute = new CacheCompute(this.providerManager.getProvider('primary') || <span class="branch-1 cbranch-no"
+                                                                                         title="branch not covered">options.providers?.[0]?.instance!,</span> {
       defaultTtl: options.defaultTtl,
       backgroundRefresh: options.backgroundRefresh,
       refreshThreshold: options.refreshThreshold,
@@ -593,160 +595,164 @@ export class CacheManagerAdvanced {
     });
 &nbsp;
     // Start stats collection if enabled
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (options.statsInterval) {
-<span class="cstat-no" title="statement not covered" >      this.startStatsCollection(options.statsInterval);</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (options.statsInterval) {
+<span class="cstat-no" title="statement not covered">      this.startStatsCollection(options.statsInterval);</span>
     }
   }
 &nbsp;
   /**
    * Get a value from cache with advanced features
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync get&lt;T&gt;(key: string): Promise&lt;T | null&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync get&lt;T&gt;(key: string): Promise&lt;T | null&gt; {
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const value = <span class="cstat-no" title="statement not covered" >await this.providerManager.get&lt;T&gt;(key);</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const value = <span class="cstat-no"
+                          title="statement not covered">await this.providerManager.get&lt;T&gt;(key);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(</span>
         value !== null ? CacheEventType.GET_HIT : CacheEventType.GET_MISS,
         { key }
       );
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      return value;</span>
+<span class="cstat-no" title="statement not covered">      return value;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'get',
         key
       });
-<span class="cstat-no" title="statement not covered" >      return null;</span>
+<span class="cstat-no" title="statement not covered">      return null;</span>
     }
   }
 &nbsp;
   /**
    * Set a value in cache with advanced features
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync set&lt;T&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
-<span class="cstat-no" title="statement not covered" >    validateCacheOptions(options);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync set&lt;T&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
+<span class="cstat-no" title="statement not covered">    validateCacheOptions(options);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      await this.providerManager.set(key, value, options);</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
+<span class="cstat-no" title="statement not covered">      await this.providerManager.set(key, value, options);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.SET, {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.SET, {</span>
         key,
         size: JSON.stringify(value).length
       });
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'set',
         key
       });
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
   /**
    * Get or compute a value with advanced features
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getOrCompute&lt;T&gt;(
+<span class="fstat-no" title="function not covered">  as</span>ync getOrCompute&lt;T&gt;(
     key: string,
     compute: () =&gt; Promise&lt;T&gt;,
     options?: CacheOptions
   ): Promise&lt;T&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
-<span class="cstat-no" title="statement not covered" >    validateCacheOptions(options);</span>
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
+<span class="cstat-no" title="statement not covered">    validateCacheOptions(options);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const result = <span class="cstat-no" title="statement not covered" >await this.compute.getOrCompute(key, compute, options);</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const result = <span class="cstat-no" title="statement not covered">await this.compute.getOrCompute(key, compute, options);</span>
       
-<span class="cstat-no" title="statement not covered" >      if (result.stale) {</span>
-<span class="cstat-no" title="statement not covered" >        emitCacheEvent(CacheEventType.GET_STALE, {</span>
+<span class="cstat-no" title="statement not covered">      if (result.stale) {</span>
+<span class="cstat-no" title="statement not covered">        emitCacheEvent(CacheEventType.GET_STALE, {</span>
           key,
           computeTime: result.computeTime
         });
       }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      return result.value;</span>
+<span class="cstat-no" title="statement not covered">      return result.value;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'getOrCompute',
         key
       });
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
   /**
    * Delete a value from cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const deleted = <span class="cstat-no" title="statement not covered" >await this.providerManager.delete(key);</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const deleted = <span class="cstat-no"
+                            title="statement not covered">await this.providerManager.delete(key);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.DELETE, {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.DELETE, {</span>
         key,
         success: deleted
       });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      return deleted;</span>
+<span class="cstat-no" title="statement not covered">      return deleted;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'delete',
         key
       });
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
   /**
    * Clear all cache data
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      await this.providerManager.clear();</span>
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.CLEAR, {});</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+<span class="cstat-no" title="statement not covered">    try {</span>
+<span class="cstat-no" title="statement not covered">      await this.providerManager.clear();</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.CLEAR, {});</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'clear'
       });
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
   /**
    * Get cache statistics
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const stats = <span class="cstat-no" title="statement not covered" >await this.providerManager.getStats();</span>
-      const computeStatus = <span class="cstat-no" title="statement not covered" >this.compute.getComputeStatus();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const stats = <span class="cstat-no" title="statement not covered">await this.providerManager.getStats();</span>
+      const computeStatus = <span class="cstat-no" title="statement not covered">this.compute.getComputeStatus();</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.STATS_UPDATE, {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.STATS_UPDATE, {</span>
         stats,
         computeStatus
       });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      return stats;</span>
+<span class="cstat-no" title="statement not covered">      return stats;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'getStats'
       });
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
   /**
    * Start periodic stats collection
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate startStatsCollection(interval: number): void {
-<span class="cstat-no" title="statement not covered" >    this.statsInterval = setInterval(<span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-        const stats = <span class="cstat-no" title="statement not covered" >await this.getStats();</span>
-<span class="cstat-no" title="statement not covered" >        emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate startStatsCollection(interval: number): void {
+<span class="cstat-no" title="statement not covered">    this.statsInterval = setInterval(<span class="fstat-no"
+                                                                                                title="function not covered">as</span>ync () =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+        const stats = <span class="cstat-no" title="statement not covered">await this.getStats();</span>
+<span class="cstat-no"
+      title="statement not covered">        emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">        handleCacheError(error, {</span>
           operation: 'statsCollection'
         });
       }
@@ -756,50 +762,50 @@ export class CacheManagerAdvanced {
   /**
    * Stop stats collection
    */
-<span class="fstat-no" title="function not covered" >  st</span>opStatsCollection(): void {
-<span class="cstat-no" title="statement not covered" >    if (this.statsInterval) {</span>
-<span class="cstat-no" title="statement not covered" >      clearInterval(this.statsInterval);</span>
-<span class="cstat-no" title="statement not covered" >      this.statsInterval = null;</span>
+<span class="fstat-no" title="function not covered">  st</span>opStatsCollection(): void {
+<span class="cstat-no" title="statement not covered">    if (this.statsInterval) {</span>
+<span class="cstat-no" title="statement not covered">      clearInterval(this.statsInterval);</span>
+<span class="cstat-no" title="statement not covered">      this.statsInterval = null;</span>
     }
   }
 &nbsp;
   /**
    * Get provider health status
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tProviderHealth() {
-<span class="cstat-no" title="statement not covered" >    return this.providerManager.getProviderHealth();</span>
+<span class="fstat-no" title="function not covered">  ge</span>tProviderHealth() {
+<span class="cstat-no" title="statement not covered">    return this.providerManager.getProviderHealth();</span>
   }
 &nbsp;
   /**
    * Reset provider error counts
    */
-<span class="fstat-no" title="function not covered" >  re</span>setProviderErrors(): void {
-<span class="cstat-no" title="statement not covered" >    this.providerManager.resetErrorCounts();</span>
+<span class="fstat-no" title="function not covered">  re</span>setProviderErrors(): void {
+<span class="cstat-no" title="statement not covered">    this.providerManager.resetErrorCounts();</span>
   }
 &nbsp;
   /**
    * Clean up resources
    */
-<span class="fstat-no" title="function not covered" >  di</span>spose(): void {
-<span class="cstat-no" title="statement not covered" >    this.stopStatsCollection();</span>
+<span class="fstat-no" title="function not covered">  di</span>spose(): void {
+<span class="cstat-no" title="statement not covered">    this.stopStatsCollection();</span>
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

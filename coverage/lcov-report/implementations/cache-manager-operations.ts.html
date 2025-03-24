@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-manager-operations.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-operations.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-operations.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">76.97% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>107/139</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">84.21% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>32/38</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">78.94% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>15/19</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">77.03% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>104/135</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -1194,8 +1195,8 @@ export class CacheManagerOperations {
       }
       
       // If current value is not an object, fail
-      <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof current !== 'object' || Array.isArray(current)) {
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+      <span class="missing-if-branch" title="if path not taken">I</span>if (typeof current !== 'object' || Array.isArray(current)) {
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
       
       // Update fields
@@ -1212,11 +1213,11 @@ export class CacheManagerOperations {
       
       return updated;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'updateFields', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
@@ -1275,11 +1276,11 @@ export class CacheManagerOperations {
       });
       return updated;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'arrayAppend', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
@@ -1323,11 +1324,11 @@ export class CacheManagerOperations {
       
       return updated;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'arrayRemove', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return -1;</span>
+<span class="cstat-no" title="statement not covered">      return -1;</span>
     }
   }
 &nbsp;
@@ -1365,11 +1366,11 @@ export class CacheManagerOperations {
       
       return newValue;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'increment', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return null;</span>
+<span class="cstat-no" title="statement not covered">      return null;</span>
     }
   }
 &nbsp;
@@ -1397,32 +1398,33 @@ export class CacheManagerOperations {
    * @param options - Cache options
    * @returns Previous value, or null if not found
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getAndSet&lt;T&gt;(
+<span class="fstat-no" title="function not covered">  as</span>ync getAndSet&lt;T&gt;(
     key: string, 
     value: T, 
     options?: CacheOptions
   ): Promise&lt;T | null&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
     
-<span class="cstat-no" title="statement not covered" >    try {</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
       // Get the current value
-      const previous = <span class="cstat-no" title="statement not covered" >await this.provider.get&lt;T&gt;(key);</span>
+      const previous = <span class="cstat-no"
+                             title="statement not covered">await this.provider.get&lt;T&gt;(key);</span>
       
       // Set the new value
-<span class="cstat-no" title="statement not covered" >      await this.provider.set(key, value, options);</span>
+<span class="cstat-no" title="statement not covered">      await this.provider.set(key, value, options);</span>
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.SET, { </span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.SET, { </span>
         key, 
         operation: 'getAndSet'
       });
       
-<span class="cstat-no" title="statement not covered" >      return previous;</span>
+<span class="cstat-no" title="statement not covered">      return previous;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'getAndSet', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return null;</span>
+<span class="cstat-no" title="statement not covered">      return null;</span>
     }
   }
 &nbsp;
@@ -1434,43 +1436,43 @@ export class CacheManagerOperations {
    * @param options - Cache options
    * @returns Whether the value was set
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync setIfNotExists&lt;T&gt;(
+<span class="fstat-no" title="function not covered">  as</span>ync setIfNotExists&lt;T&gt;(
     key: string, 
     value: T, 
     options?: CacheOptions
   ): Promise&lt;boolean&gt; {
-<span class="cstat-no" title="statement not covered" >    validateCacheKey(key);</span>
+<span class="cstat-no" title="statement not covered">    validateCacheKey(key);</span>
     
-<span class="cstat-no" title="statement not covered" >    try {</span>
+<span class="cstat-no" title="statement not covered">    try {</span>
       // Check if key exists
-      const exists = <span class="cstat-no" title="statement not covered" >await this.provider.get(key) !== null;</span>
+      const exists = <span class="cstat-no" title="statement not covered">await this.provider.get(key) !== null;</span>
       
-<span class="cstat-no" title="statement not covered" >      if (!exists) {</span>
+<span class="cstat-no" title="statement not covered">      if (!exists) {</span>
         // Set the value
-<span class="cstat-no" title="statement not covered" >        await this.provider.set(key, value, options);</span>
+<span class="cstat-no" title="statement not covered">        await this.provider.set(key, value, options);</span>
         
-<span class="cstat-no" title="statement not covered" >        emitCacheEvent(CacheEventType.SET, { </span>
+<span class="cstat-no" title="statement not covered">        emitCacheEvent(CacheEventType.SET, { </span>
           key, 
           operation: 'setIfNotExists',
           set: true
         });
         
-<span class="cstat-no" title="statement not covered" >        return true;</span>
+<span class="cstat-no" title="statement not covered">        return true;</span>
       }
       
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.SET, { </span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.SET, { </span>
         key, 
         operation: 'setIfNotExists',
         set: false
       });
       
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, { </span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, { </span>
         operation: 'setIfNotExists', 
         key 
       });
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
@@ -1494,7 +1496,8 @@ export class CacheManagerOperations {
     try {
       // Get the current value
       const current = await this.provider.get&lt;T[]&gt;(key);
-      const currentArray = Array.isArray(current) ? current : <span class="branch-1 cbranch-no" title="branch not covered" >[];</span>
+      const currentArray = Array.isArray(current) ? current : <span class="branch-1 cbranch-no"
+                                                                    title="branch not covered">[];</span>
       
       let result: T[];
       
@@ -1511,12 +1514,15 @@ export class CacheManagerOperations {
           );
           break;
           
-<span class="branch-2 cbranch-no" title="branch not covered" >        case 'difference':</span>
+<span class="branch-2 cbranch-no" title="branch not covered">        case 'difference':</span>
           // Keep only items that are in current but not in items
-<span class="cstat-no" title="statement not covered" >          result = currentArray.filter(<span class="fstat-no" title="function not covered" >it</span>em =&gt; </span>
-<span class="cstat-no" title="statement not covered" >            !items.some(<span class="fstat-no" title="function not covered" >i </span>=&gt; <span class="cstat-no" title="statement not covered" >JSON.stringify(i) === JSON.stringify(item))</span></span>
+<span class="cstat-no" title="statement not covered">          result = currentArray.filter(<span class="fstat-no"
+                                                                                                  title="function not covered">it</span>em =&gt; </span>
+<span class="cstat-no" title="statement not covered">            !items.some(<span class="fstat-no"
+                                                                                   title="function not covered">i </span>=&gt; <span
+        class="cstat-no" title="statement not covered">JSON.stringify(i) === JSON.stringify(item))</span></span>
           );
-<span class="cstat-no" title="statement not covered" >          break;</span>
+<span class="cstat-no" title="statement not covered">          break;</span>
           
         default:
           throw new Error('Unknown set operation');
@@ -1676,7 +1682,7 @@ export class CacheManagerOperations {
       const result = await operation(current);
       
       // If result is not undefined, store it back
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (result !== undefined) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (result !== undefined) {
         await this.provider.set(key, result as any, options);
       }
       
@@ -1691,21 +1697,21 @@ export class CacheManagerOperations {
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

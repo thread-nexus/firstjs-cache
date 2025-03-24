@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-metadata-manager.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-metadata-manager.ts</h1>
+        <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-metadata-manager.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">8.1% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>3/37</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">3.7% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>1/27</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">12.5% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/8</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">8.1% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>3/37</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -418,15 +419,15 @@ export class CacheMetadataManager {
    * @param key - Cache key
    * @param data - Metadata to set
    */
-<span class="fstat-no" title="function not covered" >  se</span>t(key: string, data: {
+<span class="fstat-no" title="function not covered">  se</span>t(key: string, data: {
     tags?: string[];
     size?: number;
     ttl?: number;
   }): void {
-    const existing = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
+    const existing = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
+    const now = <span class="cstat-no" title="statement not covered">Date.now();</span>
     
-    const metadata: CacheItemMetadata = <span class="cstat-no" title="statement not covered" >{</span>
+    const metadata: CacheItemMetadata = <span class="cstat-no" title="statement not covered">{</span>
       key,
       tags: data.tags || existing?.tags || [],
       createdAt: existing?.createdAt || now,
@@ -437,15 +438,15 @@ export class CacheMetadataManager {
     };
     
     // Calculate expiration if TTL is provided
-<span class="cstat-no" title="statement not covered" >    if (metadata.ttl !== undefined &amp;&amp; metadata.ttl &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >      metadata.expiresAt = now + metadata.ttl * 1000;</span>
+<span class="cstat-no" title="statement not covered">    if (metadata.ttl !== undefined &amp;&amp; metadata.ttl &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered">      metadata.expiresAt = now + metadata.ttl * 1000;</span>
     } else {
-<span class="cstat-no" title="statement not covered" >      metadata.expiresAt = undefined;</span>
+<span class="cstat-no" title="statement not covered">      metadata.expiresAt = undefined;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    this.metadata.set(key, metadata);</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.set(key, metadata);</span>
     
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.METADATA_UPDATE, {</span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.METADATA_UPDATE, {</span>
       key,
       metadata: { ...metadata }
     });
@@ -457,9 +458,9 @@ export class CacheMetadataManager {
    * @param key - Cache key
    * @returns Metadata or null if not found
    */
-<span class="fstat-no" title="function not covered" >  ge</span>t(key: string): CacheItemMetadata | null {
-    const metadata = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
-<span class="cstat-no" title="statement not covered" >    return metadata ? { ...metadata } : null;</span>
+<span class="fstat-no" title="function not covered">  ge</span>t(key: string): CacheItemMetadata | null {
+    const metadata = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
+<span class="cstat-no" title="statement not covered">    return metadata ? { ...metadata } : null;</span>
   }
 &nbsp;
   /**
@@ -468,14 +469,15 @@ export class CacheMetadataManager {
    * @param key - Cache key
    * @returns Whether metadata was deleted
    */
-<span class="fstat-no" title="function not covered" >  de</span>lete(key: string): boolean {
-    const deleted = <span class="cstat-no" title="statement not covered" >this.metadata.delete(key);</span>
+<span class="fstat-no" title="function not covered">  de</span>lete(key: string): boolean {
+    const deleted = <span class="cstat-no" title="statement not covered">this.metadata.delete(key);</span>
     
-<span class="cstat-no" title="statement not covered" >    if (deleted) {</span>
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.METADATA_DELETE, { key });</span>
+<span class="cstat-no" title="statement not covered">    if (deleted) {</span>
+<span class="cstat-no"
+      title="statement not covered">      emitCacheEvent(CacheEventType.METADATA_DELETE, { key });</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    return deleted;</span>
+<span class="cstat-no" title="statement not covered">    return deleted;</span>
   }
 &nbsp;
   /**
@@ -486,10 +488,10 @@ export class CacheMetadataManager {
   recordAccess(key: string): void {
     const metadata = this.metadata.get(key);
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (metadata) {
-<span class="cstat-no" title="statement not covered" >      metadata.lastAccessed = Date.now();</span>
-<span class="cstat-no" title="statement not covered" >      metadata.accessCount++;</span>
-<span class="cstat-no" title="statement not covered" >      this.metadata.set(key, metadata);</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (metadata) {
+<span class="cstat-no" title="statement not covered">      metadata.lastAccessed = Date.now();</span>
+<span class="cstat-no" title="statement not covered">      metadata.accessCount++;</span>
+<span class="cstat-no" title="statement not covered">      this.metadata.set(key, metadata);</span>
     }
   }
 &nbsp;
@@ -499,16 +501,16 @@ export class CacheMetadataManager {
    * @param tag - Tag to search for
    * @returns Array of keys with the tag
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByTag(tag: string): string[] {
-    const keys: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByTag(tag: string): string[] {
+    const keys: string[] = <span class="cstat-no" title="statement not covered">[];</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const [key, metadata] of this.metadata.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >      if (metadata.tags.includes(tag)) {</span>
-<span class="cstat-no" title="statement not covered" >        keys.push(key);</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, metadata] of this.metadata.entries()) {</span>
+<span class="cstat-no" title="statement not covered">      if (metadata.tags.includes(tag)) {</span>
+<span class="cstat-no" title="statement not covered">        keys.push(key);</span>
       }
     }
     
-<span class="cstat-no" title="statement not covered" >    return keys;</span>
+<span class="cstat-no" title="statement not covered">    return keys;</span>
   }
 &nbsp;
   /**
@@ -516,25 +518,25 @@ export class CacheMetadataManager {
    * 
    * @returns Array of expired keys
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndExpired(): string[] {
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
-    const keys: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndExpired(): string[] {
+    const now = <span class="cstat-no" title="statement not covered">Date.now();</span>
+    const keys: string[] = <span class="cstat-no" title="statement not covered">[];</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const [key, metadata] of this.metadata.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >      if (metadata.expiresAt &amp;&amp; metadata.expiresAt &lt;= now) {</span>
-<span class="cstat-no" title="statement not covered" >        keys.push(key);</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, metadata] of this.metadata.entries()) {</span>
+<span class="cstat-no" title="statement not covered">      if (metadata.expiresAt &amp;&amp; metadata.expiresAt &lt;= now) {</span>
+<span class="cstat-no" title="statement not covered">        keys.push(key);</span>
       }
     }
     
-<span class="cstat-no" title="statement not covered" >    return keys;</span>
+<span class="cstat-no" title="statement not covered">    return keys;</span>
   }
 &nbsp;
   /**
    * Clear all metadata
    */
-<span class="fstat-no" title="function not covered" >  cl</span>ear(): void {
-<span class="cstat-no" title="statement not covered" >    this.metadata.clear();</span>
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.METADATA_CLEAR, {});</span>
+<span class="fstat-no" title="function not covered">  cl</span>ear(): void {
+<span class="cstat-no" title="statement not covered">    this.metadata.clear();</span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.METADATA_CLEAR, {});</span>
   }
 &nbsp;
   /**
@@ -542,33 +544,34 @@ export class CacheMetadataManager {
    * 
    * @returns All metadata
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tAll(): Record&lt;string, CacheItemMetadata&gt; {
-    const result: Record&lt;string, CacheItemMetadata&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  ge</span>tAll(): Record&lt;string, CacheItemMetadata&gt; {
+    const result: Record&lt;string, CacheItemMetadata&gt; = <span class="cstat-no"
+                                                                  title="statement not covered">{};</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const [key, metadata] of this.metadata.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >      result[key] = { ...metadata };</span>
+<span class="cstat-no" title="statement not covered">    for (const [key, metadata] of this.metadata.entries()) {</span>
+<span class="cstat-no" title="statement not covered">      result[key] = { ...metadata };</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    return result;</span>
+<span class="cstat-no" title="statement not covered">    return result;</span>
   }
 }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

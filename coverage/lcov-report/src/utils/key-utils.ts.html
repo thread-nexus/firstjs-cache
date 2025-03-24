@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/utils/key-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../../index.html">All files</a> / <a href="index.html">src/utils</a> key-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">36.36% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>8/22</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">41.66% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>5/12</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">33.33% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>2/6</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">36.36% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>8/22</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -295,11 +295,11 @@ export function generateQueryKey(
   const paramsString = JSON.stringify(sortedParams);
   
   // For long parameter strings, use a hash
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (paramsString.length &gt; 64) {
-    const hash = <span class="cstat-no" title="statement not covered" >createHash('md5')</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (paramsString.length &gt; 64) {
+    const hash = <span class="cstat-no" title="statement not covered">createHash('md5')</span>
       .update(paramsString)
       .digest('hex');
-<span class="cstat-no" title="statement not covered" >    return `query:${queryName}:${hash}`;</span>
+<span class="cstat-no" title="statement not covered">    return `query:${queryName}:${hash}`;</span>
   }
   
   return `query:${queryName}:${paramsString}`;
@@ -310,22 +310,22 @@ export function generateQueryKey(
  * @param key - Query key to parse
  * @returns Parsed components or null if not a valid query key
  */
-export function <span class="fstat-no" title="function not covered" >parseQueryKey(</span>
+export function <span class="fstat-no" title="function not covered">parseQueryKey(</span>
   key: string
 ): { name: string; paramsHash?: string } | null {
-<span class="cstat-no" title="statement not covered" >  if (!key.startsWith('query:')) {</span>
-<span class="cstat-no" title="statement not covered" >    return null;</span>
+<span class="cstat-no" title="statement not covered">  if (!key.startsWith('query:')) {</span>
+<span class="cstat-no" title="statement not covered">    return null;</span>
   }
-  const parts = <span class="cstat-no" title="statement not covered" >key.split(':');</span>
-<span class="cstat-no" title="statement not covered" >  if (parts.length === 2) {</span>
-<span class="cstat-no" title="statement not covered" >    return { name: parts[1] };</span>
+  const parts = <span class="cstat-no" title="statement not covered">key.split(':');</span>
+<span class="cstat-no" title="statement not covered">  if (parts.length === 2) {</span>
+<span class="cstat-no" title="statement not covered">    return { name: parts[1] };</span>
   }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >  if (parts.length === 3) {</span>
-<span class="cstat-no" title="statement not covered" >    return { name: parts[1], paramsHash: parts[2] };</span>
+<span class="cstat-no" title="statement not covered">  if (parts.length === 3) {</span>
+<span class="cstat-no" title="statement not covered">    return { name: parts[1], paramsHash: parts[2] };</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  return null;</span>
+<span class="cstat-no" title="statement not covered">  return null;</span>
 }
 &nbsp;
 /**
@@ -335,8 +335,8 @@ export function <span class="fstat-no" title="function not covered" >parseQueryK
  * @param key - Original key
  * @returns Namespaced key
  */
-export function <span class="fstat-no" title="function not covered" >namespacedKey(</span>namespace: string, key: string): string {
-<span class="cstat-no" title="statement not covered" >  return `${namespace}:${key}`;</span>
+export function <span class="fstat-no" title="function not covered">namespacedKey(</span>namespace: string, key: string): string {
+<span class="cstat-no" title="statement not covered">  return `${namespace}:${key}`;</span>
 }
 &nbsp;
 /**
@@ -346,8 +346,8 @@ export function <span class="fstat-no" title="function not covered" >namespacedK
  * @param key - Key to check
  * @returns Whether the key belongs to the namespace
  */
-export function <span class="fstat-no" title="function not covered" >isInNamespace(</span>namespace: string, key: string): boolean {
-<span class="cstat-no" title="statement not covered" >  return key.startsWith(`${namespace}:`);</span>
+export function <span class="fstat-no" title="function not covered">isInNamespace(</span>namespace: string, key: string): boolean {
+<span class="cstat-no" title="statement not covered">  return key.startsWith(`${namespace}:`);</span>
 }
 &nbsp;
 /**
@@ -356,27 +356,27 @@ export function <span class="fstat-no" title="function not covered" >isInNamespa
  * @param namespacedKey - Namespaced key
  * @returns Base key without namespace
  */
-export function <span class="fstat-no" title="function not covered" >extractBaseKey(</span>namespacedKey: string): string {
-  const parts = <span class="cstat-no" title="statement not covered" >namespacedKey.split(':');</span>
-<span class="cstat-no" title="statement not covered" >  return parts.slice(1).join(':');</span>
+export function <span class="fstat-no" title="function not covered">extractBaseKey(</span>namespacedKey: string): string {
+  const parts = <span class="cstat-no" title="statement not covered">namespacedKey.split(':');</span>
+<span class="cstat-no" title="statement not covered">  return parts.slice(1).join(':');</span>
 }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

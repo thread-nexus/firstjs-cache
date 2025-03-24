@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/adapters/MemoryStorageAdapter.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../../prettify.css" />
-    <link rel="stylesheet" href="../../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../../prettify.css" rel="stylesheet"/>
+    <link href="../../../base.css" rel="stylesheet"/>
+    <link href="../../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../../index.html">All files</a> / <a href="index.html">src/implementations/adapters</a> MemoryStorageAdapter.ts</h1>
+        <h1><a href="../../../index.html">All files</a> / <a href="index.html">src/implementations/adapters</a>
+            MemoryStorageAdapter.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">73.13% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>98/134</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">62.5% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>45/72</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">73.68% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>14/19</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">73.48% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>97/132</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -987,10 +988,11 @@ export class MemoryStorageAdapter implements IStorageAdapter {
   /**
    * Create a new memory storage adapter
    */
-  constructor(options: MemoryStorageOptions = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span> {
-    this.maxSize = options.maxSize || <span class="branch-1 cbranch-no" title="branch not covered" >100 * 1024 * 1024;</span> // 100MB default
+  constructor(options: MemoryStorageOptions = <span class="branch-0 cbranch-no" title="branch not covered">{})</span> {
+    this.maxSize = options.maxSize || <span class="branch-1 cbranch-no"
+                                            title="branch not covered">100 * 1024 * 1024;</span> // 100MB default
     this.maxItems = options.maxItems || 10000;
-    this.defaultTtl = options.defaultTtl || <span class="branch-1 cbranch-no" title="branch not covered" >3600;</span> // 1 hour default
+    this.defaultTtl = options.defaultTtl || <span class="branch-1 cbranch-no" title="branch not covered">3600;</span> // 1 hour default
     this.updateAgeOnGet = options.updateAgeOnGet !== false;
   }
 &nbsp;
@@ -1008,43 +1010,45 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       }
       
       // Check expiration
-      <span class="missing-if-branch" title="if path not taken" >I</span>if (meta?.expiresAt &amp;&amp; Date.now() &gt; meta.expiresAt) {
-<span class="cstat-no" title="statement not covered" >        this.store.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        this.metadata.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        this.stats.misses++;</span>
-<span class="cstat-no" title="statement not covered" >        return null;</span>
+      <span class="missing-if-branch" title="if path not taken">I</span>if (meta?.expiresAt &amp;&amp; Date.now() &gt; meta.expiresAt) {
+<span class="cstat-no" title="statement not covered">        this.store.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        this.metadata.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        this.stats.misses++;</span>
+<span class="cstat-no" title="statement not covered">        return null;</span>
       }
       
       this.stats.hits++;
       
       // Update last accessed time
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (this.updateAgeOnGet &amp;&amp; meta) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (this.updateAgeOnGet &amp;&amp; meta) {
         meta.lastAccessed = Date.now();
       }
       
       // Handle decompression if needed
-      <span class="missing-if-branch" title="if path not taken" >I</span>if (meta?.compressed &amp;&amp; Buffer.isBuffer(value)) {
-<span class="cstat-no" title="statement not covered" >        try {</span>
-          const decompressed = <span class="cstat-no" title="statement not covered" >await decompressData(value, 'gzip');</span>
-<span class="cstat-no" title="statement not covered" >          if (typeof decompressed === 'string') {</span>
-<span class="cstat-no" title="statement not covered" >            try {</span>
-<span class="cstat-no" title="statement not covered" >              return JSON.parse(decompressed) as T;</span>
+      <span class="missing-if-branch" title="if path not taken">I</span>if (meta?.compressed &amp;&amp; Buffer.isBuffer(value)) {
+<span class="cstat-no" title="statement not covered">        try {</span>
+          const decompressed = <span class="cstat-no"
+                                     title="statement not covered">await decompressData(value, 'gzip');</span>
+<span class="cstat-no" title="statement not covered">          if (typeof decompressed === 'string') {</span>
+<span class="cstat-no" title="statement not covered">            try {</span>
+<span class="cstat-no" title="statement not covered">              return JSON.parse(decompressed) as T;</span>
           } catch (e) {
               // If parsing fails, return the string value
-<span class="cstat-no" title="statement not covered" >              return decompressed as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">              return decompressed as unknown as T;</span>
           }
         }
-<span class="cstat-no" title="statement not covered" >          return decompressed as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">          return decompressed as unknown as T;</span>
         } catch (e) {
           // If decompression fails, return the raw value
-<span class="cstat-no" title="statement not covered" >          return value as T;</span>
+<span class="cstat-no" title="statement not covered">          return value as T;</span>
       }
       }
       
       return value as T;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error(`Error getting cache key ${key}:`, error);</span>
-<span class="cstat-no" title="statement not covered" >      return null;</span>
+<span class="cstat-no"
+      title="statement not covered">      console.error(`Error getting cache key ${key}:`, error);</span>
+<span class="cstat-no" title="statement not covered">      return null;</span>
     }
   }
 &nbsp;
@@ -1070,12 +1074,14 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       
       // Handle compression if enabled
       if (options?.compression) {
-        const threshold = options.compressionThreshold || <span class="branch-1 cbranch-no" title="branch not covered" >1024;</span>
+        const threshold = options.compressionThreshold || <span class="branch-1 cbranch-no" title="branch not covered">1024;</span>
         
         // Only compress string values or objects that can be stringified
-        if (typeof value === 'string' || (<span class="branch-1 cbranch-no" title="branch not covered" >typeof value === 'object' </span>&amp;&amp; <span class="branch-2 cbranch-no" title="branch not covered" >value !== null)</span>) {
+        if (typeof value === 'string' || (<span class="branch-1 cbranch-no" title="branch not covered">typeof value === 'object' </span>&amp;&amp; <span
+            class="branch-2 cbranch-no" title="branch not covered">value !== null)</span>) {
           try {
-            const serialized = typeof value === 'string' ? value : <span class="branch-1 cbranch-no" title="branch not covered" >JSON.stringify(value);</span>
+            const serialized = typeof value === 'string' ? value : <span class="branch-1 cbranch-no"
+                                                                         title="branch not covered">JSON.stringify(value);</span>
             
             if (Buffer.byteLength(serialized, 'utf8') &gt; threshold) {
               const compressedData = await compressData(Buffer.from(serialized));
@@ -1086,16 +1092,16 @@ export class MemoryStorageAdapter implements IStorageAdapter {
               };
               compressed = true;
               size = compressedData.data.length;
-            } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >              size = Buffer.byteLength(serialized, 'utf8');</span>
+            } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">              size = Buffer.byteLength(serialized, 'utf8');</span>
     }
           } catch (e) {
-<span class="cstat-no" title="statement not covered" >            console.error('Compression error:', e);</span>
+<span class="cstat-no" title="statement not covered">            console.error('Compression error:', e);</span>
             // Fallback to uncompressed
-<span class="cstat-no" title="statement not covered" >            size = this.calculateSize(value);</span>
+<span class="cstat-no" title="statement not covered">            size = this.calculateSize(value);</span>
   }
-        } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >          size = this.calculateSize(value);</span>
+        } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">          size = this.calculateSize(value);</span>
 }
       } else {
         size = this.calculateSize(value);
@@ -1108,7 +1114,8 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       this.metadata.set(key, {
         tags: options?.tags || [],
         createdAt: Date.now(),
-        expiresAt: ttl &gt; 0 ? Date.now() + (ttl * 1000) : <span class="branch-1 cbranch-no" title="branch not covered" >undefined,</span>
+        expiresAt: ttl &gt; 0 ? Date.now() + (ttl * 1000) : <span class="branch-1 cbranch-no"
+                                                                  title="branch not covered">undefined,</span>
         size,
         compressed,
         lastAccessed: Date.now()
@@ -1124,8 +1131,9 @@ export class MemoryStorageAdapter implements IStorageAdapter {
         ttl
       });
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error(`Error setting cache key ${key}:`, error);</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no"
+      title="statement not covered">      console.error(`Error setting cache key ${key}:`, error);</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
@@ -1136,7 +1144,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
     try {
       const existed = this.store.has(key);
       
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (existed) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (existed) {
         this.store.delete(key);
         this.metadata.delete(key);
         this.stats.deletes++;
@@ -1147,17 +1155,18 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       
       return existed;
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error(`Error deleting cache key ${key}:`, error);</span>
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+<span class="cstat-no"
+      title="statement not covered">      console.error(`Error deleting cache key ${key}:`, error);</span>
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
   }
 &nbsp;
   /**
    * Check if a key exists in the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync has(key: string): Promise&lt;boolean&gt; {
-    const value = <span class="cstat-no" title="statement not covered" >await this.get(key);</span>
-<span class="cstat-no" title="statement not covered" >    return value !== null;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync has(key: string): Promise&lt;boolean&gt; {
+    const value = <span class="cstat-no" title="statement not covered">await this.get(key);</span>
+<span class="cstat-no" title="statement not covered">    return value !== null;</span>
   }
 &nbsp;
   /**
@@ -1174,7 +1183,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       
       emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: count });
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      console.error('Error clearing cache:', error);</span>
+<span class="cstat-no" title="statement not covered">      console.error('Error clearing cache:', error);</span>
     }
   }
 &nbsp;
@@ -1222,7 +1231,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
     // Delete each key
     for (const key of keysToInvalidate) {
       const deleted = await this.delete(key);
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (deleted) count++;
+      <span class="missing-if-branch" title="else path not taken">E</span>if (deleted) count++;
     }
     
     emitCacheEvent(CacheEventType.INVALIDATE, {
@@ -1255,8 +1264,8 @@ export class MemoryStorageAdapter implements IStorageAdapter {
   /**
    * Get metadata for a key
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getMetadata(key: string): Promise&lt;any | null&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.metadata.get(key) || null;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getMetadata(key: string): Promise&lt;any | null&gt; {
+<span class="cstat-no" title="statement not covered">    return this.metadata.get(key) || null;</span>
   }
 &nbsp;
   /**
@@ -1274,27 +1283,27 @@ export class MemoryStorageAdapter implements IStorageAdapter {
    * Calculate size of a value
    */
   private calculateSize(value: any): number {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (value === null || value === undefined) {
-<span class="cstat-no" title="statement not covered" >      return 8;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (value === null || value === undefined) {
+<span class="cstat-no" title="statement not covered">      return 8;</span>
     }
     
     if (typeof value === 'string') {
       return Buffer.byteLength(value, 'utf8');
     }
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (typeof value === 'number' || typeof value === 'boolean') {
-<span class="cstat-no" title="statement not covered" >      return 8;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (typeof value === 'number' || typeof value === 'boolean') {
+<span class="cstat-no" title="statement not covered">      return 8;</span>
     }
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (Buffer.isBuffer(value)) {
-<span class="cstat-no" title="statement not covered" >      return value.length;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (Buffer.isBuffer(value)) {
+<span class="cstat-no" title="statement not covered">      return value.length;</span>
     }
     
     try {
       const serialized = JSON.stringify(value);
       return Buffer.byteLength(serialized, 'utf8');
     } catch (e) {
-<span class="cstat-no" title="statement not covered" >      return 1024; </span>// Default size if serialization fails
+<span class="cstat-no" title="statement not covered">      return 1024; </span>// Default size if serialization fails
     }
   }
 &nbsp;
@@ -1303,8 +1312,8 @@ export class MemoryStorageAdapter implements IStorageAdapter {
    */
   private ensureCapacity(): void {
     // Check item count limit
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (this.store.size &gt;= this.maxItems) {
-<span class="cstat-no" title="statement not covered" >      this.evictLRU();</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (this.store.size &gt;= this.maxItems) {
+<span class="cstat-no" title="statement not covered">      this.evictLRU();</span>
     }
     
     // Check size limit
@@ -1321,13 +1330,13 @@ export class MemoryStorageAdapter implements IStorageAdapter {
     let oldestAccess = Infinity;
     
     for (const [key, meta] of this.metadata.entries()) {
-      <span class="missing-if-branch" title="else path not taken" >E</span>if (meta.lastAccessed &lt; oldestAccess) {
+      <span class="missing-if-branch" title="else path not taken">E</span>if (meta.lastAccessed &lt; oldestAccess) {
         oldestAccess = meta.lastAccessed;
         oldestKey = key;
       }
     }
     
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (oldestKey) {
+    <span class="missing-if-branch" title="else path not taken">E</span>if (oldestKey) {
       this.delete(oldestKey).then(r =&gt; {});
       
       emitCacheEvent(CacheEventType.EXPIRE, {
@@ -1343,13 +1352,15 @@ export class MemoryStorageAdapter implements IStorageAdapter {
    * @param pattern Optional pattern to match keys against
    * @returns Array of keys
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync keys(pattern?: string): Promise&lt;string[]&gt; {
-<span class="cstat-no" title="statement not covered" >    if (!pattern) {</span>
-<span class="cstat-no" title="statement not covered" >      return Array.from(this.store.keys());</span>
+<span class="fstat-no" title="function not covered">  as</span>ync keys(pattern?: string): Promise&lt;string[]&gt; {
+<span class="cstat-no" title="statement not covered">    if (!pattern) {</span>
+<span class="cstat-no" title="statement not covered">      return Array.from(this.store.keys());</span>
     }
     
     // Basic pattern matching using string includes
-<span class="cstat-no" title="statement not covered" >    return Array.from(this.store.keys()).filter(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >key.includes(pattern))</span>;</span>
+<span class="cstat-no" title="statement not covered">    return Array.from(this.store.keys()).filter(<span
+        class="fstat-no" title="function not covered">ke</span>y =&gt; <span class="cstat-no"
+                                                                             title="statement not covered">key.includes(pattern))</span>;</span>
   }
 &nbsp;
   /**
@@ -1357,8 +1368,8 @@ export class MemoryStorageAdapter implements IStorageAdapter {
    * 
    * @returns Health status
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="fstat-no" title="function not covered">  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
+<span class="cstat-no" title="statement not covered">    return {</span>
       status: 'healthy',
       healthy: true,
       timestamp: Date.now(),
@@ -1370,21 +1381,21 @@ export class MemoryStorageAdapter implements IStorageAdapter {
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../../sorter.js"></script>
-        <script src="../../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../../sorter.js"></script>
+<script src="../../../block-navigation.js"></script>
+</body>
 </html>
     

@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-metadata.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-metadata.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">3.12% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>1/32</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>0/10</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>0/13</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">3.12% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>1/32</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -378,8 +378,8 @@ export class CacheMetadata {
   /**
    * Clear all metadata
    */
-<span class="fstat-no" title="function not covered" >  cl</span>ear(): void {
-<span class="cstat-no" title="statement not covered" >    this.metadata.clear();</span>
+<span class="fstat-no" title="function not covered">  cl</span>ear(): void {
+<span class="cstat-no" title="statement not covered">    this.metadata.clear();</span>
   }
 &nbsp;
   /**
@@ -388,8 +388,8 @@ export class CacheMetadata {
    * @param key - The cache key
    * @returns True if metadata was deleted, false otherwise
    */
-<span class="fstat-no" title="function not covered" >  de</span>lete(key: string): boolean {
-<span class="cstat-no" title="statement not covered" >    return this.metadata.delete(key);</span>
+<span class="fstat-no" title="function not covered">  de</span>lete(key: string): boolean {
+<span class="cstat-no" title="statement not covered">    return this.metadata.delete(key);</span>
   }
 &nbsp;
   /**
@@ -398,16 +398,17 @@ export class CacheMetadata {
    * @param tag - Tag to search for
    * @returns Array of keys with the specified tag
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByTag(tag: string): string[] {
-    const result: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByTag(tag: string): string[] {
+    const result: string[] = <span class="cstat-no" title="statement not covered">[];</span>
     
-<span class="cstat-no" title="statement not covered" >    this.metadata.forEach(<span class="fstat-no" title="function not covered" >(d</span>ata, key) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (data.tags.includes(tag)) {</span>
-<span class="cstat-no" title="statement not covered" >        result.push(key);</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.forEach(<span class="fstat-no"
+                                                                                     title="function not covered">(d</span>ata, key) =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      if (data.tags.includes(tag)) {</span>
+<span class="cstat-no" title="statement not covered">        result.push(key);</span>
       }
     });
     
-<span class="cstat-no" title="statement not covered" >    return result;</span>
+<span class="cstat-no" title="statement not covered">    return result;</span>
   }
 &nbsp;
   /**
@@ -416,16 +417,17 @@ export class CacheMetadata {
    * @param prefix - Prefix to search for
    * @returns Array of keys with the specified prefix
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByPrefix(prefix: string): string[] {
-    const result: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByPrefix(prefix: string): string[] {
+    const result: string[] = <span class="cstat-no" title="statement not covered">[];</span>
     
-<span class="cstat-no" title="statement not covered" >    this.metadata.forEach(<span class="fstat-no" title="function not covered" >(_</span>, key) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (key.startsWith(prefix)) {</span>
-<span class="cstat-no" title="statement not covered" >        result.push(key);</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.forEach(<span class="fstat-no"
+                                                                                     title="function not covered">(_</span>, key) =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      if (key.startsWith(prefix)) {</span>
+<span class="cstat-no" title="statement not covered">        result.push(key);</span>
       }
     });
     
-<span class="cstat-no" title="statement not covered" >    return result;</span>
+<span class="cstat-no" title="statement not covered">    return result;</span>
   }
 &nbsp;
   /**
@@ -434,21 +436,22 @@ export class CacheMetadata {
    * @param pattern - Pattern to match against keys
    * @returns Array of keys matching the pattern
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByPattern(pattern: string): string[] {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const regex = <span class="cstat-no" title="statement not covered" >new RegExp(pattern);</span>
-      const result: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByPattern(pattern: string): string[] {
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const regex = <span class="cstat-no" title="statement not covered">new RegExp(pattern);</span>
+      const result: string[] = <span class="cstat-no" title="statement not covered">[];</span>
       
-<span class="cstat-no" title="statement not covered" >      this.metadata.forEach(<span class="fstat-no" title="function not covered" >(_</span>, key) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        if (regex.test(key)) {</span>
-<span class="cstat-no" title="statement not covered" >          result.push(key);</span>
+<span class="cstat-no" title="statement not covered">      this.metadata.forEach(<span class="fstat-no"
+                                                                                       title="function not covered">(_</span>, key) =&gt; {</span>
+<span class="cstat-no" title="statement not covered">        if (regex.test(key)) {</span>
+<span class="cstat-no" title="statement not covered">          result.push(key);</span>
         }
       });
       
-<span class="cstat-no" title="statement not covered" >      return result;</span>
+<span class="cstat-no" title="statement not covered">      return result;</span>
     } catch (error) {
       // If the pattern is not a valid regex, treat it as a literal string
-<span class="cstat-no" title="statement not covered" >      return this.findByPrefix(pattern);</span>
+<span class="cstat-no" title="statement not covered">      return this.findByPrefix(pattern);</span>
     }
   }
 &nbsp;
@@ -458,8 +461,8 @@ export class CacheMetadata {
    * @param key - The cache key
    * @returns Metadata for the key or undefined if not found
    */
-<span class="fstat-no" title="function not covered" >  ge</span>t(key: string): EntryMetadata | undefined {
-<span class="cstat-no" title="statement not covered" >    return this.metadata.get(key);</span>
+<span class="fstat-no" title="function not covered">  ge</span>t(key: string): EntryMetadata | undefined {
+<span class="cstat-no" title="statement not covered">    return this.metadata.get(key);</span>
   }
 &nbsp;
   /**
@@ -468,17 +471,17 @@ export class CacheMetadata {
    * @param key - The cache key
    * @param data - Metadata to store
    */
-<span class="fstat-no" title="function not covered" >  se</span>t(key: string, data: Partial&lt;EntryMetadata&gt;): void {
-    const existing = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
+<span class="fstat-no" title="function not covered">  se</span>t(key: string, data: Partial&lt;EntryMetadata&gt;): void {
+    const existing = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
     
-<span class="cstat-no" title="statement not covered" >    if (existing) {</span>
-<span class="cstat-no" title="statement not covered" >      this.metadata.set(key, {</span>
+<span class="cstat-no" title="statement not covered">    if (existing) {</span>
+<span class="cstat-no" title="statement not covered">      this.metadata.set(key, {</span>
         ...existing,
         ...data,
         updatedAt: new Date()
       });
     } else {
-<span class="cstat-no" title="statement not covered" >      this.metadata.set(key, {</span>
+<span class="cstat-no" title="statement not covered">      this.metadata.set(key, {</span>
         createdAt: new Date(),
         updatedAt: new Date(),
         accessCount: 0,
@@ -493,12 +496,12 @@ export class CacheMetadata {
    * 
    * @param key - The cache key
    */
-<span class="fstat-no" title="function not covered" >  re</span>cordAccess(key: string): void {
-    const metadata = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
+<span class="fstat-no" title="function not covered">  re</span>cordAccess(key: string): void {
+    const metadata = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
     
-<span class="cstat-no" title="statement not covered" >    if (metadata) {</span>
-<span class="cstat-no" title="statement not covered" >      metadata.accessCount += 1;</span>
-<span class="cstat-no" title="statement not covered" >      metadata.updatedAt = new Date();</span>
+<span class="cstat-no" title="statement not covered">    if (metadata) {</span>
+<span class="cstat-no" title="statement not covered">      metadata.accessCount += 1;</span>
+<span class="cstat-no" title="statement not covered">      metadata.updatedAt = new Date();</span>
     }
   }
 &nbsp;
@@ -507,8 +510,8 @@ export class CacheMetadata {
    * 
    * @returns Array of all keys
    */
-<span class="fstat-no" title="function not covered" >  ke</span>ys(): string[] {
-<span class="cstat-no" title="statement not covered" >    return Array.from(this.metadata.keys());</span>
+<span class="fstat-no" title="function not covered">  ke</span>ys(): string[] {
+<span class="cstat-no" title="statement not covered">    return Array.from(this.metadata.keys());</span>
   }
 &nbsp;
   /**
@@ -516,26 +519,26 @@ export class CacheMetadata {
    * 
    * @returns Number of entries
    */
-<span class="fstat-no" title="function not covered" >  si</span>ze(): number {
-<span class="cstat-no" title="statement not covered" >    return this.metadata.size;</span>
+<span class="fstat-no" title="function not covered">  si</span>ze(): number {
+<span class="cstat-no" title="statement not covered">    return this.metadata.size;</span>
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-23T21:15:33.202Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-23T21:15:33.202Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

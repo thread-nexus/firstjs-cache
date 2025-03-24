@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/adapters/memory-provider.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../../index.html">All files</a> / <a href="index.html">src/adapters</a> memory-provider.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">6.06% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>2/33</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>0/22</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">6.25% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/16</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">6.66% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>2/30</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -428,7 +428,7 @@ export class MemoryProvider implements ICacheProvider {
     allowStale?: boolean;
   }) {
     this.adapter = new MemoryStorageAdapter(options);
-<span class="cstat-no" title="statement not covered" >    this.stats = {</span>
+<span class="cstat-no" title="statement not covered">    this.stats = {</span>
       hits: 0,
       misses: 0,
       size: 0,
@@ -442,9 +442,9 @@ export class MemoryProvider implements ICacheProvider {
     };
   }
   
-<span class="fstat-no" title="function not covered" >  pr</span>ivate async updateStats(hit: boolean) {
-    const stats = <span class="cstat-no" title="statement not covered" >await this.adapter.getStats();</span>
-<span class="cstat-no" title="statement not covered" >    this.stats = {</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate async updateStats(hit: boolean) {
+    const stats = <span class="cstat-no" title="statement not covered">await this.adapter.getStats();</span>
+<span class="cstat-no" title="statement not covered">    this.stats = {</span>
       ...this.stats,
       hits: hit ? this.stats.hits + 1 : this.stats.hits,
       misses: hit ? this.stats.misses : this.stats.misses + 1,
@@ -463,10 +463,10 @@ export class MemoryProvider implements ICacheProvider {
    * @param key - Cache key
    * @returns Cached value or null if not found
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync get&lt;T = any&gt;(key: string): Promise&lt;T | null&gt; {
-    const value = <span class="cstat-no" title="statement not covered" >await this.adapter.get&lt;T&gt;(key);</span>
-<span class="cstat-no" title="statement not covered" >    this.updateStats(value !== null);</span>
-<span class="cstat-no" title="statement not covered" >    return value;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync get&lt;T = any&gt;(key: string): Promise&lt;T | null&gt; {
+    const value = <span class="cstat-no" title="statement not covered">await this.adapter.get&lt;T&gt;(key);</span>
+<span class="cstat-no" title="statement not covered">    this.updateStats(value !== null);</span>
+<span class="cstat-no" title="statement not covered">    return value;</span>
   }
   
   /**
@@ -476,18 +476,19 @@ export class MemoryProvider implements ICacheProvider {
    * @param value - Value to cache
    * @param options - Cache options
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync set&lt;T = any&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
+<span class="fstat-no" title="function not covered">  as</span>ync set&lt;T = any&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
     // Create a compatible options object without tags
-    const entryOptions: { ttl?: number } = <span class="cstat-no" title="statement not covered" >{</span>
+    const entryOptions: { ttl?: number } = <span class="cstat-no" title="statement not covered">{</span>
       ttl: options?.ttl
     };
 &nbsp;
     // Handle tags separately if needed
-<span class="cstat-no" title="statement not covered" >    if (options?.tags &amp;&amp; this.adapter.setMetadata) {</span>
-<span class="cstat-no" title="statement not covered" >      await this.adapter.setMetadata(key, { tags: options.tags });</span>
+<span class="cstat-no" title="statement not covered">    if (options?.tags &amp;&amp; this.adapter.setMetadata) {</span>
+<span class="cstat-no"
+      title="statement not covered">      await this.adapter.setMetadata(key, { tags: options.tags });</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await this.adapter.set(key, value, entryOptions);</span>
+<span class="cstat-no" title="statement not covered">    await this.adapter.set(key, value, entryOptions);</span>
   }
   
   /**
@@ -496,15 +497,15 @@ export class MemoryProvider implements ICacheProvider {
    * @param key - Cache key
    * @returns Whether the key was deleted
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.adapter.delete(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
+<span class="cstat-no" title="statement not covered">    return this.adapter.delete(key);</span>
   }
   
   /**
    * Clear all values from the cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    await this.adapter.clear();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+<span class="cstat-no" title="statement not covered">    await this.adapter.clear();</span>
   }
   
   /**
@@ -512,8 +513,8 @@ export class MemoryProvider implements ICacheProvider {
    * 
    * @returns Cache statistics
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.stats;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
+<span class="cstat-no" title="statement not covered">    return this.stats;</span>
   }
 &nbsp;
   /**
@@ -521,8 +522,8 @@ export class MemoryProvider implements ICacheProvider {
    * 
    * @returns Health status
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="fstat-no" title="function not covered">  as</span>ync healthCheck(): Promise&lt;HealthStatus&gt; {
+<span class="cstat-no" title="statement not covered">    return {</span>
       status: 'healthy',
       healthy: true, // Ensure this is always a boolean, not undefined
       details: {
@@ -532,55 +533,61 @@ export class MemoryProvider implements ICacheProvider {
     };
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync getMany&lt;T = any&gt;(keys: string[]): Promise&lt;Record&lt;string, T | null&gt;&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.adapter.getMany&lt;T&gt;(keys);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getMany&lt;T = any&gt;(keys: string[]): Promise&lt;Record&lt;string, T | null&gt;&gt; {
+<span class="cstat-no" title="statement not covered">    return this.adapter.getMany&lt;T&gt;(keys);</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync setMany&lt;T = any&gt;(entries: Record&lt;string, T&gt;, options?: CacheOptions): Promise&lt;void&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.adapter.setMany(entries, options);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync setMany&lt;T = any&gt;(entries: Record&lt;string, T&gt;, options?: CacheOptions): Promise&lt;void&gt; {
+<span class="cstat-no" title="statement not covered">    return this.adapter.setMany(entries, options);</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync has(key: string): Promise&lt;boolean&gt; {
-<span class="cstat-no" title="statement not covered" >    return this.adapter.has(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync has(key: string): Promise&lt;boolean&gt; {
+<span class="cstat-no" title="statement not covered">    return this.adapter.has(key);</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync invalidateByPrefix(prefix: string): Promise&lt;void&gt; {
-    const keys = <span class="cstat-no" title="statement not covered" >await this.adapter.keys();</span>
-    const toDelete = <span class="cstat-no" title="statement not covered" >keys.filter(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >key.startsWith(prefix))</span>;</span>
-<span class="cstat-no" title="statement not covered" >    await Promise.all(toDelete.map(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >this.delete(key))</span>);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync invalidateByPrefix(prefix: string): Promise&lt;void&gt; {
+    const keys = <span class="cstat-no" title="statement not covered">await this.adapter.keys();</span>
+    const toDelete = <span class="cstat-no" title="statement not covered">keys.filter(<span class="fstat-no"
+                                                                                            title="function not covered">ke</span>y =&gt; <span
+            class="cstat-no" title="statement not covered">key.startsWith(prefix))</span>;</span>
+<span class="cstat-no" title="statement not covered">    await Promise.all(toDelete.map(<span class="fstat-no"
+                                                                                              title="function not covered">ke</span>y =&gt; <span
+        class="cstat-no" title="statement not covered">this.delete(key))</span>);</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  as</span>ync invalidateByTag(tag: string): Promise&lt;number&gt; {
-    const keys = <span class="cstat-no" title="statement not covered" >await this.adapter.keys();</span>
-    const toDelete: string[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  as</span>ync invalidateByTag(tag: string): Promise&lt;number&gt; {
+    const keys = <span class="cstat-no" title="statement not covered">await this.adapter.keys();</span>
+    const toDelete: string[] = <span class="cstat-no" title="statement not covered">[];</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    for (const key of keys) {</span>
-      const metadata = <span class="cstat-no" title="statement not covered" >await this.adapter.getMetadata(key);</span>
-<span class="cstat-no" title="statement not covered" >      if (metadata?.tags.includes(tag)) {</span>
-<span class="cstat-no" title="statement not covered" >        toDelete.push(key);</span>
+<span class="cstat-no" title="statement not covered">    for (const key of keys) {</span>
+      const metadata = <span class="cstat-no" title="statement not covered">await this.adapter.getMetadata(key);</span>
+<span class="cstat-no" title="statement not covered">      if (metadata?.tags.includes(tag)) {</span>
+<span class="cstat-no" title="statement not covered">        toDelete.push(key);</span>
       }
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.all(toDelete.map(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >this.delete(key))</span>);</span>
-<span class="cstat-no" title="statement not covered" >    return toDelete.length;</span>
+<span class="cstat-no" title="statement not covered">    await Promise.all(toDelete.map(<span class="fstat-no"
+                                                                                              title="function not covered">ke</span>y =&gt; <span
+        class="cstat-no" title="statement not covered">this.delete(key))</span>);</span>
+<span class="cstat-no" title="statement not covered">    return toDelete.length;</span>
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

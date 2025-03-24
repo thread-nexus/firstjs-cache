@@ -1,221 +1,248 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for All files</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="prettify.css" />
-    <link rel="stylesheet" href="base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="prettify.css" rel="stylesheet"/>
+    <link href="base.css" rel="stylesheet"/>
+    <link href="favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1>All files</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">37.2% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>481/1293</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">37.03% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>237/640</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">38.64% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>97/251</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">37.22% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>472/1268</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
     <div class='status-line low'></div>
     <div class="pad1">
-<table class="coverage-summary">
-<thead>
-<tr>
-   <th data-col="file" data-fmt="html" data-html="true" class="file">File</th>
-   <th data-col="pic" data-type="number" data-fmt="html" data-html="true" class="pic"></th>
-   <th data-col="statements" data-type="number" data-fmt="pct" class="pct">Statements</th>
-   <th data-col="statements_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="branches" data-type="number" data-fmt="pct" class="pct">Branches</th>
-   <th data-col="branches_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="functions" data-type="number" data-fmt="pct" class="pct">Functions</th>
-   <th data-col="functions_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="lines" data-type="number" data-fmt="pct" class="pct">Lines</th>
-   <th data-col="lines_raw" data-type="number" data-fmt="html" class="abs"></th>
-</tr>
-</thead>
-<tbody><tr>
-	<td class="file high" data-value="src"><a href="src/index.html">src</a></td>
-	<td data-value="100" class="pic high">
-	<div class="chart"><div class="cover-fill cover-full" style="width: 100%"></div><div class="cover-empty" style="width: 0%"></div></div>
-	</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="1" class="abs high">1/1</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="1" class="abs high">1/1</td>
-	</tr>
+        <table class="coverage-summary">
+            <thead>
+            <tr>
+                <th class="file" data-col="file" data-fmt="html" data-html="true">File</th>
+                <th class="pic" data-col="pic" data-fmt="html" data-html="true" data-type="number"></th>
+                <th class="pct" data-col="statements" data-fmt="pct" data-type="number">Statements</th>
+                <th class="abs" data-col="statements_raw" data-fmt="html" data-type="number"></th>
+                <th class="pct" data-col="branches" data-fmt="pct" data-type="number">Branches</th>
+                <th class="abs" data-col="branches_raw" data-fmt="html" data-type="number"></th>
+                <th class="pct" data-col="functions" data-fmt="pct" data-type="number">Functions</th>
+                <th class="abs" data-col="functions_raw" data-fmt="html" data-type="number"></th>
+                <th class="pct" data-col="lines" data-fmt="pct" data-type="number">Lines</th>
+                <th class="abs" data-col="lines_raw" data-fmt="html" data-type="number"></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td class="file high" data-value="src"><a href="src/index.html">src</a></td>
+                <td class="pic high" data-value="100">
+                    <div class="chart">
+                        <div class="cover-fill cover-full" style="width: 100%"></div>
+                        <div class="cover-empty" style="width: 0%"></div>
+                    </div>
+                </td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="1">1/1</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="0">0/0</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="0">0/0</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="1">1/1</td>
+            </tr>
 
-<tr>
-	<td class="file low" data-value="src/adapters"><a href="src/adapters/index.html">src/adapters</a></td>
-	<td data-value="40.54" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 40%"></div><div class="cover-empty" style="width: 60%"></div></div>
-	</td>
-	<td data-value="40.54" class="pct low">40.54%</td>
-	<td data-value="185" class="abs low">75/185</td>
-	<td data-value="44.14" class="pct low">44.14%</td>
-	<td data-value="111" class="abs low">49/111</td>
-	<td data-value="23.52" class="pct low">23.52%</td>
-	<td data-value="34" class="abs low">8/34</td>
-	<td data-value="41.43" class="pct low">41.43%</td>
-	<td data-value="181" class="abs low">75/181</td>
-	</tr>
+            <tr>
+                <td class="file low" data-value="src/adapters"><a href="src/adapters/index.html">src/adapters</a></td>
+                <td class="pic low" data-value="40.54">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 40%"></div>
+                        <div class="cover-empty" style="width: 60%"></div>
+                    </div>
+                </td>
+                <td class="pct low" data-value="40.54">40.54%</td>
+                <td class="abs low" data-value="185">75/185</td>
+                <td class="pct low" data-value="44.14">44.14%</td>
+                <td class="abs low" data-value="111">49/111</td>
+                <td class="pct low" data-value="23.52">23.52%</td>
+                <td class="abs low" data-value="34">8/34</td>
+                <td class="pct low" data-value="41.43">41.43%</td>
+                <td class="abs low" data-value="181">75/181</td>
+            </tr>
 
-<tr>
-	<td class="file high" data-value="src/config"><a href="src/config/index.html">src/config</a></td>
-	<td data-value="100" class="pic high">
-	<div class="chart"><div class="cover-fill cover-full" style="width: 100%"></div><div class="cover-empty" style="width: 0%"></div></div>
-	</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="2" class="abs high">2/2</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="2" class="abs high">2/2</td>
-	</tr>
+            <tr>
+                <td class="file high" data-value="src/config"><a href="src/config/index.html">src/config</a></td>
+                <td class="pic high" data-value="100">
+                    <div class="chart">
+                        <div class="cover-fill cover-full" style="width: 100%"></div>
+                        <div class="cover-empty" style="width: 0%"></div>
+                    </div>
+                </td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="2">2/2</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="0">0/0</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="0">0/0</td>
+                <td class="pct high" data-value="100">100%</td>
+                <td class="abs high" data-value="2">2/2</td>
+            </tr>
 
-<tr>
-	<td class="file medium" data-value="src/events"><a href="src/events/index.html">src/events</a></td>
-	<td data-value="65.62" class="pic medium">
-	<div class="chart"><div class="cover-fill" style="width: 65%"></div><div class="cover-empty" style="width: 35%"></div></div>
-	</td>
-	<td data-value="65.62" class="pct medium">65.62%</td>
-	<td data-value="32" class="abs medium">21/32</td>
-	<td data-value="50" class="pct medium">50%</td>
-	<td data-value="10" class="abs medium">5/10</td>
-	<td data-value="66.66" class="pct medium">66.66%</td>
-	<td data-value="9" class="abs medium">6/9</td>
-	<td data-value="65.62" class="pct medium">65.62%</td>
-	<td data-value="32" class="abs medium">21/32</td>
-	</tr>
+            <tr>
+                <td class="file medium" data-value="src/events"><a href="src/events/index.html">src/events</a></td>
+                <td class="pic medium" data-value="65.62">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 65%"></div>
+                        <div class="cover-empty" style="width: 35%"></div>
+                    </div>
+                </td>
+                <td class="pct medium" data-value="65.62">65.62%</td>
+                <td class="abs medium" data-value="32">21/32</td>
+                <td class="pct medium" data-value="50">50%</td>
+                <td class="abs medium" data-value="10">5/10</td>
+                <td class="pct medium" data-value="66.66">66.66%</td>
+                <td class="abs medium" data-value="9">6/9</td>
+                <td class="pct medium" data-value="65.62">65.62%</td>
+                <td class="abs medium" data-value="32">21/32</td>
+            </tr>
 
-<tr>
-	<td class="file low" data-value="src/implementations"><a href="src/implementations/index.html">src/implementations</a></td>
-	<td data-value="29.18" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 29%"></div><div class="cover-empty" style="width: 71%"></div></div>
-	</td>
-	<td data-value="29.18" class="pct low">29.18%</td>
-	<td data-value="812" class="abs low">237/812</td>
-	<td data-value="30.61" class="pct low">30.61%</td>
-	<td data-value="343" class="abs low">105/343</td>
-	<td data-value="35.71" class="pct low">35.71%</td>
-	<td data-value="168" class="abs low">60/168</td>
-	<td data-value="28.87" class="pct low">28.87%</td>
-	<td data-value="793" class="abs low">229/793</td>
-	</tr>
+            <tr>
+                <td class="file low" data-value="src/implementations"><a href="src/implementations/index.html">src/implementations</a>
+                </td>
+                <td class="pic low" data-value="29.18">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 29%"></div>
+                        <div class="cover-empty" style="width: 71%"></div>
+                    </div>
+                </td>
+                <td class="pct low" data-value="29.18">29.18%</td>
+                <td class="abs low" data-value="812">237/812</td>
+                <td class="pct low" data-value="30.61">30.61%</td>
+                <td class="abs low" data-value="343">105/343</td>
+                <td class="pct low" data-value="35.71">35.71%</td>
+                <td class="abs low" data-value="168">60/168</td>
+                <td class="pct low" data-value="28.87">28.87%</td>
+                <td class="abs low" data-value="793">229/793</td>
+            </tr>
 
-<tr>
-	<td class="file medium" data-value="src/implementations/adapters"><a href="src/implementations/adapters/index.html">src/implementations/adapters</a></td>
-	<td data-value="73.13" class="pic medium">
-	<div class="chart"><div class="cover-fill" style="width: 73%"></div><div class="cover-empty" style="width: 27%"></div></div>
-	</td>
-	<td data-value="73.13" class="pct medium">73.13%</td>
-	<td data-value="134" class="abs medium">98/134</td>
-	<td data-value="62.5" class="pct medium">62.5%</td>
-	<td data-value="72" class="abs medium">45/72</td>
-	<td data-value="73.68" class="pct medium">73.68%</td>
-	<td data-value="19" class="abs medium">14/19</td>
-	<td data-value="73.48" class="pct medium">73.48%</td>
-	<td data-value="132" class="abs medium">97/132</td>
-	</tr>
+            <tr>
+                <td class="file medium" data-value="src/implementations/adapters"><a
+                        href="src/implementations/adapters/index.html">src/implementations/adapters</a></td>
+                <td class="pic medium" data-value="73.13">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 73%"></div>
+                        <div class="cover-empty" style="width: 27%"></div>
+                    </div>
+                </td>
+                <td class="pct medium" data-value="73.13">73.13%</td>
+                <td class="abs medium" data-value="134">98/134</td>
+                <td class="pct medium" data-value="62.5">62.5%</td>
+                <td class="abs medium" data-value="72">45/72</td>
+                <td class="pct medium" data-value="73.68">73.68%</td>
+                <td class="abs medium" data-value="19">14/19</td>
+                <td class="pct medium" data-value="73.48">73.48%</td>
+                <td class="abs medium" data-value="132">97/132</td>
+            </tr>
 
-<tr>
-	<td class="file empty" data-value="src/types"><a href="src/types/index.html">src/types</a></td>
-	<td data-value="0" class="pic empty">
-	<div class="chart"><div class="cover-fill" style="width: 0%"></div><div class="cover-empty" style="width: 100%"></div></div>
-	</td>
-	<td data-value="0" class="pct empty">0%</td>
-	<td data-value="0" class="abs empty">0/0</td>
-	<td data-value="0" class="pct empty">0%</td>
-	<td data-value="0" class="abs empty">0/0</td>
-	<td data-value="0" class="pct empty">0%</td>
-	<td data-value="0" class="abs empty">0/0</td>
-	<td data-value="0" class="pct empty">0%</td>
-	<td data-value="0" class="abs empty">0/0</td>
-	</tr>
+            <tr>
+                <td class="file empty" data-value="src/types"><a href="src/types/index.html">src/types</a></td>
+                <td class="pic empty" data-value="0">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 0%"></div>
+                        <div class="cover-empty" style="width: 100%"></div>
+                    </div>
+                </td>
+                <td class="pct empty" data-value="0">0%</td>
+                <td class="abs empty" data-value="0">0/0</td>
+                <td class="pct empty" data-value="0">0%</td>
+                <td class="abs empty" data-value="0">0/0</td>
+                <td class="pct empty" data-value="0">0%</td>
+                <td class="abs empty" data-value="0">0/0</td>
+                <td class="pct empty" data-value="0">0%</td>
+                <td class="abs empty" data-value="0">0/0</td>
+            </tr>
 
-<tr>
-	<td class="file low" data-value="src/utils"><a href="src/utils/index.html">src/utils</a></td>
-	<td data-value="37" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 37%"></div><div class="cover-empty" style="width: 63%"></div></div>
-	</td>
-	<td data-value="37" class="pct low">37%</td>
-	<td data-value="127" class="abs low">47/127</td>
-	<td data-value="31.73" class="pct low">31.73%</td>
-	<td data-value="104" class="abs low">33/104</td>
-	<td data-value="42.85" class="pct low">42.85%</td>
-	<td data-value="21" class="abs low">9/21</td>
-	<td data-value="37" class="pct low">37%</td>
-	<td data-value="127" class="abs low">47/127</td>
-	</tr>
+            <tr>
+                <td class="file low" data-value="src/utils"><a href="src/utils/index.html">src/utils</a></td>
+                <td class="pic low" data-value="37">
+                    <div class="chart">
+                        <div class="cover-fill" style="width: 37%"></div>
+                        <div class="cover-empty" style="width: 63%"></div>
+                    </div>
+                </td>
+                <td class="pct low" data-value="37">37%</td>
+                <td class="abs low" data-value="127">47/127</td>
+                <td class="pct low" data-value="31.73">31.73%</td>
+                <td class="abs low" data-value="104">33/104</td>
+                <td class="pct low" data-value="42.85">42.85%</td>
+                <td class="abs low" data-value="21">9/21</td>
+                <td class="pct low" data-value="37">37%</td>
+                <td class="abs low" data-value="127">47/127</td>
+            </tr>
 
-</tbody>
-</table>
+            </tbody>
+        </table>
+    </div>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
 </div>
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="sorter.js"></script>
-        <script src="block-navigation.js"></script>
-    </body>
+<script src="prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="sorter.js"></script>
+<script src="block-navigation.js"></script>
+</body>
 </html>
     

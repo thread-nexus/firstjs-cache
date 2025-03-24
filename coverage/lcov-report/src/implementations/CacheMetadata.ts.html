@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/CacheMetadata.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> CacheMetadata.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> CacheMetadata.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">77.41% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>72/93</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">63.33% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>38/60</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">94.11% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>16/17</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">77.17% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>71/92</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -1053,14 +1054,14 @@ export class CacheMetadata {
    * @param options - Additional metadata options
    * @returns The created metadata entry
    */
-  create(key: string, tags: string[] = <span class="branch-0 cbranch-no" title="branch not covered" >[],</span> options: CacheMetadataOptions = {}): CacheEntryMetadata {
+  create(key: string, tags: string[] = <span class="branch-0 cbranch-no" title="branch not covered">[],</span> options: CacheMetadataOptions = {}): CacheEntryMetadata {
     if (!key || typeof key !== 'string' || key.trim() === '') {
       throw new Error('Invalid cache key');
     }
 &nbsp;
     const now = new Date();
     const entry: CacheEntryMetadata = {
-      tags: tags || <span class="branch-1 cbranch-no" title="branch not covered" >[],</span>
+      tags: tags || <span class="branch-1 cbranch-no" title="branch not covered">[],</span>
       createdAt: now,
       updatedAt: new Date(now.getTime() + 1), // Ensure updatedAt is greater than createdAt
       accessCount: 0,
@@ -1104,7 +1105,8 @@ export class CacheMetadata {
    * @param key - Cache key
    * @param options - Metadata options
    */
-  set(key: string, options: CacheMetadataOptions = <span class="branch-0 cbranch-no" title="branch not covered" >{})</span>: void {
+  set(key: string, options: CacheMetadataOptions = <span class="branch-0 cbranch-no"
+                                                         title="branch not covered">{})</span>: void {
     const now = new Date();
     const existingMetadata = this.metadata.get(key);
     
@@ -1112,7 +1114,7 @@ export class CacheMetadata {
       // Update existing metadata
       const updatedMetadata = {
         ...existingMetadata,
-        tags: options.tags || <span class="branch-1 cbranch-no" title="branch not covered" >existingMetadata.tags,</span>
+        tags: options.tags || <span class="branch-1 cbranch-no" title="branch not covered">existingMetadata.tags,</span>
         updatedAt: new Date(now.getTime() + 1), // Ensure updatedAt is greater than createdAt
         ...options
       };
@@ -1174,7 +1176,7 @@ export class CacheMetadata {
       lastAccessed: metadata.lastAccessed ? metadata.lastAccessed.getTime() : metadata.createdAt.getTime(),
       size: metadata.size,
       accessCount: metadata.accessCount,
-      expiresAt: metadata.ttl ? <span class="branch-0 cbranch-no" title="branch not covered" >metadata.createdAt.getTime() + (metadata.ttl * 1000) </span>: undefined,
+      expiresAt: metadata.ttl ? <span class="branch-0 cbranch-no" title="branch not covered">metadata.createdAt.getTime() + (metadata.ttl * 1000) </span>: undefined,
       compressed: metadata.compressed || false,
       // Include any other required properties
     };
@@ -1234,11 +1236,12 @@ export class CacheMetadata {
         entry.accessHistory.push(now);
         
         // Limit history size
-        <span class="missing-if-branch" title="if path not taken" >I</span>if (entry.accessHistory.length &gt; 10) {
-<span class="cstat-no" title="statement not covered" >          entry.accessHistory = entry.accessHistory.slice(-10);</span>
+        <span class="missing-if-branch" title="if path not taken">I</span>if (entry.accessHistory.length &gt; 10) {
+<span class="cstat-no"
+      title="statement not covered">          entry.accessHistory = entry.accessHistory.slice(-10);</span>
         }
-      } else <span class="missing-if-branch" title="else path not taken" >E</span>{
-<span class="cstat-no" title="statement not covered" >        entry.accessHistory = [now];</span>
+      } else <span class="missing-if-branch" title="else path not taken">E</span>{
+<span class="cstat-no" title="statement not covered">        entry.accessHistory = [now];</span>
       }
     }
   }
@@ -1325,8 +1328,8 @@ export class CacheMetadata {
   isExpired(key: string): boolean {
     const entry = this.metadata.get(key);
     
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (!entry || !entry.ttl) {
-<span class="cstat-no" title="statement not covered" >      return false;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (!entry || !entry.ttl) {
+<span class="cstat-no" title="statement not covered">      return false;</span>
     }
     
     const expirationTime = entry.createdAt.getTime() + (entry.ttl * 1000);
@@ -1366,39 +1369,39 @@ export class CacheMetadata {
    * 
    * @returns Metadata statistics
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tStats(): Record&lt;string, any&gt; {
-    let totalAccesses = <span class="cstat-no" title="statement not covered" >0;</span>
-    let tagCounts: Record&lt;string, number&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  ge</span>tStats(): Record&lt;string, any&gt; {
+    let totalAccesses = <span class="cstat-no" title="statement not covered">0;</span>
+    let tagCounts: Record&lt;string, number&gt; = <span class="cstat-no" title="statement not covered">{};</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const meta of this.metadata.values()) {</span>
-<span class="cstat-no" title="statement not covered" >      totalAccesses += meta.accessCount;</span>
+<span class="cstat-no" title="statement not covered">    for (const meta of this.metadata.values()) {</span>
+<span class="cstat-no" title="statement not covered">      totalAccesses += meta.accessCount;</span>
       
       // Count tag occurrences
-<span class="cstat-no" title="statement not covered" >      if (meta.tags) {</span>
-<span class="cstat-no" title="statement not covered" >        for (const tag of meta.tags) {</span>
-<span class="cstat-no" title="statement not covered" >          tagCounts[tag] = (tagCounts[tag] || 0) + 1;</span>
+<span class="cstat-no" title="statement not covered">      if (meta.tags) {</span>
+<span class="cstat-no" title="statement not covered">        for (const tag of meta.tags) {</span>
+<span class="cstat-no" title="statement not covered">          tagCounts[tag] = (tagCounts[tag] || 0) + 1;</span>
         }
       }
     }
     
     // Calculate average TTL and age
-    let totalTtl = <span class="cstat-no" title="statement not covered" >0;</span>
-    let ttlCount = <span class="cstat-no" title="statement not covered" >0;</span>
-    let totalAge = <span class="cstat-no" title="statement not covered" >0;</span>
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
+    let totalTtl = <span class="cstat-no" title="statement not covered">0;</span>
+    let ttlCount = <span class="cstat-no" title="statement not covered">0;</span>
+    let totalAge = <span class="cstat-no" title="statement not covered">0;</span>
+    const now = <span class="cstat-no" title="statement not covered">Date.now();</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const meta of this.metadata.values()) {</span>
-<span class="cstat-no" title="statement not covered" >      if (meta.ttl) {</span>
-<span class="cstat-no" title="statement not covered" >        totalTtl += meta.ttl;</span>
-<span class="cstat-no" title="statement not covered" >        ttlCount++;</span>
+<span class="cstat-no" title="statement not covered">    for (const meta of this.metadata.values()) {</span>
+<span class="cstat-no" title="statement not covered">      if (meta.ttl) {</span>
+<span class="cstat-no" title="statement not covered">        totalTtl += meta.ttl;</span>
+<span class="cstat-no" title="statement not covered">        ttlCount++;</span>
       }
       
-<span class="cstat-no" title="statement not covered" >      if (meta.createdAt) {</span>
-<span class="cstat-no" title="statement not covered" >        totalAge += now - meta.createdAt.getTime();</span>
+<span class="cstat-no" title="statement not covered">      if (meta.createdAt) {</span>
+<span class="cstat-no" title="statement not covered">        totalAge += now - meta.createdAt.getTime();</span>
       }
     }
     
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="cstat-no" title="statement not covered">    return {</span>
       entryCount: this.metadata.size,
       totalAccesses,
       avgAccessesPerKey: this.metadata.size ? totalAccesses / this.metadata.size : 0,
@@ -1412,21 +1415,21 @@ export class CacheMetadata {
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

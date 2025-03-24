@@ -1,381 +1,288 @@
-import { CacheOptions, CacheStats, EntryMetadata } from '../types/common';
-import { ICacheProvider } from '../interfaces/i-cache-provider';
-import { CacheMetadata } from './cache-metadata';
-import { CacheEventType, emitCacheEvent } from '../events/cache-events';
-import { handleCacheError, ensureError, CacheErrorCode, createCacheError } from '../utils/error-utils';
-import { mergeCacheOptions, providerHasMethod } from './cache-manager-utils';
-import { DEFAULT_CONFIG, CACHE_CONSTANTS } from '../config/default-config';
+import {CacheOptions} from '../types';
+import {ICacheProvider} from '../interfaces/i-cache-provider';
+import {CacheMetadata} from './cache-metadata';
+import {CacheEventType, emitCacheEvent} from '../events/cache-events';
+import {CacheErrorCode, createCacheError, ensureError, handleCacheError} from '../utils/error-utils';
+import {mergeCacheOptions, providerHasMethod} from './cache-manager-utils';
+import {DEFAULT_CONFIG} from '../config/default-config';
 
 /**
  * Main cache manager implementation
  */
 export class CacheManager {
-  private providers = new Map<string, ICacheProvider>();
-  private metadata = new CacheMetadata();
-  private config = DEFAULT_CONFIG;
-  private inFlightRequests = new Map<string, Promise<any>>();
+    private providers = new Map<string, ICacheProvider>();
+    private metadata = new CacheMetadata();
+    private config = DEFAULT_CONFIG;
+    private inFlightRequests = new Map<string, Promise<any>>();
 
-  /**
-   * Create a new cache manager
-   */
-  constructor(config = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-  }
-
-  /**
-   * Get a value from cache
-   */
-  async get<T = any>(key: string): Promise<T | null> {
-    try {
-      // Validate key
-      if (!key) {
-        throw createCacheError('Invalid cache key', CacheErrorCode.INVALID_KEY);
-      }
-
-      for (const provider of this.providers.values()) {
-        const value = await provider.get(key);
-        if (value !== null) {
-          this.metadata.recordAccess(key);
-          return value as T;
-        }
-      }
-      return null;
-    } catch (error) {
-      handleCacheError(error, { operation: 'get', key });
-      return null;
+    /**
+     * Create a new cache manager
+     */
+    constructor(config = {}) {
+        this.config = {...DEFAULT_CONFIG, ...config};
     }
-  }
 
-  /**
-   * Set a value in cache
-   */
-  async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    try {
-      // Validate key and value
-      if (!key) {
-        throw createCacheError('Invalid cache key', CacheErrorCode.INVALID_KEY);
-      }
-      
-      if (value === undefined) {
-        throw createCacheError('Cannot cache undefined value', CacheErrorCode.INVALID_VALUE);
-      }
-
-      const mergedOptions = mergeCacheOptions(options, this.config.defaultOptions);
-      
-      for (const provider of this.providers.values()) {
-        await provider.set(key, value, mergedOptions);
-      }
-      
-      this.metadata.set(key, { tags: mergedOptions.tags || [] });
-    } catch (error) {
-      handleCacheError(error, { operation: 'set', key });
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a value from cache
-   */
-  async delete(key: string): Promise<boolean> {
-    try {
-      let deleted = false;
-      for (const provider of this.providers.values()) {
-        const result = await provider.delete(key);
-        deleted = deleted || result;
-      }
-      
-      if (deleted) {
-        this.metadata.delete(key);
-      }
-      
-      return deleted;
-    } catch (error) {
-      handleCacheError(error, { operation: 'delete', key });
-      return false;
-    }
-  }
-
-  /**
-   * Clear all values from cache
-   */
-  async clear(): Promise<void> {
-    try {
-      for (const provider of this.providers.values()) {
-        await provider.clear();
-      }
-      
-      this.metadata.clear();
-    } catch (error) {
-      handleCacheError(error, { operation: 'clear' });
-    }
-  }
-
-  /**
-   * Check if a key exists in cache
-   */
-  async has(key: string): Promise<boolean> {
-    try {
-      for (const provider of this.providers.values()) {
-        // Safely check if provider.has exists before calling
-        if (provider && typeof provider.has === 'function' && await provider.has(key)) {
-          return true;
-        }
-      }
-      return false;
-    } catch (error) {
-      handleCacheError(error, { operation: 'has', key });
-      return false;
-    }
-  }
-
-  /**
-   * Register a cache provider
-   */
-  registerProvider(name: string, provider: ICacheProvider): void {
-    // Add name property to provider if it doesn't exist
-    if (!provider.name) {
-      (provider as any).name = name;
-    }
-    
-    this.providers.set(name, provider);
-    emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, { provider: name });
-  }
-
-  /**
-   * Get or compute a value
-   */
-  async getOrCompute<T>(
-    key: string,
-    fetcher: () => Promise<T>,
-    options?: CacheOptions
-  ): Promise<T> {
-    try {
-      // Check if we should deduplicate in-flight requests
-      if (this.config.deduplicateRequests && this.inFlightRequests.has(key)) {
-        return await this.inFlightRequests.get(key) as T;
-      }
-      
-      // Check cache first
-      const cachedValue = await this.get<T>(key);
-      if (cachedValue !== null) {
-        return cachedValue;
-      }
-      
-      // Create a promise for this request
-      const fetchPromise = (async () => {
+    /**
+     * Get a value from cache
+     */
+    async get<T = any>(key: string): Promise<T | null> {
         try {
-          // Compute value
-          emitCacheEvent(CacheEventType.COMPUTE_START, { key });
-          const value = await fetcher();
-          
-          // Store in cache
-          await this.set(key, value, options);
-          emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, { key });
-          
-          return value;
+            this.validateKey(key);
+
+            for (const provider of this.providers.values()) {
+                const value = await provider.get(key);
+                if (value !== null) {
+                    this.metadata.recordAccess(key);
+                    return value as T;
+                }
+            }
+            return null;
+        } catch (error) {
+            return this.handleOperationError(error, 'get', {key});
+        }
+    }
+
+    /**
+     * Set a value in cache
+     */
+    async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
+        try {
+            this.validateKey(key);
+            this.validateValue(value);
+
+            const mergedOptions = mergeCacheOptions(options, this.config.defaultOptions);
+
+            await this.executeForAllProviders(provider => provider.set(key, value, mergedOptions));
+            this.metadata.set(key, {tags: mergedOptions.tags || []});
+        } catch (error) {
+            this.handleOperationError(error, 'set', {key}, true);
+        }
+    }
+
+    /**
+     * Delete a value from cache
+     */
+    async delete(key: string): Promise<boolean> {
+        try {
+            let deleted = false;
+
+            for (const provider of this.providers.values()) {
+                const result = await provider.delete(key);
+                deleted = deleted || result;
+            }
+
+            if (deleted) {
+                this.metadata.delete(key);
+            }
+
+            return deleted;
+        } catch (error) {
+            return this.handleOperationError(error, 'delete', {key});
+        }
+    }
+
+    /**
+     * Clear all values from cache
+     */
+    async clear(): Promise<void> {
+        try {
+            await this.executeForAllProviders(provider => provider.clear());
+            this.metadata.clear();
+        } catch (error) {
+            this.handleOperationError(error, 'clear');
+        }
+    }
+
+    /**
+     * Check if a key exists in the cache
+     */
+    async has(key: string): Promise<boolean> {
+        try {
+            for (const provider of this.providers.values()) {
+                if (providerHasMethod(provider, 'has') && await provider.has(key)) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (error) {
+            return this.handleOperationError(error, 'has', {key});
+        }
+    }
+
+    /**
+     * Register a cache provider
+     */
+    registerProvider(name: string, provider: ICacheProvider): void {
+        if (!provider.name) {
+            (provider as any).name = name;
+        }
+
+        this.providers.set(name, provider);
+        emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, {provider: name});
+    }
+
+    /**
+     * Get or compute a value
+     */
+    async getOrCompute<T>(
+        key: string,
+        fetcher: () => Promise<T>,
+        options?: CacheOptions
+    ): Promise<T> {
+        try {
+            // Check if we should deduplicate in-flight requests
+            if (this.config.deduplicateRequests && this.inFlightRequests.has(key)) {
+                return await this.inFlightRequests.get(key) as T;
+            }
+
+            // Check cache first
+            const cachedValue = await this.get<T>(key);
+            if (cachedValue !== null) {
+                return cachedValue;
+            }
+
+            const fetchPromise = this.createFetchPromise(key, fetcher, options);
+
+            // Store the promise for deduplication
+            if (this.config.deduplicateRequests) {
+                this.inFlightRequests.set(key, fetchPromise);
+            }
+
+            return await fetchPromise;
+        } catch (error) {
+            const safeError = ensureError(error);
+            emitCacheEvent(CacheEventType.COMPUTE_ERROR, {key, error: safeError});
+
+            this.inFlightRequests.delete(key);
+            throw safeError;
+        }
+    }
+
+    /**
+     * Create a cached wrapper for a function
+     */
+    wrap<T extends (...args: any[]) => Promise<any>>(
+        fn: T,
+        keyGenerator: (...args: T extends ((...args: infer P) => any) ? P : never[]) => string,
+        options?: CacheOptions
+    ): T {
+        return (async (...args: T extends ((...args: infer P) => any) ? P : never[]): Promise<ReturnType<T>> => {
+            const key = keyGenerator(...args);
+            return await this.getOrCompute(
+                key,
+                () => fn(...args),
+                options
+            ) as Promise<ReturnType<T>>;
+        }) as T;
+    }
+
+    /**
+     * Invalidate cache entries by tag
+     */
+    async invalidateByTag(tag: string): Promise<number> {
+        return this.invalidateByFilter(tag, 'tag', keys => this.metadata.findByTag(tag));
+    }
+
+    /**
+     * Invalidate cache entries by prefix
+     */
+    async invalidateByPrefix(prefix: string): Promise<number> {
+        return this.invalidateByFilter(prefix, 'prefix', keys => this.metadata.findByPrefix(prefix));
+    }
+
+    // Helper methods
+
+    /**
+     * Validates if a key is valid
+     */
+    private validateKey(key: string): void {
+        if (!key) {
+            throw createCacheError('Invalid cache key', CacheErrorCode.INVALID_KEY);
+        }
+    }
+
+    /**
+     * Validates if a value can be cached
+     */
+    private validateValue(value: any): void {
+        if (value === undefined) {
+            throw createCacheError('Cannot cache undefined value', CacheErrorCode.INVALID_VALUE);
+        }
+    }
+
+    /**
+     * Executes an operation for all providers
+     */
+    private async executeForAllProviders(operation: (provider: ICacheProvider) => Promise<void>): Promise<void> {
+        for (const provider of this.providers.values()) {
+            await operation(provider);
+        }
+    }
+
+    /**
+     * Handles operation errors and provides consistent fallback values
+     */
+    private handleOperationError(error: unknown, operation: string, context: Record<string, any> = {}, rethrow = false): any {
+        handleCacheError(error, {operation, ...context});
+        if (rethrow) {
+            throw error;
+        }
+
+        // Default fallback values for operations
+        const fallbackValues = {
+            get: null,
+            delete: false,
+            has: false,
+            clear: undefined,
+            invalidateByTag: 0,
+            invalidateByPrefix: 0
+        };
+
+        return fallbackValues[operation as keyof typeof fallbackValues];
+    }
+
+    /**
+     * Creates a fetch promise for getOrCompute
+     */
+    private async createFetchPromise<T>(key: string, fetcher: () => Promise<T>, options?: CacheOptions): Promise<T> {
+        try {
+            emitCacheEvent(CacheEventType.COMPUTE_START, {key});
+            const value = await fetcher();
+
+            await this.set(key, value, options);
+            emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {key});
+
+            return value;
         } finally {
-          // Remove from in-flight requests
-          this.inFlightRequests.delete(key);
+            this.inFlightRequests.delete(key);
         }
-      })();
-      
-      // Store the promise for deduplication
-      if (this.config.deduplicateRequests) {
-        this.inFlightRequests.set(key, fetchPromise);
-      }
-      
-      return await fetchPromise;
-    } catch (error) {
-      const safeError = ensureError(error);
-      emitCacheEvent(CacheEventType.COMPUTE_ERROR, { 
-        key, 
-        error: safeError 
-      });
-      
-      // Remove from in-flight requests
-      this.inFlightRequests.delete(key);
-      
-      throw safeError;
     }
-  }
 
-  /**
-   * Create a cached wrapper for a function
-   */
-  wrap<T extends (...args: any[]) => Promise<any>>(
-    fn: T,
-    keyGenerator: (...args: Parameters<T>) => string,
-    options?: CacheOptions
-  ): T {
-    const wrappedFn = async (...args: Parameters<T>): Promise<ReturnType<T>> => {
-      const key = keyGenerator(...args);
-      return this.getOrCompute(
-        key,
-        () => fn(...args),
-        options
-      ) as Promise<ReturnType<T>>;
-    };
-    
-    return wrappedFn as T;
-  }
+    /**
+     * Common logic for invalidation by filter
+     */
+    private async invalidateByFilter(
+        filterValue: string,
+        filterType: string,
+        getKeys: () => string[]
+    ): Promise<number> {
+        try {
+            const keys = getKeys();
 
-  /**
-   * Invalidate cache entries by tag
-   */
-  async invalidateByTag(tag: string): Promise<number> {
-    try {
-      const keys = this.metadata.findByTag(tag);
-      
-      let count = 0;
-      for (const key of keys) {
-        const deleted = await this.delete(key);
-        if (deleted) count++;
-      }
-      
-      emitCacheEvent(CacheEventType.INVALIDATE, {
-        tag,
-        entriesRemoved: count
-      });
-      
-      return count;
-    } catch (error) {
-      handleCacheError(error, { operation: 'invalidateByTag', tag });
-      return 0;
-    }
-  }
+            let count = 0;
+            for (const key of keys) {
+                const deleted = await this.delete(key);
+                if (deleted) count++;
+            }
 
-  /**
-   * Invalidate cache entries by prefix
-   */
-  async invalidateByPrefix(prefix: string): Promise<number> {
-    try {
-      const keys = this.metadata.findByPrefix(prefix);
-      
-      let count = 0;
-      for (const key of keys) {
-        const deleted = await this.delete(key);
-        if (deleted) count++;
-      }
-      
-      emitCacheEvent(CacheEventType.INVALIDATE, {
-        prefix,
-        entriesRemoved: count
-      });
-      
-      return count;
-    } catch (error) {
-      handleCacheError(error, { operation: 'invalidateByPrefix', prefix });
-      return 0;
-    }
-  }
+            emitCacheEvent(CacheEventType.INVALIDATE, {
+                [filterType]: filterValue,
+                entriesRemoved: count
+            });
 
-  /**
-   * Get multiple values from cache
-   */
-  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
-    const result: Record<string, T | null> = {};
-    
-    try {
-      // Try to use batch get if available on first provider
-      const firstProvider = [...this.providers.values()][0];
-      if (firstProvider && providerHasMethod(firstProvider, 'getMany')) {
-        const getMany = firstProvider.getMany as <U>(keys: string[]) => Promise<Record<string, U | null>>;
-        return await getMany<T>(keys);
-      }
-      
-      // Fall back to individual gets
-      for (const key of keys) {
-        result[key] = await this.get<T>(key);
-      }
-      
-      return result;
-    } catch (error) {
-      handleCacheError(error, { operation: 'getMany', keys });
-      
-      // Ensure we return something for each key
-      for (const key of keys) {
-        if (!(key in result)) {
-          result[key] = null;
+            return count;
+        } catch (error) {
+            return this.handleOperationError(error, `invalidateBy${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`, {[filterType]: filterValue});
         }
-      }
-      
-      return result;
     }
-  }
-
-  /**
-   * Set multiple values in cache
-   */
-  async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
-    try {
-      // Fix defaultOptions access
-      const ttl = this.config.defaultTtl;
-      const mergedOptions: CacheOptions = {
-        ...options,
-        ttl: options?.ttl ?? ttl // Use nullish coalescing to only apply default if undefined
-      };
-      
-      // Try to use batch set if available on first provider
-      const firstProvider = [...this.providers.values()][0];
-      if (firstProvider && providerHasMethod(firstProvider, 'setMany')) {
-        const setMany = firstProvider.setMany as (entries: Record<string, any>, options?: CacheOptions) => Promise<void>;
-        await setMany(entries, mergedOptions);
-        
-        // Update metadata
-        for (const key of Object.keys(entries)) {
-          this.metadata.set(key, { tags: mergedOptions.tags || [] });
-        }
-        
-        return;
-      }
-      
-      // Fall back to individual sets
-      for (const [key, value] of Object.entries(entries)) {
-        await this.set(key, value, mergedOptions);
-      }
-    } catch (error) {
-      handleCacheError(error, { operation: 'setMany', entries: Object.keys(entries) });
-      throw error;
-    }
-  }
-
-  /**
-   * Get cache statistics
-   */
-  async getStats(): Promise<Record<string, any>> {
-    try {
-      const stats: Record<string, any> = {
-        providers: {},
-        metadata: this.metadata.getStats()
-      };
-      
-      // Collect stats from providers
-      for (const [name, provider] of this.providers.entries()) {
-        if (providerHasMethod(provider, 'getStats')) {
-          const getStats = provider.getStats as () => Promise<any>;
-          stats.providers[name] = await getStats();
-        }
-      }
-      
-      emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });
-      return stats;
-    } catch (error) {
-      handleCacheError(error, { operation: 'getStats' });
-      return {};
-    }
-  }
-
-  /**
-   * Get a provider by name
-   */
-  getProvider(name: string): ICacheProvider | null {
-    return this.providers.get(name) || null;
-  }
-
-  /**
-   * Get metadata for a cache key
-   */
-  getMetadata(key: string): any {
-    return this.metadata.get(key);
-  }
 }

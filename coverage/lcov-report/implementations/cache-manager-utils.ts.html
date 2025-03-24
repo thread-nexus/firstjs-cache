@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-manager-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-manager-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">91.89% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>68/74</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">78.04% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>32/41</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">93.75% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>15/16</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">94.28% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>66/70</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -626,14 +626,14 @@ export function createCacheKey(type: string, id: string | number | object, subty
  */
 export function mergeCacheOptions(
   options: Partial&lt;CacheOptions&gt; = {}, 
-  defaults: Partial&lt;CacheOptions&gt; = <span class="branch-0 cbranch-no" title="branch not covered" >{}</span>
+  defaults: Partial&lt;CacheOptions&gt; = <span class="branch-0 cbranch-no" title="branch not covered">{}</span>
 ): CacheOptions {
   return {
     ...defaults,
     ...options,
     // Merge tags from both sources
     tags: [
-      ...(defaults.tags || <span class="branch-1 cbranch-no" title="branch not covered" >[])</span>,
+      ...(defaults.tags || <span class="branch-1 cbranch-no" title="branch not covered">[])</span>,
       ...(options.tags || [])
     ]
   };
@@ -675,7 +675,8 @@ export function isExpired(timestamp: number | null): boolean {
  * @returns Formatted size string
  */
 export function formatCacheSize(bytes: number, decimals: number = 2): string {
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (bytes === 0) <span class="cstat-no" title="statement not covered" >return '0.00 B';</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (bytes === 0) <span class="cstat-no"
+                                                                                           title="statement not covered">return '0.00 B';</span>
   
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
@@ -706,7 +707,8 @@ export function parseDuration(duration: string): number {
     case 'm': return value * 60; // minutes
     case 'h': return value * 60 * 60; // hours
     case 'd': return value * 60 * 60 * 24; // days
-<span class="branch-4 cbranch-no" title="branch not covered" >    default: <span class="cstat-no" title="statement not covered" >throw new Error(`Unknown duration unit: ${unit}`);</span></span>
+<span class="branch-4 cbranch-no" title="branch not covered">    default: <span class="cstat-no"
+                                                                                title="statement not covered">throw new Error(`Unknown duration unit: ${unit}`);</span></span>
   }
 }
 &nbsp;
@@ -739,10 +741,10 @@ export async function batchOperations&lt;T, R&gt;(
     retries?: number;
     retryDelay?: number;
     onProgress?: (completed: number, total: number) =&gt; void;
-  } = <span class="branch-0 cbranch-no" title="branch not covered" >{}</span>
+  } = <span class="branch-0 cbranch-no" title="branch not covered">{}</span>
 ): Promise&lt;R[]&gt; {
   const {
-    batchSize = <span class="branch-0 cbranch-no" title="branch not covered" >100,</span>
+    batchSize = <span class="branch-0 cbranch-no" title="branch not covered">100,</span>
     concurrency = 10,
     retries = 3,
     retryDelay = 1000,
@@ -769,19 +771,21 @@ export async function batchOperations&lt;T, R&gt;(
             
             // Update progress
             completed++;
-            <span class="missing-if-branch" title="else path not taken" >E</span>if (onProgress) {
+            <span class="missing-if-branch" title="else path not taken">E</span>if (onProgress) {
               onProgress(completed, total);
             }
             
             return result;
           } catch (error) {
-<span class="cstat-no" title="statement not covered" >            if (attempt === retries - 1) {</span>
+<span class="cstat-no" title="statement not covered">            if (attempt === retries - 1) {</span>
               // Last attempt failed, rethrow
-<span class="cstat-no" title="statement not covered" >              throw error;</span>
+<span class="cstat-no" title="statement not covered">              throw error;</span>
             }
             
             // Wait before retry
-<span class="cstat-no" title="statement not covered" >            await new Promise(<span class="fstat-no" title="function not covered" >re</span>solve =&gt; <span class="cstat-no" title="statement not covered" >setTimeout(resolve, retryDelay * (attempt + 1)))</span>;</span>
+<span class="cstat-no" title="statement not covered">            await new Promise(<span class="fstat-no"
+                                                                                         title="function not covered">re</span>solve =&gt; <span
+        class="cstat-no" title="statement not covered">setTimeout(resolve, retryDelay * (attempt + 1)))</span>;</span>
           }
         }
       })
@@ -851,21 +855,21 @@ export function throttle&lt;T extends (...args: any[]) =&gt; any&gt;(
   };
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

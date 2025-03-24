@@ -1,6 +1,7 @@
 # Contributing to @fourjs/cache
 
-Thank you for your interest in contributing to @fourjs/cache! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to @fourjs/cache! This document provides guidelines and instructions for
+contributing to the project.
 
 ## Development Setup
 
@@ -13,22 +14,26 @@ Thank you for your interest in contributing to @fourjs/cache! This document prov
 ### Getting Started
 
 1. **Clone the repository**
+
 ```bash
 git clone https://github.com/fourjs/cache.git
 cd cache-module
 ```
 
 1. **Install dependencies**
+
 ```bash
 npm install
 ```
 
 1. **Build the project**
+
 ```bash
 npm run build
 ```
 
 1. **Run tests**
+
 ```bash
 npm test
 ```
@@ -63,38 +68,42 @@ cache-module/
 ### TypeScript Guidelines
 
 1. **Type Safety**
-   - Avoid using `any` where possible
-   - Use generics for flexible typing
-   - Document complex types with JSDoc comments
+    - Avoid using `any` where possible
+    - Use generics for flexible typing
+    - Document complex types with JSDoc comments
 
 2. **Naming Conventions**
-   - Use PascalCase for interfaces and types
-   - Use camelCase for variables and functions
-   - Use UPPER_CASE for constants
+    - Use PascalCase for interfaces and types
+    - Use camelCase for variables and functions
+    - Use UPPER_CASE for constants
 
 3. **File Organization**
-   - One class/interface per file
-   - Group related functionality in directories
-   - Keep files under 350 lines
+    - One class/interface per file
+    - Group related functionality in directories
+    - Keep files under 350 lines
 
 ### Testing
 
 1. **Unit Tests**
+
 ```bash
 npm run test:unit
 ```
 
 1. **Integration Tests**
+
 ```bash
 npm run test:integration
 ```
 
 1. **React Component Tests**
+
 ```bash
 npm run test:components
 ```
 
 1. **Coverage Report**
+
 ```bash
 npm run test:coverage
 ```
@@ -102,11 +111,13 @@ npm run test:coverage
 ### Performance Testing
 
 1. **Run benchmarks**
+
 ```bash
 npm run benchmark
 ```
 
 1. **Profile memory usage**
+
 ```bash
 npm run profile:memory
 ```
@@ -114,27 +125,31 @@ npm run profile:memory
 ## Pull Request Process
 
 1. **Create a branch**
+
 ```bash
 git checkout -b feature/your-feature-name
 ```
 
 1. **Make your changes**
-   - Write tests for new functionality
-   - Update documentation as needed
-   - Follow code style guidelines
+    - Write tests for new functionality
+    - Update documentation as needed
+    - Follow code style guidelines
 
 2. **Commit your changes**
+
 ```bash
 git add .
 git commit -m "feat: description of your changes"
 ```
 
 1. **Run checks**
+
 ```bash
 npm run verify # Runs lint, type check, and tests
 ```
 
 1. **Push and create PR**
+
 ```bash
 git push origin feature/your-feature-name
 ```
@@ -161,14 +176,15 @@ We follow conventional commits:
 - Add examples for complex functionality
 
 Example:
+
 ```typescript
 /**
  * Retrieves a value from cache with automatic refresh handling
- * 
+ *
  * @param key - The cache key to retrieve
  * @param options - Cache operation options
  * @returns Promise resolving to cached value or null
- * 
+ *
  * @example
  * ```typescript
  * const value = await cache.get('user:123', {
@@ -176,8 +192,10 @@ Example:
  *   ttl: 3600
  * });
  * ```
- */
+
+*/
 async function get<T>(key: string, options?: CacheOptions): Promise<T | null>
+
 ```
 
 ### README Updates
@@ -194,17 +212,20 @@ npm version [patch|minor|major]
 ```
 
 1. **Generate changelog**
+
 ```bash
 npm run changelog
 ```
 
 1. **Build and test**
+
 ```bash
 npm run build
 npm test
 ```
 
 1. **Publish**
+
 ```bash
 npm publish
 ```

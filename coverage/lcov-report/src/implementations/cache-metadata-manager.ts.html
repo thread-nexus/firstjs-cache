@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/cache-metadata-manager.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-metadata-manager.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a>
+            cache-metadata-manager.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">9.21% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>7/76</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">3.03% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>1/33</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">4.54% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/22</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">8.57% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>6/70</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -587,11 +588,11 @@ export class CacheMetadataManager {
   /**
    * Set metadata for a cache entry
    */
-<span class="fstat-no" title="function not covered" >  se</span>t(key: string, data: Partial&lt;EntryMetadata&gt;): void {
-    const now = <span class="cstat-no" title="statement not covered" >new Date();</span>
-    const existing = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
+<span class="fstat-no" title="function not covered">  se</span>t(key: string, data: Partial&lt;EntryMetadata&gt;): void {
+    const now = <span class="cstat-no" title="statement not covered">new Date();</span>
+    const existing = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
 &nbsp;
-    const entry: MetadataEntry = <span class="cstat-no" title="statement not covered" >{</span>
+    const entry: MetadataEntry = <span class="cstat-no" title="statement not covered">{</span>
       key,
       createdAt: existing?.createdAt || now,
       updatedAt: now,
@@ -603,17 +604,18 @@ export class CacheMetadataManager {
     };
 &nbsp;
     // Update metadata
-<span class="cstat-no" title="statement not covered" >    this.metadata.set(key, entry);</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.set(key, entry);</span>
 &nbsp;
     // Update tag index
-<span class="cstat-no" title="statement not covered" >    entry.tags.forEach(<span class="fstat-no" title="function not covered" >ta</span>g =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (!this.tagIndex.has(tag)) {</span>
-<span class="cstat-no" title="statement not covered" >        this.tagIndex.set(tag, new Set());</span>
+<span class="cstat-no" title="statement not covered">    entry.tags.forEach(<span class="fstat-no"
+                                                                                  title="function not covered">ta</span>g =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      if (!this.tagIndex.has(tag)) {</span>
+<span class="cstat-no" title="statement not covered">        this.tagIndex.set(tag, new Set());</span>
       }
-<span class="cstat-no" title="statement not covered" >      this.tagIndex.get(tag)!.add(key);</span>
+<span class="cstat-no" title="statement not covered">      this.tagIndex.get(tag)!.add(key);</span>
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.METADATA_UPDATE, {</span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.METADATA_UPDATE, {</span>
       key,
       metadata: entry
     });
@@ -622,17 +624,18 @@ export class CacheMetadataManager {
   /**
    * Get metadata for a cache entry
    */
-<span class="fstat-no" title="function not covered" >  ge</span>t(key: string): EntryMetadata | undefined {
-    const entry = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
-<span class="cstat-no" title="statement not covered" >    if (!entry) <span class="cstat-no" title="statement not covered" >return undefined;</span></span>
+<span class="fstat-no" title="function not covered">  ge</span>t(key: string): EntryMetadata | undefined {
+    const entry = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
+<span class="cstat-no" title="statement not covered">    if (!entry) <span class="cstat-no"
+                                                                           title="statement not covered">return undefined;</span></span>
 &nbsp;
     // Check expiration
-<span class="cstat-no" title="statement not covered" >    if (entry.expiresAt &amp;&amp; Date.now() &gt; entry.expiresAt) {</span>
-<span class="cstat-no" title="statement not covered" >      this.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >      return undefined;</span>
+<span class="cstat-no" title="statement not covered">    if (entry.expiresAt &amp;&amp; Date.now() &gt; entry.expiresAt) {</span>
+<span class="cstat-no" title="statement not covered">      this.delete(key);</span>
+<span class="cstat-no" title="statement not covered">      return undefined;</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return { ...entry };</span>
+<span class="cstat-no" title="statement not covered">    return { ...entry };</span>
   }
 &nbsp;
   /**
@@ -640,94 +643,103 @@ export class CacheMetadataManager {
    */
   recordAccess(key: string): void {
     const entry = this.metadata.get(key);
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (!entry) return;
+    <span class="missing-if-branch" title="else path not taken">E</span>if (!entry) return;
 &nbsp;
     // Update access stats
-<span class="cstat-no" title="statement not covered" >    entry.accessCount++;</span>
-<span class="cstat-no" title="statement not covered" >    entry.updatedAt = new Date();</span>
+<span class="cstat-no" title="statement not covered">    entry.accessCount++;</span>
+<span class="cstat-no" title="statement not covered">    entry.updatedAt = new Date();</span>
 &nbsp;
     // Update LRU tracking
-<span class="cstat-no" title="statement not covered" >    this.accessOrder = [</span>
+<span class="cstat-no" title="statement not covered">    this.accessOrder = [</span>
       key,
-      ...this.accessOrder.filter(<span class="fstat-no" title="function not covered" >k </span>=&gt; <span class="cstat-no" title="statement not covered" >k !== key)</span>
+      ...this.accessOrder.filter(<span class="fstat-no" title="function not covered">k </span>=&gt; <span
+            class="cstat-no" title="statement not covered">k !== key)</span>
     ].slice(0, this.maxAccessHistory);
   }
 &nbsp;
   /**
    * Delete metadata for a cache entry
    */
-<span class="fstat-no" title="function not covered" >  de</span>lete(key: string): boolean {
-    const entry = <span class="cstat-no" title="statement not covered" >this.metadata.get(key);</span>
-<span class="cstat-no" title="statement not covered" >    if (!entry) <span class="cstat-no" title="statement not covered" >return false;</span></span>
+<span class="fstat-no" title="function not covered">  de</span>lete(key: string): boolean {
+    const entry = <span class="cstat-no" title="statement not covered">this.metadata.get(key);</span>
+<span class="cstat-no" title="statement not covered">    if (!entry) <span class="cstat-no"
+                                                                           title="statement not covered">return false;</span></span>
 &nbsp;
     // Remove from tag index
-<span class="cstat-no" title="statement not covered" >    entry.tags.forEach(<span class="fstat-no" title="function not covered" >ta</span>g =&gt; {</span>
-      const tagSet = <span class="cstat-no" title="statement not covered" >this.tagIndex.get(tag);</span>
-<span class="cstat-no" title="statement not covered" >      if (tagSet) {</span>
-<span class="cstat-no" title="statement not covered" >        tagSet.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        if (tagSet.size === 0) {</span>
-<span class="cstat-no" title="statement not covered" >          this.tagIndex.delete(tag);</span>
+<span class="cstat-no" title="statement not covered">    entry.tags.forEach(<span class="fstat-no"
+                                                                                  title="function not covered">ta</span>g =&gt; {</span>
+      const tagSet = <span class="cstat-no" title="statement not covered">this.tagIndex.get(tag);</span>
+<span class="cstat-no" title="statement not covered">      if (tagSet) {</span>
+<span class="cstat-no" title="statement not covered">        tagSet.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        if (tagSet.size === 0) {</span>
+<span class="cstat-no" title="statement not covered">          this.tagIndex.delete(tag);</span>
         }
       }
     });
 &nbsp;
     // Remove from metadata and access order
-<span class="cstat-no" title="statement not covered" >    this.metadata.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >    this.accessOrder = this.accessOrder.filter(<span class="fstat-no" title="function not covered" >k </span>=&gt; <span class="cstat-no" title="statement not covered" >k !== key)</span>;</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.delete(key);</span>
+<span class="cstat-no" title="statement not covered">    this.accessOrder = this.accessOrder.filter(<span
+        class="fstat-no" title="function not covered">k </span>=&gt; <span class="cstat-no"
+                                                                           title="statement not covered">k !== key)</span>;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.METADATA_DELETE, { </span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.METADATA_DELETE, { </span>
       key,
       metadata: entry
     });
-<span class="cstat-no" title="statement not covered" >    return true;</span>
+<span class="cstat-no" title="statement not covered">    return true;</span>
   }
 &nbsp;
   /**
    * Find keys by tag
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByTag(tag: string): string[] {
-<span class="cstat-no" title="statement not covered" >    return Array.from(this.tagIndex.get(tag) || []);</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByTag(tag: string): string[] {
+<span class="cstat-no" title="statement not covered">    return Array.from(this.tagIndex.get(tag) || []);</span>
   }
 &nbsp;
   /**
    * Find keys by pattern
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByPattern(pattern: string): string[] {
-<span class="cstat-no" title="statement not covered" >    try {</span>
-      const regex = <span class="cstat-no" title="statement not covered" >new RegExp(pattern);</span>
-<span class="cstat-no" title="statement not covered" >      return Array.from(this.metadata.keys()).filter(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >regex.test(key))</span>;</span>
+<span class="fstat-no" title="function not covered">  fi</span>ndByPattern(pattern: string): string[] {
+<span class="cstat-no" title="statement not covered">    try {</span>
+      const regex = <span class="cstat-no" title="statement not covered">new RegExp(pattern);</span>
+<span class="cstat-no" title="statement not covered">      return Array.from(this.metadata.keys()).filter(<span
+        class="fstat-no" title="function not covered">ke</span>y =&gt; <span class="cstat-no"
+                                                                             title="statement not covered">regex.test(key))</span>;</span>
     } catch (error) {
       // If pattern is not a valid regex, treat it as a prefix
-<span class="cstat-no" title="statement not covered" >      return this.findByPrefix(pattern);</span>
+<span class="cstat-no" title="statement not covered">      return this.findByPrefix(pattern);</span>
     }
   }
 &nbsp;
   /**
    * Find keys by prefix
    */
-<span class="fstat-no" title="function not covered" >  fi</span>ndByPrefix(prefix: string): string[] {
-<span class="cstat-no" title="statement not covered" >    return Array.from(this.metadata.keys())</span>
-      .filter(<span class="fstat-no" title="function not covered" >ke</span>y =&gt; <span class="cstat-no" title="statement not covered" >key.startsWith(prefix))</span>;
+<span class="fstat-no" title="function not covered">  fi</span>ndByPrefix(prefix: string): string[] {
+<span class="cstat-no" title="statement not covered">    return Array.from(this.metadata.keys())</span>
+      .filter(<span class="fstat-no" title="function not covered">ke</span>y =&gt; <span class="cstat-no"
+                                                                                         title="statement not covered">key.startsWith(prefix))</span>;
   }
 &nbsp;
   /**
    * Get all cache keys
    */
-<span class="fstat-no" title="function not covered" >  ke</span>ys(): string[] {
-<span class="cstat-no" title="statement not covered" >    return Array.from(this.metadata.keys());</span>
+<span class="fstat-no" title="function not covered">  ke</span>ys(): string[] {
+<span class="cstat-no" title="statement not covered">    return Array.from(this.metadata.keys());</span>
   }
 &nbsp;
   /**
    * Get recently accessed keys
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tRecentlyAccessed(limit: number = <span class="branch-0 cbranch-no" title="branch not covered" >10)</span>: string[] {
-<span class="cstat-no" title="statement not covered" >    return this.accessOrder.slice(0, limit);</span>
+<span class="fstat-no" title="function not covered">  ge</span>tRecentlyAccessed(limit: number = <span
+            class="branch-0 cbranch-no" title="branch not covered">10)</span>: string[] {
+<span class="cstat-no" title="statement not covered">    return this.accessOrder.slice(0, limit);</span>
   }
 &nbsp;
   /**
    * Get metadata statistics
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tStats(): {
+<span class="fstat-no" title="function not covered">  ge</span>tStats(): {
     totalEntries: number;
     tagCount: number;
     averageAccessCount: number;
@@ -738,21 +750,25 @@ export class CacheMetadataManager {
       accessCount: number;
     }&gt;;
   } {
-    let totalAccess = <span class="cstat-no" title="statement not covered" >0;</span>
-    const keyAccessCounts: Array&lt;{ key: string; accessCount: number }&gt; = <span class="cstat-no" title="statement not covered" >[];</span>
+    let totalAccess = <span class="cstat-no" title="statement not covered">0;</span>
+    const keyAccessCounts: Array&lt;{ key: string; accessCount: number }&gt; = <span class="cstat-no"
+                                                                                     title="statement not covered">[];</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.metadata.forEach(<span class="fstat-no" title="function not covered" >(e</span>ntry, key) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      totalAccess += entry.accessCount;</span>
-<span class="cstat-no" title="statement not covered" >      keyAccessCounts.push({</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.forEach(<span class="fstat-no"
+                                                                                     title="function not covered">(e</span>ntry, key) =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      totalAccess += entry.accessCount;</span>
+<span class="cstat-no" title="statement not covered">      keyAccessCounts.push({</span>
         key,
         accessCount: entry.accessCount
       });
     });
 &nbsp;
     // Sort by access count descending
-<span class="cstat-no" title="statement not covered" >    keyAccessCounts.sort(<span class="fstat-no" title="function not covered" >(a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >b.accessCount - a.accessCount)</span>;</span>
+<span class="cstat-no" title="statement not covered">    keyAccessCounts.sort(<span class="fstat-no"
+                                                                                    title="function not covered">(a</span>, b) =&gt; <span
+        class="cstat-no" title="statement not covered">b.accessCount - a.accessCount)</span>;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="cstat-no" title="statement not covered">    return {</span>
       totalEntries: this.metadata.size,
       tagCount: this.tagIndex.size,
       averageAccessCount: totalAccess / Math.max(1, this.metadata.size),
@@ -765,13 +781,13 @@ export class CacheMetadataManager {
   /**
    * Clear all metadata
    */
-<span class="fstat-no" title="function not covered" >  cl</span>ear(): void {
-    const stats = <span class="cstat-no" title="statement not covered" >this.getStats();</span>
-<span class="cstat-no" title="statement not covered" >    this.metadata.clear();</span>
-<span class="cstat-no" title="statement not covered" >    this.tagIndex.clear();</span>
-<span class="cstat-no" title="statement not covered" >    this.accessOrder = [];</span>
+<span class="fstat-no" title="function not covered">  cl</span>ear(): void {
+    const stats = <span class="cstat-no" title="statement not covered">this.getStats();</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.clear();</span>
+<span class="cstat-no" title="statement not covered">    this.tagIndex.clear();</span>
+<span class="cstat-no" title="statement not covered">    this.accessOrder = [];</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.METADATA_CLEAR, {</span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.METADATA_CLEAR, {</span>
       stats,
       message: 'All metadata cleared'
     });
@@ -780,23 +796,26 @@ export class CacheMetadataManager {
   /**
    * Clean up expired entries
    */
-<span class="fstat-no" title="function not covered" >  cl</span>eanup(): number {
-    const now = <span class="cstat-no" title="statement not covered" >Date.now();</span>
-    let cleaned = <span class="cstat-no" title="statement not covered" >0;</span>
-    const expiredEntries: MetadataEntry[] = <span class="cstat-no" title="statement not covered" >[];</span>
+<span class="fstat-no" title="function not covered">  cl</span>eanup(): number {
+    const now = <span class="cstat-no" title="statement not covered">Date.now();</span>
+    let cleaned = <span class="cstat-no" title="statement not covered">0;</span>
+    const expiredEntries: MetadataEntry[] = <span class="cstat-no" title="statement not covered">[];</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.metadata.forEach(<span class="fstat-no" title="function not covered" >(e</span>ntry, key) =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      if (entry.expiresAt &amp;&amp; entry.expiresAt &lt; now) {</span>
-<span class="cstat-no" title="statement not covered" >        expiredEntries.push(entry);</span>
-<span class="cstat-no" title="statement not covered" >        this.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        cleaned++;</span>
+<span class="cstat-no" title="statement not covered">    this.metadata.forEach(<span class="fstat-no"
+                                                                                     title="function not covered">(e</span>ntry, key) =&gt; {</span>
+<span class="cstat-no"
+      title="statement not covered">      if (entry.expiresAt &amp;&amp; entry.expiresAt &lt; now) {</span>
+<span class="cstat-no" title="statement not covered">        expiredEntries.push(entry);</span>
+<span class="cstat-no" title="statement not covered">        this.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        cleaned++;</span>
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (cleaned &gt; 0) {</span>
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.CLEANUP, {</span>
+<span class="cstat-no" title="statement not covered">    if (cleaned &gt; 0) {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.CLEANUP, {</span>
         entriesRemoved: cleaned,
-        expiredEntries: expiredEntries.map(<span class="fstat-no" title="function not covered" >en</span>try =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
+        expiredEntries: expiredEntries.map(<span class="fstat-no" title="function not covered">en</span>try =&gt; (<span
+            class="cstat-no" title="statement not covered">{</span>
           key: entry.key,
           tags: entry.tags,
           createdAt: entry.createdAt,
@@ -805,25 +824,25 @@ export class CacheMetadataManager {
       });
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return cleaned;</span>
+<span class="cstat-no" title="statement not covered">    return cleaned;</span>
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:14:59.431Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:14:59.431Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

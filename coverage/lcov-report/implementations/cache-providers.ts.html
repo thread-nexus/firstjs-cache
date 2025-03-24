@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for implementations/cache-providers.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">implementations</a> cache-providers.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">50.68% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>37/73</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">42.85% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>9/21</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">57.89% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>11/19</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">51.38% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>37/72</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -656,7 +656,7 @@ export class CacheProviderManager {
    */
   removeProvider(name: string): boolean {
     const removed = this.providers.delete(name);
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (removed) {
+    <span class="missing-if-branch" title="else path not taken">E</span>if (removed) {
       this.updateProviderOrder();
       emitCacheEvent(CacheEventType.PROVIDER_REMOVED, { provider: name });
     }
@@ -686,13 +686,13 @@ export class CacheProviderManager {
       } catch (error) {
         this.handleProviderError(provider, error);
         // If this is the only provider or the last one, rethrow the error
-        <span class="missing-if-branch" title="else path not taken" >E</span>if (this.sortedProviders.length === 1 || 
+        <span class="missing-if-branch" title="else path not taken">E</span>if (this.sortedProviders.length === 1 ||
             provider === this.sortedProviders[this.sortedProviders.length - 1]) {
           throw error;
         }
       }
     }
-<span class="cstat-no" title="statement not covered" >    return null;</span>
+<span class="cstat-no" title="statement not covered">    return null;</span>
   }
 &nbsp;
   /**
@@ -703,10 +703,10 @@ export class CacheProviderManager {
       try {
         await provider.instance.set(key, value, options);
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
         // If this is the primary provider, rethrow the error
-<span class="cstat-no" title="statement not covered" >        if (provider === this.sortedProviders[0]) {</span>
-<span class="cstat-no" title="statement not covered" >          throw error;</span>
+<span class="cstat-no" title="statement not covered">        if (provider === this.sortedProviders[0]) {</span>
+<span class="cstat-no" title="statement not covered">          throw error;</span>
         }
       }
     });
@@ -717,57 +717,60 @@ export class CacheProviderManager {
   /**
    * Delete a value from all cache providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
-    let deleted = <span class="cstat-no" title="statement not covered" >false;</span>
-    const promises = <span class="cstat-no" title="statement not covered" >this.sortedProviders.map(<span class="fstat-no" title="function not covered" >as</span>ync provider =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-        const result = <span class="cstat-no" title="statement not covered" >await provider.instance.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        deleted = deleted || result;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
+    let deleted = <span class="cstat-no" title="statement not covered">false;</span>
+    const promises = <span class="cstat-no" title="statement not covered">this.sortedProviders.map(<span
+            class="fstat-no" title="function not covered">as</span>ync provider =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+        const result = <span class="cstat-no" title="statement not covered">await provider.instance.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        deleted = deleted || result;</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.allSettled(promises);</span>
-<span class="cstat-no" title="statement not covered" >    return deleted;</span>
+<span class="cstat-no" title="statement not covered">    await Promise.allSettled(promises);</span>
+<span class="cstat-no" title="statement not covered">    return deleted;</span>
   }
 &nbsp;
   /**
    * Clear all cache providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-    const promises = <span class="cstat-no" title="statement not covered" >this.sortedProviders.map(<span class="fstat-no" title="function not covered" >as</span>ync provider =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-<span class="cstat-no" title="statement not covered" >        await provider.instance.clear();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+    const promises = <span class="cstat-no" title="statement not covered">this.sortedProviders.map(<span
+            class="fstat-no" title="function not covered">as</span>ync provider =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+<span class="cstat-no" title="statement not covered">        await provider.instance.clear();</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.allSettled(promises);</span>
+<span class="cstat-no" title="statement not covered">    await Promise.allSettled(promises);</span>
   }
 &nbsp;
   /**
    * Get stats from all providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
-    const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
+    const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered">{};</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.sortedProviders) {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-        const providerStats = <span class="cstat-no" title="statement not covered" >await provider.instance.getStats();</span>
-<span class="cstat-no" title="statement not covered" >        stats[provider.name] = {</span>
+<span class="cstat-no" title="statement not covered">    for (const provider of this.sortedProviders) {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+        const providerStats = <span class="cstat-no"
+                                    title="statement not covered">await provider.instance.getStats();</span>
+<span class="cstat-no" title="statement not covered">        stats[provider.name] = {</span>
           ...providerStats,
           hits: provider.stats.hits,
           misses: provider.stats.misses
     };
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
-<span class="cstat-no" title="statement not covered" >        stats[provider.name] = provider.stats;</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        stats[provider.name] = provider.stats;</span>
   }
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return stats;</span>
+<span class="cstat-no" title="statement not covered">    return stats;</span>
   }
 &nbsp;
   /**
@@ -792,11 +795,12 @@ export class CacheProviderManager {
     });
 &nbsp;
     // If provider has too many errors, move it to lowest priority
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (provider.errorCount &gt; 5) {
-<span class="cstat-no" title="statement not covered" >      provider.priority = Math.max(</span>
-        ...this.sortedProviders.map(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.priority)</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (provider.errorCount &gt; 5) {
+<span class="cstat-no" title="statement not covered">      provider.priority = Math.max(</span>
+        ...this.sortedProviders.map(<span class="fstat-no" title="function not covered">p </span>=&gt; <span
+            class="cstat-no" title="statement not covered">p.priority)</span>
       ) + 1;
-<span class="cstat-no" title="statement not covered" >      this.updateProviderOrder();</span>
+<span class="cstat-no" title="statement not covered">      this.updateProviderOrder();</span>
     }
     
     // Emit error event
@@ -810,24 +814,24 @@ export class CacheProviderManager {
   /**
    * Reset error counts for providers
    */
-<span class="fstat-no" title="function not covered" >  re</span>setErrorCounts(): void {
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.providers.values()) {</span>
-<span class="cstat-no" title="statement not covered" >      provider.errorCount = 0;</span>
-<span class="cstat-no" title="statement not covered" >      provider.lastError = undefined;</span>
+<span class="fstat-no" title="function not covered">  re</span>setErrorCounts(): void {
+<span class="cstat-no" title="statement not covered">    for (const provider of this.providers.values()) {</span>
+<span class="cstat-no" title="statement not covered">      provider.errorCount = 0;</span>
+<span class="cstat-no" title="statement not covered">      provider.lastError = undefined;</span>
     }
   }
 &nbsp;
   /**
    * Get provider health status
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tProviderHealth(): Record&lt;string, {
+<span class="fstat-no" title="function not covered">  ge</span>tProviderHealth(): Record&lt;string, {
     status: 'healthy' | 'degraded' | 'failing';
     errorCount: number;
     lastError?: Error;
   }&gt; {
-    const health: Record&lt;string, any&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.providers.values()) {</span>
-<span class="cstat-no" title="statement not covered" >      health[provider.name] = {</span>
+    const health: Record&lt;string, any&gt; = <span class="cstat-no" title="statement not covered">{};</span>
+<span class="cstat-no" title="statement not covered">    for (const provider of this.providers.values()) {</span>
+<span class="cstat-no" title="statement not covered">      health[provider.name] = {</span>
         status: provider.errorCount === 0 ? 'healthy' :
                 provider.errorCount &lt; 5 ? 'degraded' : 'failing',
         errorCount: provider.errorCount,
@@ -835,7 +839,7 @@ export class CacheProviderManager {
       };
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return health;</span>
+<span class="cstat-no" title="statement not covered">    return health;</span>
   }
 &nbsp;
   /**
@@ -847,7 +851,8 @@ export class CacheProviderManager {
     lastError?: Error;
   } | undefined {
     const provider = this.providers.get(name);
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (!provider) <span class="cstat-no" title="statement not covered" >return undefined;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (!provider) <span class="cstat-no"
+                                                                                           title="statement not covered">return undefined;</span>
 &nbsp;
     return {
       healthy: provider.errorCount === 0,
@@ -857,21 +862,21 @@ export class CacheProviderManager {
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

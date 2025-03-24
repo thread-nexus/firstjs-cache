@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for utils/serialization-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">utils</a> serialization-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">5.97% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>4/67</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">5.76% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>3/52</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">33.33% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/3</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">5.97% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>4/67</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -388,44 +388,44 @@
  * @returns Serialized string
  */
 export function serialize(value: any): string {
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (value === undefined) {
-<span class="cstat-no" title="statement not covered" >    return '__undefined__';</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (value === undefined) {
+<span class="cstat-no" title="statement not covered">    return '__undefined__';</span>
   }
   
-  <span class="missing-if-branch" title="if path not taken" >I</span>if (value === null) {
-<span class="cstat-no" title="statement not covered" >    return '__null__';</span>
+  <span class="missing-if-branch" title="if path not taken">I</span>if (value === null) {
+<span class="cstat-no" title="statement not covered">    return '__null__';</span>
   }
   
-  <span class="missing-if-branch" title="else path not taken" >E</span>if (typeof value === 'string') {
+  <span class="missing-if-branch" title="else path not taken">E</span>if (typeof value === 'string') {
     return value;
   }
   
-<span class="cstat-no" title="statement not covered" >  try {</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
     // Handle special types
-<span class="cstat-no" title="statement not covered" >    if (value instanceof Date) {</span>
-<span class="cstat-no" title="statement not covered" >      return `__date__:${value.toISOString()}`;</span>
+<span class="cstat-no" title="statement not covered">    if (value instanceof Date) {</span>
+<span class="cstat-no" title="statement not covered">      return `__date__:${value.toISOString()}`;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    if (value instanceof Map) {</span>
-<span class="cstat-no" title="statement not covered" >      return `__map__:${JSON.stringify(Array.from(value.entries()))}`;</span>
+<span class="cstat-no" title="statement not covered">    if (value instanceof Map) {</span>
+<span class="cstat-no" title="statement not covered">      return `__map__:${JSON.stringify(Array.from(value.entries()))}`;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    if (value instanceof Set) {</span>
-<span class="cstat-no" title="statement not covered" >      return `__set__:${JSON.stringify(Array.from(value.values()))}`;</span>
+<span class="cstat-no" title="statement not covered">    if (value instanceof Set) {</span>
+<span class="cstat-no" title="statement not covered">      return `__set__:${JSON.stringify(Array.from(value.values()))}`;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    if (value instanceof RegExp) {</span>
-<span class="cstat-no" title="statement not covered" >      return `__regexp__:${value.toString()}`;</span>
+<span class="cstat-no" title="statement not covered">    if (value instanceof RegExp) {</span>
+<span class="cstat-no" title="statement not covered">      return `__regexp__:${value.toString()}`;</span>
     }
     
-<span class="cstat-no" title="statement not covered" >    if (ArrayBuffer.isView(value)) {</span>
-<span class="cstat-no" title="statement not covered" >      return `__binary__:${Buffer.from(value.buffer).toString('base64')}`;</span>
+<span class="cstat-no" title="statement not covered">    if (ArrayBuffer.isView(value)) {</span>
+<span class="cstat-no" title="statement not covered">      return `__binary__:${Buffer.from(value.buffer).toString('base64')}`;</span>
     }
     
     // Default to JSON
-<span class="cstat-no" title="statement not covered" >    return JSON.stringify(value);</span>
+<span class="cstat-no" title="statement not covered">    return JSON.stringify(value);</span>
   } catch (error) {
-<span class="cstat-no" title="statement not covered" >    throw new Error(`Serialization failed: ${error instanceof Error ? error.message : String(error)}`);</span>
+<span class="cstat-no" title="statement not covered">    throw new Error(`Serialization failed: ${error instanceof Error ? error.message : String(error)}`);</span>
   }
 }
 &nbsp;
@@ -435,49 +435,50 @@ export function serialize(value: any): string {
  * @param serialized - Serialized string
  * @returns Deserialized value
  */
-export function <span class="fstat-no" title="function not covered" >deserialize&lt;</span>T = any&gt;(serialized: string): T {
-<span class="cstat-no" title="statement not covered" >  if (serialized === '__undefined__') {</span>
-<span class="cstat-no" title="statement not covered" >    return undefined as unknown as T;</span>
+export function <span class="fstat-no" title="function not covered">deserialize&lt;</span>T = any&gt;(serialized: string): T {
+<span class="cstat-no" title="statement not covered">  if (serialized === '__undefined__') {</span>
+<span class="cstat-no" title="statement not covered">    return undefined as unknown as T;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (serialized === '__null__') {</span>
-<span class="cstat-no" title="statement not covered" >    return null as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized === '__null__') {</span>
+<span class="cstat-no" title="statement not covered">    return null as unknown as T;</span>
   }
   
   // Check for special type markers
-<span class="cstat-no" title="statement not covered" >  if (serialized.startsWith('__date__:')) {</span>
-<span class="cstat-no" title="statement not covered" >    return new Date(serialized.substring(9)) as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized.startsWith('__date__:')) {</span>
+<span class="cstat-no"
+      title="statement not covered">    return new Date(serialized.substring(9)) as unknown as T;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (serialized.startsWith('__map__:')) {</span>
-    const entries = <span class="cstat-no" title="statement not covered" >JSON.parse(serialized.substring(8));</span>
-<span class="cstat-no" title="statement not covered" >    return new Map(entries) as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized.startsWith('__map__:')) {</span>
+    const entries = <span class="cstat-no" title="statement not covered">JSON.parse(serialized.substring(8));</span>
+<span class="cstat-no" title="statement not covered">    return new Map(entries) as unknown as T;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (serialized.startsWith('__set__:')) {</span>
-    const values = <span class="cstat-no" title="statement not covered" >JSON.parse(serialized.substring(8));</span>
-<span class="cstat-no" title="statement not covered" >    return new Set(values) as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized.startsWith('__set__:')) {</span>
+    const values = <span class="cstat-no" title="statement not covered">JSON.parse(serialized.substring(8));</span>
+<span class="cstat-no" title="statement not covered">    return new Set(values) as unknown as T;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (serialized.startsWith('__regexp__:')) {</span>
-    const regexStr = <span class="cstat-no" title="statement not covered" >serialized.substring(11);</span>
-    const lastSlash = <span class="cstat-no" title="statement not covered" >regexStr.lastIndexOf('/');</span>
-    const pattern = <span class="cstat-no" title="statement not covered" >regexStr.substring(1, lastSlash);</span>
-    const flags = <span class="cstat-no" title="statement not covered" >regexStr.substring(lastSlash + 1);</span>
-<span class="cstat-no" title="statement not covered" >    return new RegExp(pattern, flags) as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized.startsWith('__regexp__:')) {</span>
+    const regexStr = <span class="cstat-no" title="statement not covered">serialized.substring(11);</span>
+    const lastSlash = <span class="cstat-no" title="statement not covered">regexStr.lastIndexOf('/');</span>
+    const pattern = <span class="cstat-no" title="statement not covered">regexStr.substring(1, lastSlash);</span>
+    const flags = <span class="cstat-no" title="statement not covered">regexStr.substring(lastSlash + 1);</span>
+<span class="cstat-no" title="statement not covered">    return new RegExp(pattern, flags) as unknown as T;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (serialized.startsWith('__binary__:')) {</span>
-    const base64 = <span class="cstat-no" title="statement not covered" >serialized.substring(11);</span>
-<span class="cstat-no" title="statement not covered" >    return Buffer.from(base64, 'base64') as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">  if (serialized.startsWith('__binary__:')) {</span>
+    const base64 = <span class="cstat-no" title="statement not covered">serialized.substring(11);</span>
+<span class="cstat-no" title="statement not covered">    return Buffer.from(base64, 'base64') as unknown as T;</span>
   }
   
   // Try to parse as JSON
-<span class="cstat-no" title="statement not covered" >  try {</span>
-<span class="cstat-no" title="statement not covered" >    return JSON.parse(serialized) as T;</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
+<span class="cstat-no" title="statement not covered">    return JSON.parse(serialized) as T;</span>
   } catch (e) {
     // If not valid JSON, return as string
-<span class="cstat-no" title="statement not covered" >    return serialized as unknown as T;</span>
+<span class="cstat-no" title="statement not covered">    return serialized as unknown as T;</span>
   }
 }
 &nbsp;
@@ -487,70 +488,70 @@ export function <span class="fstat-no" title="function not covered" >deserialize
  * @param value - Value to measure
  * @returns Approximate size in bytes
  */
-export function <span class="fstat-no" title="function not covered" >estimateSize(</span>value: any): number {
-<span class="cstat-no" title="statement not covered" >  if (value === null || value === undefined) {</span>
-<span class="cstat-no" title="statement not covered" >    return 0;</span>
+export function <span class="fstat-no" title="function not covered">estimateSize(</span>value: any): number {
+<span class="cstat-no" title="statement not covered">  if (value === null || value === undefined) {</span>
+<span class="cstat-no" title="statement not covered">    return 0;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (typeof value === 'string') {</span>
-<span class="cstat-no" title="statement not covered" >    return Buffer.byteLength(value, 'utf8');</span>
+<span class="cstat-no" title="statement not covered">  if (typeof value === 'string') {</span>
+<span class="cstat-no" title="statement not covered">    return Buffer.byteLength(value, 'utf8');</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (typeof value === 'number') {</span>
-<span class="cstat-no" title="statement not covered" >    return 8; </span>// 64-bit float
+<span class="cstat-no" title="statement not covered">  if (typeof value === 'number') {</span>
+<span class="cstat-no" title="statement not covered">    return 8; </span>// 64-bit float
   }
   
-<span class="cstat-no" title="statement not covered" >  if (typeof value === 'boolean') {</span>
-<span class="cstat-no" title="statement not covered" >    return 1;</span>
+<span class="cstat-no" title="statement not covered">  if (typeof value === 'boolean') {</span>
+<span class="cstat-no" title="statement not covered">    return 1;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (value instanceof Date) {</span>
-<span class="cstat-no" title="statement not covered" >    return 8; </span>// 64-bit timestamp
+<span class="cstat-no" title="statement not covered">  if (value instanceof Date) {</span>
+<span class="cstat-no" title="statement not covered">    return 8; </span>// 64-bit timestamp
   }
   
-<span class="cstat-no" title="statement not covered" >  if (ArrayBuffer.isView(value)) {</span>
-<span class="cstat-no" title="statement not covered" >    return value.byteLength;</span>
+<span class="cstat-no" title="statement not covered">  if (ArrayBuffer.isView(value)) {</span>
+<span class="cstat-no" title="statement not covered">    return value.byteLength;</span>
   }
   
-<span class="cstat-no" title="statement not covered" >  if (value instanceof Map || value instanceof Set) {</span>
-    let size = <span class="cstat-no" title="statement not covered" >0;</span>
-<span class="cstat-no" title="statement not covered" >    if (value instanceof Map) {</span>
-<span class="cstat-no" title="statement not covered" >      for (const [k, v] of value.entries()) {</span>
-<span class="cstat-no" title="statement not covered" >        size += estimateSize(k) + estimateSize(v);</span>
+<span class="cstat-no" title="statement not covered">  if (value instanceof Map || value instanceof Set) {</span>
+    let size = <span class="cstat-no" title="statement not covered">0;</span>
+<span class="cstat-no" title="statement not covered">    if (value instanceof Map) {</span>
+<span class="cstat-no" title="statement not covered">      for (const [k, v] of value.entries()) {</span>
+<span class="cstat-no" title="statement not covered">        size += estimateSize(k) + estimateSize(v);</span>
       }
     } else {
-<span class="cstat-no" title="statement not covered" >      for (const item of value.values()) {</span>
-<span class="cstat-no" title="statement not covered" >        size += estimateSize(item);</span>
+<span class="cstat-no" title="statement not covered">      for (const item of value.values()) {</span>
+<span class="cstat-no" title="statement not covered">        size += estimateSize(item);</span>
       }
     }
-<span class="cstat-no" title="statement not covered" >    return size;</span>
+<span class="cstat-no" title="statement not covered">    return size;</span>
   }
   
   // For objects and arrays, serialize and measure
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const serialized = <span class="cstat-no" title="statement not covered" >JSON.stringify(value);</span>
-<span class="cstat-no" title="statement not covered" >    return Buffer.byteLength(serialized, 'utf8');</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
+    const serialized = <span class="cstat-no" title="statement not covered">JSON.stringify(value);</span>
+<span class="cstat-no" title="statement not covered">    return Buffer.byteLength(serialized, 'utf8');</span>
   } catch (e) {
     // Fallback for circular references or unserializable objects
-<span class="cstat-no" title="statement not covered" >    return 1024; </span>// Default size
+<span class="cstat-no" title="statement not covered">    return 1024; </span>// Default size
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-23T21:24:28.093Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-23T21:24:28.093Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

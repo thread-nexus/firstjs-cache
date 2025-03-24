@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for utils/compression-utils.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../prettify.css" />
-    <link rel="stylesheet" href="../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../prettify.css" rel="stylesheet"/>
+    <link href="../base.css" rel="stylesheet"/>
+    <link href="../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../index.html">All files</a> / <a href="index.html">utils</a> compression-utils.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">42.85% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>6/14</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">20% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>3/15</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>2/3</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">42.85% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>6/14</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -129,7 +129,8 @@
 <a name='L64'></a><a href='#L64'>64</a>
 <a name='L65'></a><a href='#L65'>65</a>
 <a name='L66'></a><a href='#L66'>66</a>
-<a name='L67'></a><a href='#L67'>67</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L67'></a><a href='#L67'>67</a></td><td class="line-coverage quiet"><span
+        class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -216,7 +217,8 @@ export async function compressData(
   data: string | Buffer,
   encoding: BufferEncoding = 'utf8'
 ): Promise&lt;Buffer&gt; {
-  const buffer = typeof data === 'string' ? Buffer.from(data, encoding) : <span class="branch-1 cbranch-no" title="branch not covered" >data;</span>
+  const buffer = typeof data === 'string' ? Buffer.from(data, encoding) : <span class="branch-1 cbranch-no"
+                                                                                title="branch not covered">data;</span>
   return gzipAsync(buffer);
 }
     
@@ -232,7 +234,8 @@ export async function decompressData(
   encoding?: BufferEncoding
 ): Promise&lt;string | Buffer&gt; {
   const buffer = await gunzipAsync(data);
-      return encoding ? buffer.toString(encoding) : <span class="branch-1 cbranch-no" title="branch not covered" >buffer;</span>
+      return encoding ? buffer.toString(encoding) : <span class="branch-1 cbranch-no"
+                                                          title="branch not covered">buffer;</span>
     }
     
 /**
@@ -242,42 +245,44 @@ export async function decompressData(
  * @param threshold - Size threshold in bytes
  * @returns Whether data should be compressed
  */
-export function <span class="fstat-no" title="function not covered" >shouldCompress(</span>data: any, threshold: number = <span class="branch-0 cbranch-no" title="branch not covered" >1024)</span>: boolean {
+export function <span class="fstat-no" title="function not covered">shouldCompress(</span>data: any, threshold: number = <span
+            class="branch-0 cbranch-no" title="branch not covered">1024)</span>: boolean {
   // Don't compress small data
-<span class="cstat-no" title="statement not covered" >  if (threshold &lt;= 0) {</span>
-<span class="cstat-no" title="statement not covered" >    return false;</span>
+<span class="cstat-no" title="statement not covered">  if (threshold &lt;= 0) {</span>
+<span class="cstat-no" title="statement not covered">    return false;</span>
 }
 &nbsp;
   // Only compress strings and objects
-<span class="cstat-no" title="statement not covered" >  if (typeof data !== 'string' &amp;&amp; (typeof data !== 'object' || data === null)) {</span>
-<span class="cstat-no" title="statement not covered" >    return false;</span>
+<span class="cstat-no" title="statement not covered">  if (typeof data !== 'string' &amp;&amp; (typeof data !== 'object' || data === null)) {</span>
+<span class="cstat-no" title="statement not covered">    return false;</span>
   }
   
   // Check size
-<span class="cstat-no" title="statement not covered" >  try {</span>
-    const serialized = <span class="cstat-no" title="statement not covered" >typeof data === 'string' ? data : JSON.stringify(data);</span>
-<span class="cstat-no" title="statement not covered" >    return Buffer.byteLength(serialized, 'utf8') &gt;= threshold;</span>
+<span class="cstat-no" title="statement not covered">  try {</span>
+    const serialized = <span class="cstat-no" title="statement not covered">typeof data === 'string' ? data : JSON.stringify(data);</span>
+<span class="cstat-no"
+      title="statement not covered">    return Buffer.byteLength(serialized, 'utf8') &gt;= threshold;</span>
   } catch (e) {
-<span class="cstat-no" title="statement not covered" >    return false;</span>
+<span class="cstat-no" title="statement not covered">    return false;</span>
   }
 }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T00:21:23.722Z
-            </div>
-        <script src="../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../sorter.js"></script>
-        <script src="../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T00:21:23.722Z
+</div>
+<script src="../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../sorter.js"></script>
+<script src="../block-navigation.js"></script>
+</body>
 </html>
     

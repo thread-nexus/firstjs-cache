@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/cache-compute.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-compute.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-compute.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">79.41% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>54/68</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">56.75% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>21/37</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">93.33% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>14/15</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">77.77% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>49/63</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -793,11 +794,11 @@ export class CacheCompute {
       defaultTtl?: number;
       backgroundRefresh?: boolean;
       refreshThreshold?: number;
-    } = <span class="branch-0 cbranch-no" title="branch not covered" >{}</span>
+    } = <span class="branch-0 cbranch-no" title="branch not covered">{}</span>
   ) {
-    this.defaultTtl = options.defaultTtl || <span class="branch-1 cbranch-no" title="branch not covered" >3600;</span>
+    this.defaultTtl = options.defaultTtl || <span class="branch-1 cbranch-no" title="branch not covered">3600;</span>
     this.backgroundRefresh = options.backgroundRefresh !== false;
-    this.refreshThreshold = options.refreshThreshold || <span class="branch-1 cbranch-no" title="branch not covered" >0.75;</span>
+    this.refreshThreshold = options.refreshThreshold || <span class="branch-1 cbranch-no" title="branch not covered">0.75;</span>
   }
 &nbsp;
   /**
@@ -823,11 +824,11 @@ export class CacheCompute {
         const isStale = this.isValueStale(metadata?.refreshedAt, options);
 &nbsp;
         // Schedule background refresh if needed
-        <span class="missing-if-branch" title="else path not taken" >E</span>if (isStale &amp;&amp; this.shouldBackgroundRefresh(options)) {
+        <span class="missing-if-branch" title="else path not taken">E</span>if (isStale &amp;&amp; this.shouldBackgroundRefresh(options)) {
           await this.scheduleBackgroundRefresh(key, fetcher, options);
         }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >        return {</span>
+<span class="cstat-no" title="statement not covered">        return {</span>
           value: cachedValue,
           computeTime: metadata?.computeTime || 0,
           stale: isStale
@@ -837,11 +838,11 @@ export class CacheCompute {
       // Compute new value
       return await this.computeAndCache(key, fetcher, options);
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'getOrCompute',
         key
       });
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
@@ -889,7 +890,7 @@ export class CacheCompute {
     } catch (error) {
       emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
         key,
-        error: error instanceof Error ? error : <span class="branch-1 cbranch-no" title="branch not covered" >new Error(String(error))</span>
+        error: error instanceof Error ? error : <span class="branch-1 cbranch-no" title="branch not covered">new Error(String(error))</span>
       });
       throw error;
     }
@@ -918,7 +919,7 @@ export class CacheCompute {
       }
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    throw new Error('Exceeded maximum number of retries');</span>
+<span class="cstat-no" title="statement not covered">    throw new Error('Exceeded maximum number of retries');</span>
   }
 &nbsp;
   /**
@@ -928,13 +929,13 @@ export class CacheCompute {
     refreshedAt?: Date,
     options?: CacheOptions
   ): boolean {
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (!refreshedAt) return true;
+    <span class="missing-if-branch" title="else path not taken">E</span>if (!refreshedAt) return true;
 &nbsp;
-    const ttl = <span class="cstat-no" title="statement not covered" >options?.ttl || this.defaultTtl;</span>
-    const threshold = <span class="cstat-no" title="statement not covered" >options?.refreshThreshold || this.refreshThreshold;</span>
+    const ttl = <span class="cstat-no" title="statement not covered">options?.ttl || this.defaultTtl;</span>
+    const threshold = <span class="cstat-no" title="statement not covered">options?.refreshThreshold || this.refreshThreshold;</span>
 &nbsp;
-    const age = <span class="cstat-no" title="statement not covered" >Date.now() - refreshedAt.getTime();</span>
-<span class="cstat-no" title="statement not covered" >    return age &gt; ttl * threshold * 1000;</span>
+    const age = <span class="cstat-no" title="statement not covered">Date.now() - refreshedAt.getTime();</span>
+<span class="cstat-no" title="statement not covered">    return age &gt; ttl * threshold * 1000;</span>
   }
 &nbsp;
   /**
@@ -953,17 +954,19 @@ export class CacheCompute {
     options?: ComputeOptions
   ): Promise&lt;void&gt; {
     // Check if refresh is already scheduled
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (this.refreshPromises.has(key)) {
-<span class="cstat-no" title="statement not covered" >      return;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (this.refreshPromises.has(key)) {
+<span class="cstat-no" title="statement not covered">      return;</span>
     }
 &nbsp;
     const refreshPromise = (async () =&gt; {
       try {
         emitCacheEvent(CacheEventType.REFRESH_START, { key });
         await this.computeAndCache(key, fetcher, options);
-<span class="cstat-no" title="statement not covered" >        emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });</span>
+<span class="cstat-no"
+      title="statement not covered">        emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });</span>
       } catch (error) {
-        emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : <span class="branch-1 cbranch-no" title="branch not covered" >new Error(String(error)) </span>});
+        emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : <span
+            class="branch-1 cbranch-no" title="branch not covered">new Error(String(error)) </span>});
       } finally {
         this.refreshPromises.delete(key);
       }
@@ -973,7 +976,7 @@ export class CacheCompute {
 &nbsp;
     // Prevent refresh spam
     await new Promise(resolve =&gt; setTimeout(resolve, 60000));
-<span class="cstat-no" title="statement not covered" >    this.refreshPromises.delete(key);</span>
+<span class="cstat-no" title="statement not covered">    this.refreshPromises.delete(key);</span>
   }
 &nbsp;
   /**
@@ -994,8 +997,8 @@ export class CacheCompute {
       await this.computeAndCache(key, fetcher, options);
       emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
     } catch (error) {
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : new Error(String(error)) });</span>
-<span class="cstat-no" title="statement not covered" >      throw error;</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : new Error(String(error)) });</span>
+<span class="cstat-no" title="statement not covered">      throw error;</span>
     }
   }
 &nbsp;
@@ -1022,11 +1025,11 @@ export class CacheCompute {
   /**
    * Get status of compute operations
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tComputeStatus(): {
+<span class="fstat-no" title="function not covered">  ge</span>tComputeStatus(): {
     activeComputes: number;
     activeRefreshes: number;
   } {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="cstat-no" title="statement not covered">    return {</span>
       activeComputes: 0,
       activeRefreshes: this.refreshPromises.size
     };
@@ -1034,21 +1037,21 @@ export class CacheCompute {
 }
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

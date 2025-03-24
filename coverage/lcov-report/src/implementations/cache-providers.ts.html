@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/cache-providers.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-providers.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-providers.ts
+        </h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">4.87% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>4/82</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>0/33</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">5% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>1/20</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">4.93% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>4/81</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -738,12 +739,12 @@ export class CacheProviderManager {
   /**
    * Register a new cache provider
    */
-<span class="fstat-no" title="function not covered" >  re</span>gisterProvider(
+<span class="fstat-no" title="function not covered">  re</span>gisterProvider(
     name: string,
     provider: ICacheProvider,
-    priority: number = <span class="branch-0 cbranch-no" title="branch not covered" >0</span>
+    priority: number = <span class="branch-0 cbranch-no" title="branch not covered">0</span>
   ): void {
-    const entry: ProviderEntry = <span class="cstat-no" title="statement not covered" >{</span>
+    const entry: ProviderEntry = <span class="cstat-no" title="statement not covered">{</span>
       name,
       instance: provider,
       priority,
@@ -762,12 +763,13 @@ export class CacheProviderManager {
       errorCount: 0
     };
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.providers.set(name, entry);</span>
-<span class="cstat-no" title="statement not covered" >    this.updateProviderOrder();</span>
-<span class="cstat-no" title="statement not covered" >    this.healthStatus.set(name, { healthy: true, errors: 0 });</span>
+<span class="cstat-no" title="statement not covered">    this.providers.set(name, entry);</span>
+<span class="cstat-no" title="statement not covered">    this.updateProviderOrder();</span>
+<span class="cstat-no"
+      title="statement not covered">    this.healthStatus.set(name, { healthy: true, errors: 0 });</span>
 &nbsp;
     // Add required properties to event payload
-<span class="cstat-no" title="statement not covered" >    emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, { </span>
+<span class="cstat-no" title="statement not covered">    emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, { </span>
       provider: name,
       type: CacheEventType.PROVIDER_INITIALIZED.toString(),
       timestamp: Date.now()
@@ -777,171 +779,179 @@ export class CacheProviderManager {
   /**
    * Remove a cache provider
    */
-<span class="fstat-no" title="function not covered" >  re</span>moveProvider(name: string): boolean {
-    const removed = <span class="cstat-no" title="statement not covered" >this.providers.delete(name);</span>
-<span class="cstat-no" title="statement not covered" >    if (removed) {</span>
-<span class="cstat-no" title="statement not covered" >      this.updateProviderOrder();</span>
+<span class="fstat-no" title="function not covered">  re</span>moveProvider(name: string): boolean {
+    const removed = <span class="cstat-no" title="statement not covered">this.providers.delete(name);</span>
+<span class="cstat-no" title="statement not covered">    if (removed) {</span>
+<span class="cstat-no" title="statement not covered">      this.updateProviderOrder();</span>
       // Add required properties to event payload
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.PROVIDER_REMOVED, { </span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.PROVIDER_REMOVED, { </span>
         provider: name,
         type: CacheEventType.PROVIDER_REMOVED.toString(),
         timestamp: Date.now()
       });
     }
-<span class="cstat-no" title="statement not covered" >    return removed;</span>
+<span class="cstat-no" title="statement not covered">    return removed;</span>
   }
 &nbsp;
   /**
    * Update provider ordering based on priority
    * @private
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate updateProviderOrder(): void {
-<span class="cstat-no" title="statement not covered" >    this.sortedProviders = Array.from(this.providers.values())</span>
-      .sort(<span class="fstat-no" title="function not covered" >(a</span>, b) =&gt; <span class="cstat-no" title="statement not covered" >a.priority - b.priority)</span>;
+<span class="fstat-no" title="function not covered">  pr</span>ivate updateProviderOrder(): void {
+<span class="cstat-no"
+      title="statement not covered">    this.sortedProviders = Array.from(this.providers.values())</span>
+      .sort(<span class="fstat-no" title="function not covered">(a</span>, b) =&gt; <span class="cstat-no"
+                                                                                          title="statement not covered">a.priority - b.priority)</span>;
   }
   /**
    * Get a value from cache providers in priority order
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync get&lt;T&gt;(key: string): Promise&lt;T | null&gt; {
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.sortedProviders) {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-        const value = <span class="cstat-no" title="statement not covered" >await provider.instance.get(key);</span>
-<span class="cstat-no" title="statement not covered" >        if (value !== null) {</span>
-<span class="cstat-no" title="statement not covered" >          provider.stats.hits++;</span>
-<span class="cstat-no" title="statement not covered" >          return value;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync get&lt;T&gt;(key: string): Promise&lt;T | null&gt; {
+<span class="cstat-no" title="statement not covered">    for (const provider of this.sortedProviders) {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+        const value = <span class="cstat-no" title="statement not covered">await provider.instance.get(key);</span>
+<span class="cstat-no" title="statement not covered">        if (value !== null) {</span>
+<span class="cstat-no" title="statement not covered">          provider.stats.hits++;</span>
+<span class="cstat-no" title="statement not covered">          return value;</span>
         }
-<span class="cstat-no" title="statement not covered" >        provider.stats.misses++;</span>
+<span class="cstat-no" title="statement not covered">        provider.stats.misses++;</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
         // If this is the only provider or the last one, rethrow the error
-<span class="cstat-no" title="statement not covered" >        if (this.sortedProviders.length === 1 || </span>
+<span class="cstat-no" title="statement not covered">        if (this.sortedProviders.length === 1 || </span>
             provider === this.sortedProviders[this.sortedProviders.length - 1]) {
-<span class="cstat-no" title="statement not covered" >          throw error;</span>
+<span class="cstat-no" title="statement not covered">          throw error;</span>
         }
       }
     }
-<span class="cstat-no" title="statement not covered" >    return null;</span>
+<span class="cstat-no" title="statement not covered">    return null;</span>
   }
 &nbsp;
   /**
    * Set a value across all cache providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync set(key: string, value: any, options?: CacheOptions): Promise&lt;void&gt; {
-    const promises = <span class="cstat-no" title="statement not covered" >this.sortedProviders.map(<span class="fstat-no" title="function not covered" >as</span>ync provider =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-<span class="cstat-no" title="statement not covered" >        await provider.instance.set(key, value, options);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync set(key: string, value: any, options?: CacheOptions): Promise&lt;void&gt; {
+    const promises = <span class="cstat-no" title="statement not covered">this.sortedProviders.map(<span
+            class="fstat-no" title="function not covered">as</span>ync provider =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+<span class="cstat-no" title="statement not covered">        await provider.instance.set(key, value, options);</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
         // If this is the primary provider, rethrow the error
-<span class="cstat-no" title="statement not covered" >        if (provider === this.sortedProviders[0]) {</span>
-<span class="cstat-no" title="statement not covered" >          throw error;</span>
+<span class="cstat-no" title="statement not covered">        if (provider === this.sortedProviders[0]) {</span>
+<span class="cstat-no" title="statement not covered">          throw error;</span>
         }
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.allSettled(promises);</span>
+<span class="cstat-no" title="statement not covered">    await Promise.allSettled(promises);</span>
   }
 &nbsp;
   /**
    * Delete a value from all cache providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
-    let deleted = <span class="cstat-no" title="statement not covered" >false;</span>
-    const promises = <span class="cstat-no" title="statement not covered" >this.sortedProviders.map(<span class="fstat-no" title="function not covered" >as</span>ync provider =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-        const result = <span class="cstat-no" title="statement not covered" >await provider.instance.delete(key);</span>
-<span class="cstat-no" title="statement not covered" >        deleted = deleted || result;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
+    let deleted = <span class="cstat-no" title="statement not covered">false;</span>
+    const promises = <span class="cstat-no" title="statement not covered">this.sortedProviders.map(<span
+            class="fstat-no" title="function not covered">as</span>ync provider =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+        const result = <span class="cstat-no" title="statement not covered">await provider.instance.delete(key);</span>
+<span class="cstat-no" title="statement not covered">        deleted = deleted || result;</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.allSettled(promises);</span>
-<span class="cstat-no" title="statement not covered" >    return deleted;</span>
+<span class="cstat-no" title="statement not covered">    await Promise.allSettled(promises);</span>
+<span class="cstat-no" title="statement not covered">    return deleted;</span>
   }
 &nbsp;
   /**
    * Clear all cache providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-    const promises = <span class="cstat-no" title="statement not covered" >this.sortedProviders.map(<span class="fstat-no" title="function not covered" >as</span>ync provider =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
-<span class="cstat-no" title="statement not covered" >        await provider.instance.clear();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+    const promises = <span class="cstat-no" title="statement not covered">this.sortedProviders.map(<span
+            class="fstat-no" title="function not covered">as</span>ync provider =&gt; {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
+<span class="cstat-no" title="statement not covered">        await provider.instance.clear();</span>
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
       }
     });
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    await Promise.allSettled(promises);</span>
+<span class="cstat-no" title="statement not covered">    await Promise.allSettled(promises);</span>
   }
 &nbsp;
   /**
    * Get stats from all providers
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
-    const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;Record&lt;string, CacheStats&gt;&gt; {
+    const stats: Record&lt;string, CacheStats&gt; = <span class="cstat-no" title="statement not covered">{};</span>
     
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.sortedProviders) {</span>
-<span class="cstat-no" title="statement not covered" >      try {</span>
+<span class="cstat-no" title="statement not covered">    for (const provider of this.sortedProviders) {</span>
+<span class="cstat-no" title="statement not covered">      try {</span>
         // Check if getStats method exists before calling it
-<span class="cstat-no" title="statement not covered" >        if (typeof provider.instance.getStats === 'function') {</span>
-          const providerStats = <span class="cstat-no" title="statement not covered" >await provider.instance.getStats();</span>
-<span class="cstat-no" title="statement not covered" >          stats[provider.name] = {</span>
+<span class="cstat-no"
+      title="statement not covered">        if (typeof provider.instance.getStats === 'function') {</span>
+          const providerStats = <span class="cstat-no"
+                                      title="statement not covered">await provider.instance.getStats();</span>
+<span class="cstat-no" title="statement not covered">          stats[provider.name] = {</span>
             ...providerStats,
             hits: provider.stats.hits,
             misses: provider.stats.misses
           };
         } else {
           // If getStats doesn't exist, use the cached stats
-<span class="cstat-no" title="statement not covered" >          stats[provider.name] = provider.stats;</span>
+<span class="cstat-no" title="statement not covered">          stats[provider.name] = provider.stats;</span>
         }
       } catch (error) {
-<span class="cstat-no" title="statement not covered" >        this.handleProviderError(provider, error);</span>
-<span class="cstat-no" title="statement not covered" >        stats[provider.name] = provider.stats;</span>
+<span class="cstat-no" title="statement not covered">        this.handleProviderError(provider, error);</span>
+<span class="cstat-no" title="statement not covered">        stats[provider.name] = provider.stats;</span>
       }
     }
   
-<span class="cstat-no" title="statement not covered" >    return stats;</span>
+<span class="cstat-no" title="statement not covered">    return stats;</span>
   }
 &nbsp;
   /**
    * Get a specific provider by name
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tProvider(name: string): ICacheProvider | undefined {
-<span class="cstat-no" title="statement not covered" >    return this.providers.get(name)?.instance;</span>
+<span class="fstat-no" title="function not covered">  ge</span>tProvider(name: string): ICacheProvider | undefined {
+<span class="cstat-no" title="statement not covered">    return this.providers.get(name)?.instance;</span>
   }
 &nbsp;
   /**
    * Handle provider errors
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate handleProviderError(provider: ProviderEntry | string, error: unknown): void {
-<span class="cstat-no" title="statement not covered" >    if (typeof provider === 'string') {</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate handleProviderError(provider: ProviderEntry | string, error: unknown): void {
+<span class="cstat-no" title="statement not covered">    if (typeof provider === 'string') {</span>
       // Handle string provider case
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'provider',
         provider: provider
       });
     } else {
       // Handle ProviderEntry case
-<span class="cstat-no" title="statement not covered" >      provider.lastError = error instanceof Error ? error : new Error(String(error));</span>
-<span class="cstat-no" title="statement not covered" >      provider.errorCount++;</span>
+<span class="cstat-no" title="statement not covered">      provider.lastError = error instanceof Error ? error : new Error(String(error));</span>
+<span class="cstat-no" title="statement not covered">      provider.errorCount++;</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >      handleCacheError(error, {</span>
+<span class="cstat-no" title="statement not covered">      handleCacheError(error, {</span>
         operation: 'provider',
         provider: provider.name,
         context: { errorCount: provider.errorCount }
       });
 &nbsp;
       // If provider has too many errors, move it to lowest priority
-<span class="cstat-no" title="statement not covered" >      if (provider.errorCount &gt; 5) {</span>
-<span class="cstat-no" title="statement not covered" >        provider.priority = Math.max(</span>
-          ...this.sortedProviders.map(<span class="fstat-no" title="function not covered" >p </span>=&gt; <span class="cstat-no" title="statement not covered" >p.priority)</span>
+<span class="cstat-no" title="statement not covered">      if (provider.errorCount &gt; 5) {</span>
+<span class="cstat-no" title="statement not covered">        provider.priority = Math.max(</span>
+          ...this.sortedProviders.map(<span class="fstat-no" title="function not covered">p </span>=&gt; <span
+            class="cstat-no" title="statement not covered">p.priority)</span>
         ) + 1;
-<span class="cstat-no" title="statement not covered" >        this.updateProviderOrder();</span>
+<span class="cstat-no" title="statement not covered">        this.updateProviderOrder();</span>
       }
       
       // Emit error event with required properties
-<span class="cstat-no" title="statement not covered" >      emitCacheEvent(CacheEventType.PROVIDER_ERROR, {</span>
+<span class="cstat-no" title="statement not covered">      emitCacheEvent(CacheEventType.PROVIDER_ERROR, {</span>
         provider: provider.name,
         error: error instanceof Error ? error : new Error(String(error)),
         errorCount: provider.errorCount,
@@ -954,28 +964,28 @@ export class CacheProviderManager {
   /**
    * Reset error counts for providers
    */
-<span class="fstat-no" title="function not covered" >  re</span>setErrorCounts(): void {
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.providers.values()) {</span>
-<span class="cstat-no" title="statement not covered" >      provider.errorCount = 0;</span>
-<span class="cstat-no" title="statement not covered" >      provider.lastError = undefined;</span>
+<span class="fstat-no" title="function not covered">  re</span>setErrorCounts(): void {
+<span class="cstat-no" title="statement not covered">    for (const provider of this.providers.values()) {</span>
+<span class="cstat-no" title="statement not covered">      provider.errorCount = 0;</span>
+<span class="cstat-no" title="statement not covered">      provider.lastError = undefined;</span>
     }
   }
 &nbsp;
   /**
    * Get provider health status
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tProviderHealth(): Record&lt;string, {
+<span class="fstat-no" title="function not covered">  ge</span>tProviderHealth(): Record&lt;string, {
     status: 'healthy' | 'degraded' | 'unhealthy';
     errorCount: number;
     lastError?: Error;
     healthy: boolean; // Add this property to match HealthStatus interface
   }&gt; {
-    const health: Record&lt;string, any&gt; = <span class="cstat-no" title="statement not covered" >{};</span>
-<span class="cstat-no" title="statement not covered" >    for (const provider of this.providers.values()) {</span>
-      const status = <span class="cstat-no" title="statement not covered" >provider.errorCount === 0 ? 'healthy' :</span>
+    const health: Record&lt;string, any&gt; = <span class="cstat-no" title="statement not covered">{};</span>
+<span class="cstat-no" title="statement not covered">    for (const provider of this.providers.values()) {</span>
+      const status = <span class="cstat-no" title="statement not covered">provider.errorCount === 0 ? 'healthy' :</span>
                      provider.errorCount &lt; 5 ? 'degraded' : 'unhealthy';
                      
-<span class="cstat-no" title="statement not covered" >      health[provider.name] = {</span>
+<span class="cstat-no" title="statement not covered">      health[provider.name] = {</span>
         status,
         errorCount: provider.errorCount,
         lastError: provider.lastError,
@@ -984,25 +994,26 @@ export class CacheProviderManager {
       };
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return health;</span>
+<span class="cstat-no" title="statement not covered">    return health;</span>
   }
 &nbsp;
   /**
    * Get provider status
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tProviderStatus(name: string): {
+<span class="fstat-no" title="function not covered">  ge</span>tProviderStatus(name: string): {
     status: 'healthy' | 'degraded' | 'unhealthy';
     healthy: boolean; // Add this property to match HealthStatus
     errorCount: number;
     lastError?: Error;
   } | undefined {
-    const provider = <span class="cstat-no" title="statement not covered" >this.providers.get(name);</span>
-<span class="cstat-no" title="statement not covered" >    if (!provider) <span class="cstat-no" title="statement not covered" >return undefined;</span></span>
+    const provider = <span class="cstat-no" title="statement not covered">this.providers.get(name);</span>
+<span class="cstat-no" title="statement not covered">    if (!provider) <span class="cstat-no"
+                                                                              title="statement not covered">return undefined;</span></span>
 &nbsp;
-    const status = <span class="cstat-no" title="statement not covered" >provider.errorCount === 0 ? 'healthy' :</span>
+    const status = <span class="cstat-no" title="statement not covered">provider.errorCount === 0 ? 'healthy' :</span>
                    provider.errorCount &lt; 5 ? 'degraded' : 'unhealthy';
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="cstat-no" title="statement not covered">    return {</span>
       status,
       healthy: provider.errorCount === 0,
       errorCount: provider.errorCount,
@@ -1010,8 +1021,8 @@ export class CacheProviderManager {
     };
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  pr</span>ivate getProviderStats(): CacheStats {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate getProviderStats(): CacheStats {
+<span class="cstat-no" title="statement not covered">    return {</span>
       hits: 0,
       misses: 0,
       size: 0,
@@ -1025,21 +1036,21 @@ export class CacheProviderManager {
   }
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

@@ -1,63 +1,64 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/implementations/cache-manager-core.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
-        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a> cache-manager-core.ts</h1>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/implementations</a>
+            cache-manager-core.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">40.84% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>29/71</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">34.28% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>12/35</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">36.66% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>11/30</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">41.42% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>29/70</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -738,7 +739,7 @@ export class CacheManagerCore {
   private healthStatus: Map&lt;string, {healthy: boolean, errors: number}&gt; = new Map();
   private monitoringInterval: NodeJS.Timeout | null = null;
   
-  constructor(private config: typeof DEFAULT_CONFIG = <span class="branch-0 cbranch-no" title="branch not covered" >DEFAULT_CONFIG)</span> {
+  constructor(private config: typeof DEFAULT_CONFIG = <span class="branch-0 cbranch-no" title="branch not covered">DEFAULT_CONFIG)</span> {
     // Initialize default memory provider
     const memoryAdapter = new MemoryAdapter({
       // Only use properties that are valid for StorageAdapterConfig
@@ -755,57 +756,57 @@ export class CacheManagerCore {
       this.healthStatus.set(name, {healthy: true, errors: 0});
     });
     // Start monitoring if enabled
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (config.statsInterval) {
-<span class="cstat-no" title="statement not covered" >      this.startMonitoring();</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (config.statsInterval) {
+<span class="cstat-no" title="statement not covered">      this.startMonitoring();</span>
     }
   }
 &nbsp;
   /**
    * Get a value from cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync get(key: string): Promise&lt;any&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.get(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync get(key: string): Promise&lt;any&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.get(key);</span>
   }
   
   /**
    * Set a value in cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync set(key: string, value: any, options?: CacheOptions): Promise&lt;void&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.set(key, value, options);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync set(key: string, value: any, options?: CacheOptions): Promise&lt;void&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.set(key, value, options);</span>
   }
   
   /**
    * Delete a value from cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.delete(key);</span>
+<span class="fstat-no" title="function not covered">  as</span>ync delete(key: string): Promise&lt;boolean&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.delete(key);</span>
   }
 &nbsp;
   /**
    * Clear the entire cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync clear(): Promise&lt;void&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.clear();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync clear(): Promise&lt;void&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.clear();</span>
   }
   
   /**
    * Get multiple values from cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getMany(keys: string[]): Promise&lt;Record&lt;string, any&gt;&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.getMany?.(keys) ?? {};</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getMany(keys: string[]): Promise&lt;Record&lt;string, any&gt;&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.getMany?.(keys) ?? {};</span>
   }
   
   /**
    * Set multiple values in cache
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync setMany(entries: Record&lt;string, any&gt;, options?: CacheOptions): Promise&lt;void&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.setMany?.(entries, options) ?? Promise.resolve();</span>
+<span class="fstat-no" title="function not covered">  as</span>ync setMany(entries: Record&lt;string, any&gt;, options?: CacheOptions): Promise&lt;void&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.setMany?.(entries, options) ?? Promise.resolve();</span>
   }
   
   /**
@@ -817,23 +818,23 @@ export class CacheManagerCore {
     options?: CacheOptions
   ): Promise&lt;any&gt; {
     const provider = this.getProvider();
-    const value = <span class="cstat-no" title="statement not covered" >await provider.get(key);</span>
+    const value = <span class="cstat-no" title="statement not covered">await provider.get(key);</span>
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    if (value !== null) {</span>
-<span class="cstat-no" title="statement not covered" >      return value;</span>
+<span class="cstat-no" title="statement not covered">    if (value !== null) {</span>
+<span class="cstat-no" title="statement not covered">      return value;</span>
     }
 &nbsp;
-    const computed = <span class="cstat-no" title="statement not covered" >await fetcher();</span>
-<span class="cstat-no" title="statement not covered" >    await provider.set(key, computed, options);</span>
-<span class="cstat-no" title="statement not covered" >    return computed;</span>
+    const computed = <span class="cstat-no" title="statement not covered">await fetcher();</span>
+<span class="cstat-no" title="statement not covered">    await provider.set(key, computed, options);</span>
+<span class="cstat-no" title="statement not covered">    return computed;</span>
   }
   
   /**
    * Get cache statistics
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.getStats ? provider.getStats() : {</span>
+<span class="fstat-no" title="function not covered">  as</span>ync getStats(): Promise&lt;CacheStats&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.getStats ? provider.getStats() : {</span>
       hits: 0,
       misses: 0,
       size: 0,
@@ -853,58 +854,59 @@ export class CacheManagerCore {
     const providerName = name || this.config.defaultProvider;
     const provider = this.providers.get(providerName);
 &nbsp;
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (!provider) {
+    <span class="missing-if-branch" title="else path not taken">E</span>if (!provider) {
       throw new Error(`Provider "${providerName}" not found`);
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    return provider;</span>
+<span class="cstat-no" title="statement not covered">    return provider;</span>
   }
 &nbsp;
   /**
    * Get provider operations
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tOperations(provider?: string): any {
+<span class="fstat-no" title="function not covered">  ge</span>tOperations(provider?: string): any {
     // This would be implemented to return operations specific to the provider
-<span class="cstat-no" title="statement not covered" >    return {};</span>
+<span class="cstat-no" title="statement not covered">    return {};</span>
   }
 &nbsp;
   /**
    * Invalidate cache entries by tag
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync invalidateByTag(tag: string): Promise&lt;number&gt; {
-    const provider = <span class="cstat-no" title="statement not covered" >this.getProvider();</span>
-<span class="cstat-no" title="statement not covered" >    return provider.invalidateByTag?.(tag) ?? 0;</span>
+<span class="fstat-no" title="function not covered">  as</span>ync invalidateByTag(tag: string): Promise&lt;number&gt; {
+    const provider = <span class="cstat-no" title="statement not covered">this.getProvider();</span>
+<span class="cstat-no" title="statement not covered">    return provider.invalidateByTag?.(tag) ?? 0;</span>
   }
 &nbsp;
   /**
    * Invalidate cache entries by prefix
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync invalidateByPrefix(prefix: string): Promise&lt;number&gt; {
+<span class="fstat-no" title="function not covered">  as</span>ync invalidateByPrefix(prefix: string): Promise&lt;number&gt; {
     // This would be implemented to invalidate by prefix
-<span class="cstat-no" title="statement not covered" >    return 0;</span>
+<span class="cstat-no" title="statement not covered">    return 0;</span>
   }
 &nbsp;
   /**
    * Get all keys matching a pattern
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync keys(pattern?: string): Promise&lt;string[]&gt; {
+<span class="fstat-no" title="function not covered">  as</span>ync keys(pattern?: string): Promise&lt;string[]&gt; {
     // This would be implemented to get keys by pattern
-<span class="cstat-no" title="statement not covered" >    return [];</span>
+<span class="cstat-no" title="statement not covered">    return [];</span>
   }
 &nbsp;
   /**
    * Delete cache entries matching a pattern
    */
-<span class="fstat-no" title="function not covered" >  as</span>ync deleteByPattern(pattern: string): Promise&lt;number&gt; {
+<span class="fstat-no" title="function not covered">  as</span>ync deleteByPattern(pattern: string): Promise&lt;number&gt; {
     // This would be implemented to delete by pattern
-<span class="cstat-no" title="statement not covered" >    return 0;</span>
+<span class="cstat-no" title="statement not covered">    return 0;</span>
   }
 &nbsp;
   /**
    * Start monitoring provider health
    */
   startMonitoring(): void {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (this.monitoringInterval) <span class="cstat-no" title="statement not covered" >return;</span>
+    <span class="missing-if-branch" title="if path not taken">I</span>if (this.monitoringInterval) <span
+            class="cstat-no" title="statement not covered">return;</span>
 &nbsp;
     this.monitoringInterval = setInterval(() =&gt; {
       this.checkProviderHealth();
@@ -915,7 +917,7 @@ export class CacheManagerCore {
    * Stop monitoring provider health
    */
   stopMonitoring(): void {
-    <span class="missing-if-branch" title="else path not taken" >E</span>if (this.monitoringInterval) {
+    <span class="missing-if-branch" title="else path not taken">E</span>if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
@@ -932,25 +934,25 @@ export class CacheManagerCore {
           const health = await provider.healthCheck();
           // Ensure we get a boolean healthy status
           const healthy = health.status === 'healthy' || 
-                       (<span class="branch-1 cbranch-no" title="branch not covered" >health.healthy !== undefined ? health.healthy : false)</span>;
+                       (<span class="branch-1 cbranch-no" title="branch not covered">health.healthy !== undefined ? health.healthy : false)</span>;
           
           this.healthStatus.set(name, {
             healthy,
             errors: 0
           });
-        } else <span class="missing-if-branch" title="else path not taken" >E</span>{
+        } else <span class="missing-if-branch" title="else path not taken">E</span>{
           // If no health check is available, assume healthy but note it
-<span class="cstat-no" title="statement not covered" >          this.healthStatus.set(name, {</span>
+<span class="cstat-no" title="statement not covered">          this.healthStatus.set(name, {</span>
             healthy: true,
             errors: 0
           });
         }
       } catch (error) {
-        const status = <span class="cstat-no" title="statement not covered" >this.healthStatus.get(name);</span>
-<span class="cstat-no" title="statement not covered" >        if (status) {</span>
-<span class="cstat-no" title="statement not covered" >          status.errors += 1;</span>
-<span class="cstat-no" title="statement not covered" >          status.healthy = status.errors &lt; 3; </span>// Mark unhealthy after 3 errors
-<span class="cstat-no" title="statement not covered" >          this.healthStatus.set(name, status);</span>
+        const status = <span class="cstat-no" title="statement not covered">this.healthStatus.get(name);</span>
+<span class="cstat-no" title="statement not covered">        if (status) {</span>
+<span class="cstat-no" title="statement not covered">          status.errors += 1;</span>
+<span class="cstat-no" title="statement not covered">          status.healthy = status.errors &lt; 3; </span>// Mark unhealthy after 3 errors
+<span class="cstat-no" title="statement not covered">          this.healthStatus.set(name, status);</span>
         }
       }
     }
@@ -967,31 +969,31 @@ export class CacheManagerCore {
     const status = this.healthStatus.get(name) || {healthy: false, errors: 0};
     return {
       ...status,
-      status: status.healthy ? <span class="branch-0 cbranch-no" title="branch not covered" >'healthy' </span>: 
-              status.errors &lt; 3 ? 'degraded' : <span class="branch-1 cbranch-no" title="branch not covered" >'unhealthy'</span>
+      status: status.healthy ? <span class="branch-0 cbranch-no" title="branch not covered">'healthy' </span>:
+              status.errors &lt; 3 ? 'degraded' : <span class="branch-1 cbranch-no" title="branch not covered">'unhealthy'</span>
     };
   }
 &nbsp;
   /**
    * Wrap a function with caching
    */
-<span class="fstat-no" title="function not covered" >  wr</span>ap&lt;T extends (...args: any[]) =&gt; Promise&lt;any&gt;&gt;(
+<span class="fstat-no" title="function not covered">  wr</span>ap&lt;T extends (...args: any[]) =&gt; Promise&lt;any&gt;&gt;(
     fn: T,
     keyGenerator: ((...args: Parameters&lt;T&gt;) =&gt; string) | undefined,
     options?: CacheOptions
   ): T &amp; { invalidateCache: (...args: Parameters&lt;T&gt;) =&gt; Promise&lt;void&gt; } {
     // Implementation would go here
-    const originalFn = <span class="cstat-no" title="statement not covered" >fn;</span>
+    const originalFn = <span class="cstat-no" title="statement not covered">fn;</span>
     // Fix the wrappedFn reference
-<span class="cstat-no" title="statement not covered" >    return originalFn as T &amp; { invalidateCache: (...args: Parameters&lt;T&gt;) =&gt; Promise&lt;void&gt; };</span>
+<span class="cstat-no" title="statement not covered">    return originalFn as T &amp; { invalidateCache: (...args: Parameters&lt;T&gt;) =&gt; Promise&lt;void&gt; };</span>
   }
 &nbsp;
   /**
    * Get a safe copy of configuration information
    * This exposes configuration in a safe way for UI components
    */
-<span class="fstat-no" title="function not covered" >  ge</span>tConfigInfo(): Record&lt;string, any&gt; {
-<span class="cstat-no" title="statement not covered" >    return {</span>
+<span class="fstat-no" title="function not covered">  ge</span>tConfigInfo(): Record&lt;string, any&gt; {
+<span class="cstat-no" title="statement not covered">    return {</span>
       defaultTtl: this.config.defaultTtl,
       providers: Array.from(this.providers.keys()),
       defaultProvider: this.config.defaultProvider,
@@ -1003,24 +1005,24 @@ export class CacheManagerCore {
 /**
  * Get cache value by key
  */
-export function <span class="fstat-no" title="function not covered" >getCacheValue&lt;</span>T&gt;(key: string): T | null {
+export function <span class="fstat-no" title="function not covered">getCacheValue&lt;</span>T&gt;(key: string): T | null {
   // This is a placeholder implementation that would be properly implemented
-<span class="cstat-no" title="statement not covered" >  return null;</span>
+<span class="cstat-no" title="statement not covered">  return null;</span>
 }
 &nbsp;
 /**
  * Set cache value with key
  */
-export async function <span class="fstat-no" title="function not covered" >setCacheValue&lt;</span>T&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
+export async function <span class="fstat-no" title="function not covered">setCacheValue&lt;</span>T&gt;(key: string, value: T, options?: CacheOptions): Promise&lt;void&gt; {
   // This is a placeholder implementation that would be properly implemented
 }
 &nbsp;
 /**
  * Find keys by pattern
  */
-export async function <span class="fstat-no" title="function not covered" >findKeysByPattern(</span>pattern: string): Promise&lt;string[]&gt; {
+export async function <span class="fstat-no" title="function not covered">findKeysByPattern(</span>pattern: string): Promise&lt;string[]&gt; {
   // This is a placeholder implementation that would be properly implemented
-<span class="cstat-no" title="statement not covered" >  return [];</span>
+<span class="cstat-no" title="statement not covered">  return [];</span>
 }
 &nbsp;
 // Helper function to create a memory provider with a name
@@ -1034,10 +1036,11 @@ function createMemoryProvider(adapter: MemoryAdapter, name: string): ICacheProvi
     setMany: adapter.setMany?.bind(adapter),
     has: adapter.has?.bind(adapter),
     // Implement the keys method
-    keys: <span class="fstat-no" title="function not covered" >as</span>ync (pattern?: string) =&gt; {
-<span class="cstat-no" title="statement not covered" >      return adapter.keys(pattern);</span>
+    keys: <span class="fstat-no" title="function not covered">as</span>ync (pattern?: string) =&gt; {
+<span class="cstat-no" title="statement not covered">      return adapter.keys(pattern);</span>
     },
-    getStats: <span class="fstat-no" title="function not covered" >as</span>ync () =&gt; (<span class="cstat-no" title="statement not covered" >{</span>
+    getStats: <span class="fstat-no" title="function not covered">as</span>ync () =&gt; (<span class="cstat-no"
+                                                                                               title="statement not covered">{</span>
       hits: 0,
       misses: 0,
       size: 0,
@@ -1058,21 +1061,21 @@ function createMemoryProvider(adapter: MemoryAdapter, name: string): ICacheProvi
   };
 }</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     

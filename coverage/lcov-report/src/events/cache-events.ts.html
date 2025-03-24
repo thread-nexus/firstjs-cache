@@ -1,63 +1,63 @@
-
 <!doctype html>
 <html lang="en">
 
 <head>
     <title>Code coverage report for src/events/cache-events.ts</title>
-    <meta charset="utf-8" />
-    <link rel="stylesheet" href="../../prettify.css" />
-    <link rel="stylesheet" href="../../base.css" />
-    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="utf-8"/>
+    <link href="../../prettify.css" rel="stylesheet"/>
+    <link href="../../base.css" rel="stylesheet"/>
+    <link href="../../favicon.png" rel="shortcut icon" type="image/x-icon"/>
+    <meta content="width=device-width, initial-scale=1" name="viewport"/>
     <style type='text/css'>
         .coverage-summary .sorter {
             background-image: url(../../sort-arrow-sprite.png);
         }
     </style>
 </head>
-    
+
 <body>
 <div class='wrapper'>
     <div class='pad1'>
         <h1><a href="../../index.html">All files</a> / <a href="index.html">src/events</a> cache-events.ts</h1>
         <div class='clearfix'>
-            
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">65.62% </span>
                 <span class="quiet">Statements</span>
                 <span class='fraction'>21/32</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">50% </span>
                 <span class="quiet">Branches</span>
                 <span class='fraction'>5/10</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">66.66% </span>
                 <span class="quiet">Functions</span>
                 <span class='fraction'>6/9</span>
             </div>
-        
-            
+
+
             <div class='fl pad1y space-right2'>
                 <span class="strong">65.62% </span>
                 <span class="quiet">Lines</span>
                 <span class='fraction'>21/32</span>
             </div>
-        
-            
+
+
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for
+            the previous block.
         </p>
         <template id="filterTemplate">
             <div class="quiet">
                 Filter:
-                <input type="search" id="fileSearch">
+                <input id="fileSearch" type="search">
             </div>
         </template>
     </div>
@@ -502,22 +502,23 @@ class CacheEventBus {
    * @returns Unsubscribe function
    */
   on(eventType: CacheEventType | 'all', listener: CacheEventListener): () =&gt; void {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (eventType === 'all') {
+    <span class="missing-if-branch" title="if path not taken">I</span>if (eventType === 'all') {
       // Subscribe to all event types
-<span class="cstat-no" title="statement not covered" >      for (const type of Object.values(CacheEventType)) {</span>
-<span class="cstat-no" title="statement not covered" >        this.addListener(type, listener);</span>
+<span class="cstat-no" title="statement not covered">      for (const type of Object.values(CacheEventType)) {</span>
+<span class="cstat-no" title="statement not covered">        this.addListener(type, listener);</span>
       }
       
-<span class="cstat-no" title="statement not covered" >      return <span class="fstat-no" title="function not covered" >()</span> =&gt; {</span>
-<span class="cstat-no" title="statement not covered" >        for (const type of Object.values(CacheEventType)) {</span>
-<span class="cstat-no" title="statement not covered" >          this.removeListener(type, listener);</span>
+<span class="cstat-no" title="statement not covered">      return <span class="fstat-no"
+                                                                        title="function not covered">()</span> =&gt; {</span>
+<span class="cstat-no" title="statement not covered">        for (const type of Object.values(CacheEventType)) {</span>
+<span class="cstat-no" title="statement not covered">          this.removeListener(type, listener);</span>
         }
       };
     } else {
       this.addListener(eventType, listener);
       
-      return <span class="fstat-no" title="function not covered" >()</span> =&gt; {
-<span class="cstat-no" title="statement not covered" >        this.removeListener(eventType, listener);</span>
+      return <span class="fstat-no" title="function not covered">()</span> =&gt; {
+<span class="cstat-no" title="statement not covered">        this.removeListener(eventType, listener);</span>
       };
     }
   }
@@ -542,14 +543,14 @@ class CacheEventBus {
    * @param eventType - Type of event
    * @param listener - Event listener function
    */
-<span class="fstat-no" title="function not covered" >  pr</span>ivate removeListener(eventType: CacheEventType | string, listener: CacheEventListener): void {
-    const listeners = <span class="cstat-no" title="statement not covered" >this.listeners.get(eventType);</span>
+<span class="fstat-no" title="function not covered">  pr</span>ivate removeListener(eventType: CacheEventType | string, listener: CacheEventListener): void {
+    const listeners = <span class="cstat-no" title="statement not covered">this.listeners.get(eventType);</span>
     
-<span class="cstat-no" title="statement not covered" >    if (listeners) {</span>
-<span class="cstat-no" title="statement not covered" >      listeners.delete(listener);</span>
+<span class="cstat-no" title="statement not covered">    if (listeners) {</span>
+<span class="cstat-no" title="statement not covered">      listeners.delete(listener);</span>
       
-<span class="cstat-no" title="statement not covered" >      if (listeners.size === 0) {</span>
-<span class="cstat-no" title="statement not covered" >        this.listeners.delete(eventType);</span>
+<span class="cstat-no" title="statement not covered">      if (listeners.size === 0) {</span>
+<span class="cstat-no" title="statement not covered">        this.listeners.delete(eventType);</span>
       }
     }
   }
@@ -617,21 +618,21 @@ export const offCacheEvent = (unsubscribeFn: () =&gt; void): void =&gt; {
 };
 &nbsp;</pre></td></tr></table></pre>
 
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-24T13:15:11.670Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <div class='push'></div><!-- for sticky footer -->
+</div><!-- /wrapper -->
+<div class='footer quiet pad2 space-top1 center small'>
+    Code coverage generated by
+    <a href="https://istanbul.js.org/" rel="noopener noreferrer" target="_blank">istanbul</a>
+    at 2025-03-24T13:15:11.670Z
+</div>
+<script src="../../prettify.js"></script>
+<script>
+    window.onload = function () {
+        prettyPrint();
+    };
+</script>
+<script src="../../sorter.js"></script>
+<script src="../../block-navigation.js"></script>
+</body>
 </html>
     
