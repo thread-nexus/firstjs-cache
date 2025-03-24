@@ -1,5 +1,5 @@
 {
-  "name": "cache-module",
+  "name": "@missionfabric/firstjs-cache",
   "version": "1.0.0",
   "description": "A flexible multi-layer caching system with support for various storage adapters",
   "main": "dist/index.js",
