@@ -1,7 +1,7 @@
 import {DEFAULT_CONFIG} from '../config/default-config';
 import {ICacheProvider} from '../interfaces/i-cache-provider';
 import {CacheOptions, CacheStats} from '../types/common';
-import {MemoryStorageAdapter as MemoryAdapter} from '../adapters/memory-adapter';
+import {MemoryAdapter} from '../adapters/memory-adapter';
 
 /**
  * Core implementation of the cache manager
@@ -308,10 +308,7 @@ function createMemoryProvider(adapter: MemoryAdapter, name: string): ICacheProvi
     has: adapter.has?.bind(adapter),
     // Implement the keys method
     keys: async (pattern?: string) => {
-      if (adapter.keys) {
-        return adapter.keys(pattern);
-      }
-      return [];
+      return adapter.keys(pattern);
     },
     getStats: async () => ({
       hits: 0,

@@ -11,17 +11,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "npm run clean && npm run build:cjs && npm run build:esm",
-    "build:cjs": "tsc",
-    "build:esm": "tsc -p tsconfig.esm.json",
-    "clean": "rimraf dist",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
-    "lint": "eslint src --ext .ts,.tsx",
-    "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "type-check": "tsc --noEmit",
-    "prepare": "npm run build",
-    "prepublishOnly": "npm test && npm run lint"
+    "build": "npm run clean && npm run build:cjs && npm run build:esm"
   },
   "dependencies": {
     "ioredis": "^5.3.2",
@@ -71,7 +61,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/thread-nexus/firstjs-cache.git"
+    "url": "git+https://github.com/thread-nexus/firstjs-cache.git"
   },
   "bugs": {
     "url": "https://github.com/thread-nexus/firstjs-cache/issues"
