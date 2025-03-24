@@ -1,184 +1,233 @@
-/**
- * @fileoverview React hooks for cache integration
- */
-
-import { useEffect, useCallback, useRef, useState } from 'react';
-// Import CacheOptions directly
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
 import { CacheOptions } from '../types/common';
-// Rename to prevent conflict
-import type { UseCacheQueryOptions as ImportedOptions } from '../types/common';
-import { CacheEventType, subscribeToCacheEvents } from '../events/cache-events';
-import { CacheManagerCore } from '../implementations';
 
-// Define local interface extending CacheOptions
-interface UseCacheQueryOptions<T> extends CacheOptions {
-  /** Initial data to show while loading */
-  initialData?: T;
-  /** Whether to suspend while loading */
-  suspend?: boolean;
-  /** Whether to revalidate on focus */
-  revalidateOnFocus?: boolean;
-  /** Whether to revalidate on reconnect */
-  revalidateOnReconnect?: boolean;
-  /** Polling interval in milliseconds */
-  pollingInterval?: number;
-  /** Callback when data changes */
+// Default cache manager instance
+const defaultCacheManager = new CacheManagerCore();
+
+// Cache query options
+export interface UseCacheQueryOptions<T = any> {
+  // Cache key
+  key: string;
+  
+  // Function to fetch data
+  fetcher: () => Promise<T>;
+  
+  // Cache options
+  options?: CacheOptions;
+  
+  // Whether to auto-fetch data
+  autoFetch?: boolean;
+  
+  // Stale time in milliseconds
+  staleTime?: number;
+  
+  // Retry count
+  retryCount?: number;
+  
+  // Retry delay in milliseconds
+  retryDelay?: number;
+  
+  // Callback on success
   onSuccess?: (data: T) => void;
-  /** Callback when error occurs */
+  
+  // Callback on error
   onError?: (error: Error) => void;
+  
+  // Custom cache manager
+  cacheManager?: CacheManagerCore;
 }
 
-interface QueryResult<T> {
-  /** Query data */
+// Cache query result
+export interface UseCacheQueryResult<T> {
+  // Cached data
   data: T | null;
-  /** Loading state */
-  isLoading: boolean;
-  /** Error state */
+  
+  // Error if any
   error: Error | null;
-  /** Whether data is stale */
-  isStale: boolean;
-  /** Manually trigger refresh */
-  refresh: () => Promise<void>;
-  /** Mutate data optimistically */
-  mutate: (data: T | ((prev: T | null) => T)) => Promise<void>;
+  
+  // Whether data is loading
+  isLoading: boolean;
+  
+  // Whether data is fetching (initial or refetch)
+  isFetching: boolean;
+  
+  // Manually trigger a refetch
+  refetch: () => Promise<T | null>;
+  
+  // Manually update data
+  setData: (newData: T) => Promise<void>;
+  
+  // Manually invalidate cache
+  invalidate: () => Promise<void>;
 }
 
 /**
- * React hook for cache queries with advanced features
+ * Hook to query cache with automatic fetching
  */
-export function useCacheQuery<T>(
-  key: string,
-  fetcher: () => Promise<T>,
-  options: UseCacheQueryOptions<T> = {}
-): QueryResult<T> {
-  const cache = useRef<CacheManagerCore>();
-  const [data, setData] = useState<T | null>(options.initialData || null);
+export function useCacheQuery<T = any>({
+  key,
+  fetcher,
+  options,
+  autoFetch = true,
+  staleTime = 0,
+  retryCount = 0,
+  retryDelay = 1000,
+  onSuccess,
+  onError,
+  cacheManager = defaultCacheManager,
+}: UseCacheQueryOptions<T>): UseCacheQueryResult<T> {
+  // State
+  const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(!options.initialData);
-  const [isStale, setIsStale] = useState(false);
-
-  // Initialize cache manager
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
+  
+  // Refs
+  const cache = useRef(cacheManager);
+  const fetchTime = useRef<number | null>(null);
+  const retryAttempt = useRef(0);
+  const isMounted = useRef(true);
+  
+  // Update cache ref when cacheManager changes
   useEffect(() => {
-    if (!cache.current) {
-      cache.current = new CacheManagerCore();
-    }
+    cache.current = cacheManager;
+  }, [cacheManager]);
+  
+  // Set mounted state
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
-
+  
   // Fetch data function
-  const fetchData = useCallback(async () => {
-    if (!cache.current) return;
-
+  const fetchData = useCallback(async (): Promise<T | null> => {
+    if (!isMounted.current) return null;
+    
+    setIsFetching(true);
+    retryAttempt.current = 0;
+    
     try {
-      setIsLoading(true);
-      // Cast options to any to bypass type-checking for now
+      // Try to get from cache
       const result = await cache.current.getOrCompute(key, fetcher, options as any);
-      setData(result);
-      setError(null);
-      options.onSuccess?.(result);
+      
+      if (isMounted.current) {
+        setData(result);
+        setError(null);
+        setIsLoading(false);
+        fetchTime.current = Date.now();
+        onSuccess?.(result);
+      }
+      
+      return result;
     } catch (err) {
-      setError(err as Error);
-      options.onError?.(err as Error);
+      const fetchError = err instanceof Error ? err : new Error(String(err));
+      
+      // Handle retry
+      if (retryAttempt.current < retryCount) {
+        retryAttempt.current++;
+        
+        // Retry after delay
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        return fetchData();
+      }
+      
+      if (isMounted.current) {
+        setError(fetchError);
+        setIsLoading(false);
+        onError?.(fetchError);
+      }
+      
+      return null;
     } finally {
-      setIsLoading(false);
+      if (isMounted.current) {
+        setIsFetching(false);
+      }
     }
-  }, [key, fetcher, options]);
-
-  // Subscribe to cache events
-  useEffect(() => {
-    const unsubscribe = subscribeToCacheEvents(CacheEventType.SET, (event) => {
-      if (event.key === key) {
-        setData(event.value);
-        setIsStale(false);
-      }
-    });
-
-    return () => unsubscribe();
+  }, [key, fetcher, options, retryCount, retryDelay, onSuccess, onError]);
+  
+  // Manual refetch function
+  const refetch = useCallback(async (): Promise<T | null> => {
+    // Invalidate cache first
+    await invalidate();
+    
+    // Then fetch fresh data
+    return fetchData();
+  }, [fetchData]);
+  
+  // Manual update function
+  const updateData = useCallback(async (newData: T): Promise<void> => {
+    if (!isMounted.current) return;
+    
+    try {
+      // Update cache
+      await cache.current.set(key, newData, options as any);
+      
+      // Update state
+      setData(newData);
+      setError(null);
+      fetchTime.current = Date.now();
+      onSuccess?.(newData);
+    } catch (err) {
+      const updateError = err instanceof Error ? err : new Error(String(err));
+      setError(updateError);
+      onError?.(updateError);
+    }
+  }, [key, options, onSuccess, onError]);
+  
+  // Manual invalidate function
+  const invalidate = useCallback(async (): Promise<void> => {
+    try {
+      await cache.current.delete(key);
+      fetchTime.current = null;
+    } catch (err) {
+      console.error(`Error invalidating cache for key ${key}:`, err);
+    }
   }, [key]);
-
-  // Handle background refresh
-  useEffect(() => {
-    if (!options?.backgroundRefresh) return;
-
-    // Use event type all and filter instead of specific event type
-    const unsubscribe = subscribeToCacheEvents('all', (event) => {
-      if (event.type === 'refresh:start' && event.key === key) {
-        setIsStale(true);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [key, options?.backgroundRefresh]);
-
-  // Handle revalidation on focus
-  useEffect(() => {
-    if (!options.revalidateOnFocus) return;
-
-    const onFocus = () => {
-      fetchData().then(r => {});
-    };
-
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
-  }, [fetchData, options.revalidateOnFocus]);
-
-  // Handle revalidation on reconnect
-  useEffect(() => {
-    if (!options.revalidateOnReconnect) return;
-
-    const onOnline = () => {
-      fetchData().then(r => {});
-    };
-
-    window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
-  }, [fetchData, options.revalidateOnReconnect]);
-
-  // Handle polling
-  useEffect(() => {
-    if (!options.pollingInterval) return;
-
-    const interval = setInterval(() => {
-      fetchData().then(r => {});
-    }, options.pollingInterval);
-
-    return () => clearInterval(interval);
-  }, [fetchData, options.pollingInterval]);
-
+  
+  // Check if data is stale
+  const isStale = useCallback((): boolean => {
+    if (!fetchTime.current || staleTime <= 0) return false;
+    return Date.now() - fetchTime.current > staleTime;
+  }, [staleTime]);
+  
   // Initial fetch
   useEffect(() => {
-    fetchData().then(r => {});
-  }, [fetchData]);
-
-  // Mutate function for optimistic updates
-  const mutate = useCallback(async (updater: T | ((prev: T | null) => T)) => {
-    if (!cache.current) return;
-
-    const newData = typeof updater === 'function' 
-      ? (updater as (prev: T | null) => T)(data) 
-      : updater;
-    setData(newData);
-
-    try {
-      // Cast options to any to bypass type-checking for now
-      await cache.current.set(key, newData, options as any);
-    } catch (err) {
-      // Revert on error
-      setData(data);
-      throw err;
+    if (autoFetch) {
+      fetchData();
+    } else {
+      setIsLoading(false);
     }
-  }, [key, data, options]);
-
-  // If suspend option is enabled, throw promise while loading
-  if (options.suspend && isLoading) {
-    throw fetchData();
-  }
-
+  }, [autoFetch, fetchData]);
+  
+  // Refetch when stale
+  useEffect(() => {
+    if (!staleTime || staleTime <= 0) return;
+    
+    const checkStale = () => {
+      if (isStale() && !isFetching) {
+        fetchData();
+      }
+    };
+    
+    const interval = setInterval(checkStale, Math.min(staleTime, 60000));
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [staleTime, isStale, isFetching, fetchData]);
+  
   return {
     data,
-    isLoading,
     error,
-    isStale,
-    refresh: fetchData,
-    mutate
+    isLoading,
+    isFetching,
+    refetch,
+    setData: updateData,
+    invalidate,
   };
 }
+
+export default useCacheQuery;

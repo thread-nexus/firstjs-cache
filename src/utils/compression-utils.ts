@@ -1,288 +1,393 @@
 /**
- * Compression utilities for cache values
+ * Compression utilities for cache operations
  */
-import { CompressionAlgorithm, CompressionResult } from '../types/index';
 
-/**
- * Compression options
- */
-export interface CompressionOptions {
-  /**
-   * Whether compression is enabled
-   */
-  enabled?: boolean;
-  
-  /**
-   * Compression algorithm to use
-   */
-  algorithm?: CompressionAlgorithm;
-  
-  /**
-   * Compression level (1-9, higher = better compression but slower)
-   */
-  level?: number;
-  
-  /**
-   * Minimum size in bytes for compression
-   */
-  threshold?: number;
-}
+import { CompressionResult, CompressionAlgorithm, CompressionOptions } from '../types/common';
+import { CacheErrorCode, createCacheError } from './error-utils';
 
-/**
- * Default compression options
- */
-export const DEFAULT_COMPRESSION_OPTIONS: CompressionOptions = {
-  enabled: true,
+// Default compression options
+const DEFAULT_COMPRESSION_OPTIONS: CompressionOptions = {
   algorithm: 'gzip',
   level: 6,
-  threshold: 1024 // 1KB
+  threshold: 1024,
+  enabled: true
 };
 
 /**
  * Compress data
  * 
  * @param data - Data to compress
- * @param algorithm - Compression algorithm
- * @returns Compressed data
+ * @param options - Compression options
+ * @returns Compression result
  */
 export async function compress(
-  data: string | Buffer,
-  algorithm: CompressionAlgorithm = 'gzip'
-): Promise<Buffer> {
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-  const result = await compressData(buffer, algorithm);
-  return result.data;
+  data: string | Buffer | Uint8Array,
+  options: CompressionOptions = {}
+): Promise<CompressionResult> {
+  const opts = { ...DEFAULT_COMPRESSION_OPTIONS, ...options };
+  
+  try {
+    // Skip compression if disabled or data is too small
+    if (!opts.enabled || (typeof data === 'string' && data.length < (opts.threshold || 0)) || 
+        (Buffer.isBuffer(data) && data.length < (opts.threshold || 0))) {
+      return {
+        data: data,
+        originalSize: typeof data === 'string' ? Buffer.byteLength(data) : data.length,
+        compressedSize: typeof data === 'string' ? Buffer.byteLength(data) : data.length,
+        ratio: 1,
+        algorithm: 'none',
+        compressionTime: 0,
+        compressed: false,
+        size: typeof data === 'string' ? Buffer.byteLength(data) : data.length
+      };
+    }
+    
+    const startTime = Date.now();
+    let compressedData: Buffer;
+    
+    // Convert string to buffer if needed
+    const buffer = typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
+    
+    // Choose compression algorithm
+    switch (opts.algorithm) {
+      case 'gzip':
+        compressedData = await gzipCompress(buffer, opts.level || 6);
+        break;
+      case 'deflate':
+        compressedData = await deflateCompress(buffer, opts.level || 6);
+        break;
+      case 'brotli':
+        compressedData = await brotliCompress(buffer, opts.level || 6);
+        break;
+      case 'lz4':
+        compressedData = await lz4Compress(buffer);
+        break;
+      default:
+        // No compression
+        return {
+          data: buffer,
+          originalSize: buffer.length,
+          compressedSize: buffer.length,
+          ratio: 1,
+          algorithm: 'none',
+          compressionTime: 0,
+          compressed: false,
+          size: buffer.length
+        };
+    }
+    
+    const endTime = Date.now();
+    
+    // Check if compression actually reduced size
+    if (compressedData.length >= buffer.length) {
+      return {
+        data: buffer,
+        originalSize: buffer.length,
+        compressedSize: buffer.length,
+        ratio: 1,
+        algorithm: 'none',
+        compressionTime: endTime - startTime,
+        compressed: false,
+        size: buffer.length
+      };
+    }
+    
+    return {
+      data: compressedData,
+      originalSize: buffer.length,
+      compressedSize: compressedData.length,
+      ratio: compressedData.length / buffer.length,
+      algorithm: opts.algorithm,
+      compressionTime: endTime - startTime,
+      compressed: true,
+      size: compressedData.length
+    };
+  } catch (error) {
+    // Return uncompressed data on error
+    const buffer = typeof data === 'string' ? Buffer.from(data) : Buffer.from(data);
+    
+    return {
+      data: buffer,
+      originalSize: buffer.length,
+      compressedSize: buffer.length,
+      ratio: 1,
+      algorithm: 'none',
+      compressionTime: 0,
+      compressed: false,
+      size: buffer.length
+    };
+  }
 }
 
 /**
  * Decompress data
  * 
- * @param data - Compressed data
- * @param algorithm - Compression algorithm used
+ * @param data - Data to decompress
+ * @param algorithm - Compression algorithm
  * @returns Decompressed data
  */
 export async function decompress(
-  data: Buffer,
+  data: Buffer | Uint8Array,
   algorithm: CompressionAlgorithm
 ): Promise<Buffer> {
-  const result = await decompressData(data, algorithm);
-  return Buffer.isBuffer(result) ? result : Buffer.from(result);
+  try {
+    // Skip decompression if not compressed
+    if (algorithm === 'none') {
+      return Buffer.from(data);
+    }
+    
+    // Choose decompression algorithm
+    switch (algorithm) {
+      case 'gzip':
+        return await gzipDecompress(data);
+      case 'deflate':
+        return await deflateDecompress(data);
+      case 'brotli':
+        return await brotliDecompress(data);
+      case 'lz4':
+        return await lz4Decompress(data);
+      default:
+        return Buffer.from(data);
+    }
+  } catch (error) {
+    throw createCacheError(
+      `Decompression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.DECOMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
 }
 
 /**
- * Compress data if it meets the threshold
+ * Compress data using gzip
+ * 
+ * @param data - Data to compress
+ * @param level - Compression level
+ * @returns Compressed data
+ */
+async function gzipCompress(data: Buffer, level: number): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const gzip = util.promisify(zlib.gzip);
+    return await gzip(data, { level });
+  } catch (error) {
+    throw createCacheError(
+      `Gzip compression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.COMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Decompress data using gzip
+ * 
+ * @param data - Data to decompress
+ * @returns Decompressed data
+ */
+async function gzipDecompress(data: Buffer | Uint8Array): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const gunzip = util.promisify(zlib.gunzip);
+    return await gunzip(data);
+  } catch (error) {
+    throw createCacheError(
+      `Gzip decompression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.DECOMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Compress data using deflate
+ * 
+ * @param data - Data to compress
+ * @param level - Compression level
+ * @returns Compressed data
+ */
+async function deflateCompress(data: Buffer, level: number): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const deflate = util.promisify(zlib.deflate);
+    return await deflate(data, { level });
+  } catch (error) {
+    throw createCacheError(
+      `Deflate compression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.COMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Decompress data using deflate
+ * 
+ * @param data - Data to decompress
+ * @returns Decompressed data
+ */
+async function deflateDecompress(data: Buffer | Uint8Array): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const inflate = util.promisify(zlib.inflate);
+    return await inflate(data);
+  } catch (error) {
+    throw createCacheError(
+      `Deflate decompression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.DECOMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Compress data using brotli
+ * 
+ * @param data - Data to compress
+ * @param level - Compression level
+ * @returns Compressed data
+ */
+async function brotliCompress(data: Buffer, level: number): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const brotliCompress = util.promisify(zlib.brotliCompress);
+    return await brotliCompress(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: level } });
+  } catch (error) {
+    throw createCacheError(
+      `Brotli compression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.COMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Decompress data using brotli
+ * 
+ * @param data - Data to decompress
+ * @returns Decompressed data
+ */
+async function brotliDecompress(data: Buffer | Uint8Array): Promise<Buffer> {
+  try {
+    // Use zlib if available
+    const zlib = await import('zlib');
+    const util = await import('util');
+    
+    const brotliDecompress = util.promisify(zlib.brotliDecompress);
+    return await brotliDecompress(data);
+  } catch (error) {
+    throw createCacheError(
+      `Brotli decompression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.DECOMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Compress data using lz4
+ * 
+ * @param data - Data to compress
+ * @returns Compressed data
+ */
+async function lz4Compress(data: Buffer): Promise<Buffer> {
+  try {
+    // For now, return uncompressed data as lz4 is not built-in to Node.js
+    // In a real implementation, you would use a library like lz4-js
+    return data;
+  } catch (error) {
+    throw createCacheError(
+      `LZ4 compression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.COMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Decompress data using lz4
+ * 
+ * @param data - Data to decompress
+ * @returns Decompressed data
+ */
+async function lz4Decompress(data: Buffer | Uint8Array): Promise<Buffer> {
+  try {
+    // For now, return uncompressed data as lz4 is not built-in to Node.js
+    // In a real implementation, you would use a library like lz4-js
+    return Buffer.from(data);
+  } catch (error) {
+    throw createCacheError(
+      `LZ4 decompression failed: ${error instanceof Error ? error.message : String(error)}`,
+      CacheErrorCode.DECOMPRESSION_ERROR,
+      error instanceof Error ? error : undefined
+    );
+  }
+}
+
+/**
+ * Check if compression should be applied
+ * 
+ * @param data - Data to check
+ * @param options - Compression options
+ * @returns Whether compression should be applied
+ */
+export function shouldCompress(
+  data: string | Buffer | Uint8Array,
+  options: CompressionOptions = {}
+): boolean {
+  const opts = { ...DEFAULT_COMPRESSION_OPTIONS, ...options };
+  
+  // Skip compression if disabled
+  if (!opts.enabled) {
+    return false;
+  }
+  
+  // Check size threshold
+  const size = typeof data === 'string' ? Buffer.byteLength(data) : data.length;
+  return size >= (opts.threshold || 0);
+}
+
+/**
+ * Compress if needed
  * 
  * @param data - Data to compress
  * @param options - Compression options
- * @returns Compressed data or original data if below threshold
+ * @returns Compression result
  */
 export async function compressIfNeeded(
-  data: string | Buffer,
-  options: Partial<CompressionOptions> = {}
+  data: string | Buffer | Uint8Array,
+  options: CompressionOptions = {}
 ): Promise<CompressionResult> {
-  const opts = { ...DEFAULT_COMPRESSION_OPTIONS, ...options };
-  // Ensure threshold is defined
-  const threshold = opts.threshold || DEFAULT_COMPRESSION_OPTIONS.threshold!;
-  
-  if (!opts.enabled) {
-    return { 
-      data: Buffer.isBuffer(data) ? data : Buffer.from(data), 
-      compressed: false,
-      size: Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data),
-      originalSize: Buffer.isBuffer(data) ? data.length : Buffer.byteLength(data)
-    };
-  }
-
-  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-  
-  // Don't compress if below threshold
-  if (buffer.length < threshold) {
-    return { 
-      data: buffer, 
-      compressed: false,
-      size: buffer.length,
-      originalSize: buffer.length
-    };
+  if (shouldCompress(data, options)) {
+    return compress(data, options);
   }
   
-  try {
-    const result = await compressData(buffer, opts.algorithm);
-    
-    // Use size and originalSize properties instead of compressedSize
-    if (result.size && result.originalSize && result.size < result.originalSize) {
-      return result;
-    } else {
-      return { 
-        data: buffer, 
-        compressed: false,
-        size: buffer.length,
-        originalSize: buffer.length,
-        compressionRatio: 1
-      };
-    }
-  } catch (error) {
-    console.warn('Compression failed, using uncompressed data', error);
-    return { 
-      data: buffer, 
-      compressed: false,
-      size: buffer.length,
-      originalSize: buffer.length
-    };
-  }
-}
-
-/**
- * Decompress data if it was compressed
- * 
- * @param data - Compressed data
- * @param algorithm - Compression algorithm used
- * @returns Decompressed data
- */
-export async function decompressIfNeeded(
-  data: Buffer,
-  algorithm?: CompressionAlgorithm
-): Promise<Buffer> {
-  if (!algorithm) {
-    return data;
-  }
-  
-  try {
-    const result = await decompressData(data, algorithm);
-    return Buffer.isBuffer(result) ? result : Buffer.from(result);
-  } catch (error) {
-    throw new Error(`Decompression failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-}
-
-/**
- * Compresses data using the specified algorithm
- * 
- * @param data - Data to compress
- * @param algorithm - Compression algorithm
- * @returns Compressed data
- */
-export async function compressData(
-  data: Buffer | string,
-  algorithm: CompressionAlgorithm = 'gzip'
-): Promise<CompressionResult> {
-  // Ensure we have a buffer
-  const buffer = typeof data === 'string' ? Buffer.from(data) : data;
-  
-  // Skip compression for small payloads
-  const threshold = DEFAULT_COMPRESSION_OPTIONS.threshold!;
-  if (buffer.length < threshold) {
-    return {
-      data: buffer,
-      originalSize: buffer.length,
-      size: buffer.length,
-      algorithm,
-      compressed: false,
-      compressionRatio: 1
-    };
-  }
-
-  const originalSize = buffer.length;
-  let compressedData: Buffer;
-  
-  // In a real implementation, you would use the actual compression libraries
-  // This is a placeholder implementation
-  switch (algorithm) {
-    case 'gzip':
-      // Use zlib.gzip in a real implementation
-      compressedData = Buffer.from(`gzip-${buffer.toString('base64')}`);
-      break;
-    case 'deflate':
-      // Use zlib.deflate in a real implementation
-      compressedData = Buffer.from(`deflate-${buffer.toString('base64')}`);
-      break;
-    case 'brotli':
-      // Use zlib.brotliCompress in a real implementation
-      compressedData = Buffer.from(`brotli-${buffer.toString('base64')}`);
-      break;
-    default:
-      compressedData = buffer;
-      break;
-  }
+  // Return uncompressed data
+  const size = typeof data === 'string' ? Buffer.byteLength(data) : data.length;
   
   return {
-    data: compressedData,
-    algorithm,
-    size: compressedData.length, // Use size instead of compressedSize
-    originalSize: buffer.length, // Add originalSize property
-    compressed: true,
-    compressionRatio: buffer.length > 0 ? compressedData.length / buffer.length : 1
+    data,
+    originalSize: size,
+    compressedSize: size,
+    ratio: 1,
+    algorithm: 'none',
+    compressionTime: 0,
+    compressed: false,
+    size
   };
-}
-
-/**
- * Decompresses data using the specified algorithm
- * 
- * @param data - Compressed data
- * @param algorithm - Compression algorithm
- * @returns Decompressed data
- */
-export async function decompressData(
-  data: Buffer,
-  algorithm: CompressionAlgorithm = 'gzip'
-): Promise<Buffer> {
-  // In a real implementation, you would use the actual decompression libraries
-  // This is a placeholder implementation
-  switch (algorithm) {
-    case 'gzip':
-      // Use zlib.gunzip in a real implementation
-      if (data.toString().startsWith('gzip-')) {
-        return Buffer.from(data.toString().substring(5), 'base64');
-      }
-      break;
-    case 'deflate':
-      // Use zlib.inflate in a real implementation
-      if (data.toString().startsWith('deflate-')) {
-        return Buffer.from(data.toString().substring(8), 'base64');
-      }
-      break;
-    case 'brotli':
-      // Use zlib.brotliDecompress in a real implementation
-      if (data.toString().startsWith('brotli-')) {
-        return Buffer.from(data.toString().substring(7), 'base64');
-      }
-      break;
-    default:
-      return data;
-  }
-  
-  throw new Error(`Unsupported compression algorithm: ${algorithm}`);
-}
-
-/**
- * Check if data should be compressed
- * 
- * @param data - Data to check
- * @param threshold - Size threshold in bytes
- * @returns Whether data should be compressed
- */
-export function shouldCompress(data: Buffer | string | any, options?: CompressionOptions): boolean {
-  const threshold = options?.threshold || 1024;
-  let size = 0;
-  
-  if (Buffer.isBuffer(data)) {
-    size = data.length;
-  } else if (typeof data === 'string') {
-    size = Buffer.byteLength(data);
-  } else {
-    try {
-      const json = JSON.stringify(data);
-      size = Buffer.byteLength(json);
-    } catch {
-      return false;
-    }
-  }
-  
-  return size >= threshold;
-}
-
-export function validateAlgorithm(algorithm?: CompressionAlgorithm): CompressionAlgorithm {
-  if (!algorithm || !['gzip', 'deflate', 'brotli'].includes(algorithm)) {
-    return 'gzip';
-  }
-  return algorithm;
 }

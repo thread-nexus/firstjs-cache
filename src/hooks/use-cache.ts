@@ -1,162 +1,155 @@
-import {useCallback, useEffect, useState} from 'react';
-import {CacheOptions} from '../types/common';
-import * as cacheCore from '../implementations/cache-manager-core';
-import {CacheEventType, subscribeToCacheEvents} from '../events/cache-events';
-import {deleteCacheValue} from "../implementations/delete-cache-value";
+import { useState, useEffect, useCallback } from 'react';
+import { CacheOptions } from '../types/common';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
 
-interface UseCacheOptions extends CacheOptions {
-  suspense?: boolean;
-  revalidate?: boolean;
-  revalidateInterval?: number;
+// Default cache instance
+const defaultCacheManager = new CacheManagerCore();
+
+/**
+ * Hook options
+ */
+interface UseCacheOptions<T = any> {
+  /**
+   * Initial value
+   */
+  initialValue?: T | null;
+  
+  /**
+   * Cache options
+   */
+  options?: CacheOptions;
+  
+  /**
+   * Auto-fetch on mount
+   */
+  autoFetch?: boolean;
+  
+  /**
+   * Custom cache manager
+   */
+  cacheManager?: CacheManagerCore;
 }
 
 /**
- * React hook for cache operations
+ * Hook to use cache in React components
  */
-export function useCache<T = any>(
-  key: string,
-  fetcher?: () => Promise<T>,
-  options: UseCacheOptions = {}
-) {
-  const [data, setData] = useState<T | null>(null);
+export function useCache<T = any>(key: string, fetcher?: () => Promise<T>, options?: UseCacheOptions<T>) {
+  const [value, setValue] = useState<T | null>(options?.initialValue || null);
   const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isStale, setIsStale] = useState(false);
-
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  const [loading, setLoading] = useState<boolean>(!!fetcher && (options?.autoFetch !== false));
+  
+  // Use provided cache manager or default
+  const cacheManager = options?.cacheManager || defaultCacheManager;
+  
+  // Fetch value from cache or source
+  const fetchValue = useCallback(async () => {
+    if (!key) return null;
+    
     try {
-      let value;
-      if (fetcher) {
-        // Implement our own getOrCompute logic
-        value = await cacheCore.getCacheValue(key);
-        if (value === null) {
-          value = await fetcher();
-          await cacheCore.setCacheValue(key, value, options);
+      setLoading(true);
+      setError(null);
+      
+      // Try to get from cache
+      let value = await cacheManager.get<T>(key);
+      
+      // If not in cache and fetcher provided, fetch and cache
+      if (value === null && fetcher) {
+        const fetchedValue = await fetcher();
+        if (fetchedValue !== undefined) {
+          await cacheManager.set(key, fetchedValue, options?.options);
         }
-      } else {
-        value = await cacheCore.getCacheValue(key);
+        value = await cacheManager.get<T>(key);
       }
       
-      setData(value);
+      setValue(value);
+      return value;
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
+      const cacheError = err instanceof Error ? err : new Error(String(err));
+      setError(cacheError);
+      return null;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [key, fetcher, options]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchData().then(r => {});
-  }, [fetchData]);
-
-  // Set up revalidation if enabled
-  useEffect(() => {
-    if (!options.revalidate || !options.revalidateInterval) {
-      return;
-    }
-
-    const interval = setInterval(fetchData, options.revalidateInterval);
-    return () => clearInterval(interval);
-  }, [fetchData, options.revalidate, options.revalidateInterval]);
-
-  // Subscribe to cache events
-  useEffect(() => {
-    const unsubscribe = subscribeToCacheEvents('all', (payload) => {
-      if (payload.key === key) {
-        setIsStale(true);
-      }
-    });
-    return unsubscribe;
-  }, [key, fetchData]);
-
-  // Cache operations
-  const setValue = useCallback(async (value: T) => {
-    await cacheCore.setCacheValue(key, value, options);
-    setData(value);
-  }, [key, options]);
-
-  const invalidate = useCallback(async () => {
-    await deleteCacheValue(key);
-    await fetchData();
-  }, [key, fetchData]);
-
-  return {
-    data,
-    error,
-    isLoading,
-    setValue,
-    invalidate,
-    refresh: fetchData
-  };
-}
-
-/**
- * Hook for cached query operations
- */
-export function useCachedQuery<T = any, P extends any[] = any[]>(
-  queryFn: (...args: P) => Promise<T>,
-  options: UseCacheOptions = {}
-) {
-  return function useQuery(...args: P) {
-    const key = JSON.stringify(args);
-    const fetcher = () => queryFn(...args);
-    return useCache<T>(key, fetcher, options);
-  };
-}
-
-/**
- * Hook for managing multiple cache entries
- */
-export function useCacheList<T = any>(
-  keys: string[],
-  options: UseCacheOptions = {}
-) {
-  const [data, setData] = useState<Record<string, T | null>>({});
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchAll = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
+  }, [key, fetcher, options?.options, cacheManager]);
+  
+  // Update cache value
+  const updateValue = useCallback(async (value: T) => {
+    if (!key) return;
+    
     try {
-      // Implement batch fetching manually
-      const results: Record<string, T | null> = {};
-      for (const key of keys) {
-        results[key] = await cacheCore.getCacheValue<T>(key);
-      }
-      setData(results);
+      await cacheManager.set(key, value, options?.options);
+      setValue(value);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    } finally {
-      setIsLoading(false);
+      const cacheError = err instanceof Error ? err : new Error(String(err));
+      setError(cacheError);
     }
-  }, [keys]);
-
-  useEffect(() => {
-    fetchAll().then(r => {});
-  }, [fetchAll]);
-
-  const setValues = useCallback(async (values: Record<string, T>) => {
+  }, [key, options?.options, cacheManager]);
+  
+  // Remove from cache
+  const removeValue = useCallback(async () => {
+    if (!key) return;
+    
     try {
-      for (const [key, value] of Object.entries(values)) {
-        await cacheCore.setCacheValue(key, value, options);
-      }
-      setData(prev => ({ ...prev, ...values }));
-    } catch (error) {
-      console.error('Error setting cache values:', error);
+      await cacheManager.delete(key);
+      setValue(null);
+    } catch (err) {
+      const cacheError = err instanceof Error ? err : new Error(String(err));
+      setError(cacheError);
     }
-  }, [options]);
-
+  }, [key, cacheManager]);
+  
+  // Fetch multiple values
+  const fetchMany = useCallback(async <U = any>(keys: string[]): Promise<Record<string, U | null>> => {
+    try {
+      const results: Record<string, U | null> = {};
+      
+      // Get values in parallel
+      await Promise.all(
+        keys.map(async (key) => {
+          results[key] = await cacheManager.get<U>(key);
+        })
+      );
+      
+      return results;
+    } catch (err) {
+      const cacheError = err instanceof Error ? err : new Error(String(err));
+      setError(cacheError);
+      return {};
+    }
+  }, [cacheManager]);
+  
+  // Set multiple values
+  const setMany = useCallback(async <U = any>(entries: Record<string, U>): Promise<void> => {
+    try {
+      // Set values in parallel
+      await Promise.all(
+        Object.entries(entries).map(async ([key, value]) => {
+          await cacheManager.set(key, value, options?.options);
+        })
+      );
+    } catch (err) {
+      const cacheError = err instanceof Error ? err : new Error(String(err));
+      setError(cacheError);
+    }
+  }, [options?.options, cacheManager]);
+  
+  // Fetch on mount if autoFetch is true
+  useEffect(() => {
+    if (fetcher && options?.autoFetch !== false) {
+      fetchValue();
+    }
+  }, [fetchValue, fetcher, options?.autoFetch]);
+  
   return {
-    data,
+    value,
+    setValue: updateValue,
     error,
-    isLoading,
-    setValues,
-    refresh: fetchAll
+    loading,
+    remove: removeValue,
+    refresh: fetchValue,
+    fetchMany,
+    setMany,
   };
 }
+
+export default useCache;

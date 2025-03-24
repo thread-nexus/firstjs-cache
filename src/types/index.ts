@@ -1,22 +1,20 @@
 /**
- * @fileoverview Re-export all types from the types module
+ * Re-export all types from the common types file
  */
 
-// Export all types explicitly from common to avoid conflicts
-export { 
-  PerformanceMetrics,
-  CacheStats, 
-  CacheOperationContext,
-  CacheOptions, 
-  CacheEventPayload,
+export {
+  CacheOptions,
+  CacheStats,
   EntryMetadata,
+  CacheEventPayload,
+  PerformanceMetrics,
+  HealthStatus,
+  CacheOperationContext,
   CacheProvider,
   UseCacheQueryOptions,
   CompressionResult,
-  HealthStatus, 
   CompressionAlgorithm,
   CompressionOptions,
-  // Add any other types needed
   MonitoringConfig,
   SecurityOptions,
   LatencyStats,
@@ -26,7 +24,3 @@ export {
   CacheFunctionWrapper,
   RateLimitConfig
 } from './common';
-
-// Remove these conflicting exports
-// export { CompressionAlgorithm, CompressionOptions } from './performance-metrics';
-// export { CacheStats, CacheOperationContext } from './common';

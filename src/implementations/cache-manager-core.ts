@@ -1,332 +1,419 @@
-import {DEFAULT_CONFIG} from '../config/default-config';
-import {ICacheProvider} from '../interfaces/i-cache-provider';
-import {CacheOptions, CacheStats} from '../types/common';
-import {MemoryAdapter} from '../adapters/memory-adapter';
+/**
+ * Core cache manager implementation
+ */
+
+import { CacheOptions, CacheStats, EntryMetadata } from '../types/common';
+import { ICacheProvider } from '../interfaces/i-cache-provider';
+import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+import { CacheErrorCode, createCacheError, handleCacheError } from '../utils/error-utils';
+import { DEFAULT_CONFIG } from '../config/default-config';
+import { providerHasMethod, safelyCallProviderMethod } from './cache-manager-utils';
 
 /**
- * Core implementation of the cache manager
+ * Extended configuration for cache manager core
+ */
+interface ExtendedCacheConfig {
+  defaultTtl: number;
+  defaultOptions: CacheOptions;
+  throwOnErrors: boolean;
+  backgroundRefresh: boolean;
+  refreshThreshold: number;
+  deduplicateRequests: boolean;
+  logging: boolean;
+  logStackTraces: boolean;
+  logger: (logEntry: any) => void;
+  batchSize: number;
+  retry: {
+    attempts: number;
+    delay: number;
+  };
+  // Additional properties
+  statsInterval?: number;
+  defaultProvider?: string;
+}
+
+/**
+ * Core cache manager implementation
  */
 export class CacheManagerCore {
-  private providers: Map<string, ICacheProvider> = new Map();
-  private healthStatus: Map<string, {healthy: boolean, errors: number}> = new Map();
-  private monitoringInterval: NodeJS.Timeout | null = null;
+  protected providers = new Map<string, ICacheProvider>();
+  protected config: ExtendedCacheConfig;
+  private statsTimer: NodeJS.Timeout | null = null;
   
-  constructor(private config: typeof DEFAULT_CONFIG = DEFAULT_CONFIG) {
-    // Initialize default memory provider
-    const memoryAdapter = new MemoryAdapter({
-      // Only use properties that are valid for StorageAdapterConfig
-      defaultTtl: config.defaultTtl
-    });
+  /**
+   * Create a new cache manager core
+   */
+  constructor(config = {}) {
+    this.config = { ...DEFAULT_CONFIG, ...config } as ExtendedCacheConfig;
     
-    // We shouldn't set name property directly if it's readonly
-    // Instead, make sure the MemoryAdapter constructor accepts a name parameter
-    // or create a factory function that sets the name
-    this.providers.set('memory', createMemoryProvider(memoryAdapter, 'memory'));
-
-    // Initialize health status
-    this.providers.forEach((_, name) => {
-      this.healthStatus.set(name, {healthy: true, errors: 0});
-    });
-    // Start monitoring if enabled
-    if (config.statsInterval) {
-      this.startMonitoring();
+    // Start stats collection if configured
+    if (this.config.statsInterval && this.config.statsInterval > 0) {
+      this.startStatsCollection();
     }
   }
-
+  
   /**
    * Get a value from cache
+   * 
+   * @param key - Cache key
+   * @returns Cached value or null if not found
    */
-  async get(key: string): Promise<any> {
+  async get<T = any>(key: string): Promise<T | null> {
     const provider = this.getProvider();
-    return provider.get(key);
+    if (!provider) return null;
+    
+    try {
+      const value = await provider.get(key);
+      return value as T;
+    } catch (error) {
+      handleCacheError(error, { operation: 'get', key });
+      return null;
+    }
   }
   
   /**
    * Set a value in cache
+   * 
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param options - Cache options
    */
-  async set(key: string, value: any, options?: CacheOptions): Promise<void> {
+  async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
     const provider = this.getProvider();
-    return provider.set(key, value, options);
+    if (!provider) {
+      throw createCacheError('No cache provider available', CacheErrorCode.NO_PROVIDER);
+    }
+    
+    try {
+      await provider.set(key, value, options);
+    } catch (error) {
+      handleCacheError(error, { operation: 'set', key });
+      throw error;
+    }
   }
   
   /**
    * Delete a value from cache
+   * 
+   * @param key - Cache key
+   * @returns Whether the value was deleted
    */
   async delete(key: string): Promise<boolean> {
     const provider = this.getProvider();
-    return provider.delete(key);
+    if (!provider) return false;
+    
+    try {
+      return await provider.delete(key);
+    } catch (error) {
+      handleCacheError(error, { operation: 'delete', key });
+      return false;
+    }
   }
-
+  
   /**
-   * Clear the entire cache
+   * Clear all values from cache
    */
   async clear(): Promise<void> {
     const provider = this.getProvider();
-    return provider.clear();
-  }
-  
-  /**
-   * Get multiple values from cache
-   */
-  async getMany(keys: string[]): Promise<Record<string, any>> {
-    const provider = this.getProvider();
-    return provider.getMany?.(keys) ?? {};
-  }
-  
-  /**
-   * Set multiple values in cache
-   */
-  async setMany(entries: Record<string, any>, options?: CacheOptions): Promise<void> {
-    const provider = this.getProvider();
-    return provider.setMany?.(entries, options) ?? Promise.resolve();
+    if (!provider) return;
+    
+    try {
+      await provider.clear();
+    } catch (error) {
+      handleCacheError(error, { operation: 'clear' });
+    }
   }
   
   /**
    * Get or compute a value
+   * 
+   * @param key - Cache key
+   * @param fetcher - Function to fetch the value if not in cache
+   * @param options - Cache options
+   * @returns Cached or computed value
    */
-  async getOrCompute(
+  async getOrCompute<T>(
     key: string,
-    fetcher: () => Promise<any>,
+    fetcher: () => Promise<T>,
     options?: CacheOptions
-  ): Promise<any> {
+  ): Promise<T> {
     const provider = this.getProvider();
-    const value = await provider.get(key);
-
-    if (value !== null) {
-      return value;
+    if (!provider) {
+      throw createCacheError('No cache provider available', CacheErrorCode.NO_PROVIDER);
     }
-
-    const computed = await fetcher();
-    await provider.set(key, computed, options);
-    return computed;
+    
+    try {
+      // Check cache first
+      const value = await provider.get(key) as T | null;
+      if (value !== null) {
+        return value;
+      }
+      
+      // Compute value
+      const computed = await fetcher();
+      
+      // Store in cache
+      await provider.set(key, computed, options);
+      
+      return computed;
+    } catch (error) {
+      handleCacheError(error, { operation: 'getOrCompute', key });
+      throw error;
+    }
   }
   
   /**
-   * Get cache statistics
+   * Get a value from cache (alias for get)
+   * 
+   * @param key - Cache key
+   * @returns Cached value or null if not found
    */
-  async getStats(): Promise<CacheStats> {
-    const provider = this.getProvider();
-    return provider.getStats ? provider.getStats() : {
-      hits: 0,
-      misses: 0,
-      size: 0,
-      lastUpdated: Date.now(),
-      keyCount: 0,
-      entries: 0,
-      avgTtl: 0,
-      maxTtl: 0,
-      memoryUsage: 0 // Add required memoryUsage property
-    };
+  async getCacheValue<T = any>(key: string): Promise<T | null> {
+    return this.get<T>(key);
+  }
+  
+  /**
+   * Set a value in cache (alias for set)
+   * 
+   * @param key - Cache key
+   * @param value - Value to cache
+   * @param options - Cache options
+   */
+  async setCacheValue<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
+    return this.set<T>(key, value, options);
+  }
+  
+  /**
+   * Find keys by pattern
+   * 
+   * @param pattern - Pattern to match keys against
+   * @returns Matching keys
+   */
+  async findKeysByPattern(pattern: string): Promise<string[]> {
+    return this.keys(pattern);
+  }
+  
+  /**
+   * Register a cache provider
+   */
+  registerProvider(name: string, provider: ICacheProvider, priority = 100): void {
+    // Add name to provider if not set
+    if (!provider.name) {
+      (provider as any).name = name;
+    }
+    
+    this.providers.set(name, provider);
+    
+    emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, {
+      provider: name,
+      priority
+    });
   }
   
   /**
    * Get a provider by name
    */
-  getProvider(name?: string): ICacheProvider {
+  getProvider(name?: string): ICacheProvider | null {
     const providerName = name || this.config.defaultProvider;
-    const provider = this.providers.get(providerName);
-
-    if (!provider) {
-      throw new Error(`Provider "${providerName}" not found`);
+    
+    if (!providerName) {
+      // Return first provider if no name specified
+      const firstProvider = [...this.providers.values()][0];
+      return firstProvider || null;
     }
-
-    return provider;
+    
+    return this.providers.get(providerName) || null;
   }
-
+  
   /**
-   * Get provider operations
+   * Get all providers
    */
-  getOperations(provider?: string): any {
-    // This would be implemented to return operations specific to the provider
-    return {};
+  getProviders(): Map<string, ICacheProvider> {
+    return this.providers;
   }
-
+  
   /**
-   * Invalidate cache entries by tag
+   * Invalidate all entries with a given tag
    */
   async invalidateByTag(tag: string): Promise<number> {
     const provider = this.getProvider();
-    return provider.invalidateByTag?.(tag) ?? 0;
-  }
-
-  /**
-   * Invalidate cache entries by prefix
-   */
-  async invalidateByPrefix(prefix: string): Promise<number> {
-    // This would be implemented to invalidate by prefix
-    return 0;
-  }
-
-  /**
-   * Get all keys matching a pattern
-   */
-  async keys(pattern?: string): Promise<string[]> {
-    // This would be implemented to get keys by pattern
-    return [];
-  }
-
-  /**
-   * Delete cache entries matching a pattern
-   */
-  async deleteByPattern(pattern: string): Promise<number> {
-    // This would be implemented to delete by pattern
-    return 0;
-  }
-
-  /**
-   * Start monitoring provider health
-   */
-  startMonitoring(): void {
-    if (this.monitoringInterval) return;
-
-    this.monitoringInterval = setInterval(() => {
-      this.checkProviderHealth();
-    }, this.config.statsInterval * 1000);
-  }
-
-  /**
-   * Stop monitoring provider health
-   */
-  stopMonitoring(): void {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-      this.monitoringInterval = null;
+    if (!provider) return 0;
+    
+    if (providerHasMethod(provider, 'invalidateByTag')) {
+      await provider.invalidateByTag?.(tag);
+      return 0; // Return 0 as we can't determine the count
     }
+    
+    return 0;
   }
-
+  
   /**
-   * Check provider health
+   * Dispose of the cache manager
    */
-  private async checkProviderHealth(): Promise<void> {
+  async dispose(): Promise<void> {
+    // Stop stats collection
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+      this.statsTimer = null;
+    }
+    
+    // Dispose of providers
     for (const [name, provider] of this.providers.entries()) {
-      try {
-        // Handle potentially undefined healthCheck method
-        if (typeof provider.healthCheck === 'function') {
-          const health = await provider.healthCheck();
-          // Ensure we get a boolean healthy status
-          const healthy = health.status === 'healthy' || 
-                       (health.healthy !== undefined ? health.healthy : false);
-          
-          this.healthStatus.set(name, {
-            healthy,
-            errors: 0
-          });
-        } else {
-          // If no health check is available, assume healthy but note it
-          this.healthStatus.set(name, {
-            healthy: true,
-            errors: 0
-          });
-        }
-      } catch (error) {
-        const status = this.healthStatus.get(name);
-        if (status) {
-          status.errors += 1;
-          status.healthy = status.errors < 3; // Mark unhealthy after 3 errors
-          this.healthStatus.set(name, status);
+      if (providerHasMethod(provider, 'dispose')) {
+        try {
+          await safelyCallProviderMethod(provider, 'dispose');
+        } catch (error) {
+          console.error(`Error disposing provider ${name}:`, error);
         }
       }
     }
+    
+    // Clear providers
+    this.providers.clear();
   }
-
+  
   /**
-   * Get provider health status
+   * Start collecting stats at regular intervals
    */
-  getProviderStatus(name: string): {
-    healthy: boolean, 
-    errors: number,
-    status: 'healthy' | 'degraded' | 'unhealthy'
-  } {
-    const status = this.healthStatus.get(name) || {healthy: false, errors: 0};
+  private startStatsCollection(): void {
+    // Ensure we don't have multiple timers
+    if (this.statsTimer) {
+      clearInterval(this.statsTimer);
+    }
+    
+    // Set up interval for stats collection
+    this.statsTimer = setInterval(async () => {
+      try {
+        const stats = await this.getStats();
+        emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });
+      } catch (error) {
+        console.error('Error collecting cache stats:', error);
+      }
+    }, (this.config.statsInterval || 60) * 1000);
+  }
+  
+  /**
+   * Get cache statistics
+   */
+  async getStats(): Promise<Record<string, CacheStats>> {
+    const result: Record<string, CacheStats> = {};
+    
+    for (const [name, provider] of this.providers.entries()) {
+      if (providerHasMethod(provider, 'getStats')) {
+        try {
+          const stats = await safelyCallProviderMethod<CacheStats>(provider, 'getStats');
+          if (stats) {
+            result[name] = stats;
+          }
+        } catch (error) {
+          console.error(`Error getting stats for provider ${name}:`, error);
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Perform health checks on all providers
+   */
+  async healthCheck(): Promise<Record<string, { healthy: boolean; message?: string; status?: string }>> {
+    const result: Record<string, { healthy: boolean; message?: string; status?: string }> = {};
+    
+    for (const [name, provider] of this.providers.entries()) {
+      if (providerHasMethod(provider, 'healthCheck')) {
+        try {
+          const health = await safelyCallProviderMethod<{ healthy: boolean; message?: string; status?: string }>(
+            provider, 
+            'healthCheck'
+          );
+          
+          if (health) {
+            const healthy = health.status === 'healthy' ||
+              health.status === undefined && health.healthy;
+            
+            result[name] = {
+              healthy,
+              message: health.message,
+              status: health.status || (healthy ? 'healthy' : 'unhealthy')
+            };
+          }
+        } catch (error) {
+          result[name] = {
+            healthy: false,
+            message: error instanceof Error ? error.message : String(error),
+            status: 'error'
+          };
+        }
+      } else {
+        // Basic health check
+        try {
+          const testKey = `__health_check_${Date.now()}`;
+          await provider.set(testKey, { timestamp: Date.now() });
+          await provider.get(testKey);
+          await provider.delete(testKey);
+          
+          result[name] = {
+            healthy: true,
+            status: 'healthy'
+          };
+        } catch (error) {
+          result[name] = {
+            healthy: false,
+            message: error instanceof Error ? error.message : String(error),
+            status: 'error'
+          };
+        }
+      }
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Get configuration
+   */
+  getConfig(): Record<string, any> {
     return {
-      ...status,
-      status: status.healthy ? 'healthy' : 
-              status.errors < 3 ? 'degraded' : 'unhealthy'
+      providers: Array.from(this.providers.keys()),
+      defaultTtl: this.config.defaultTtl,
+      defaultProvider: this.config.defaultProvider,
+      backgroundRefresh: this.config.backgroundRefresh,
+      refreshThreshold: this.config.refreshThreshold,
+      deduplicateRequests: this.config.deduplicateRequests
     };
   }
-
+  
   /**
-   * Wrap a function with caching
-   */
-  wrap<T extends (...args: any[]) => Promise<any>>(
-    fn: T,
-    keyGenerator: ((...args: Parameters<T>) => string) | undefined,
-    options?: CacheOptions
-  ): T & { invalidateCache: (...args: Parameters<T>) => Promise<void> } {
-    // Implementation would go here
-    const originalFn = fn;
-    // Fix the wrappedFn reference
-    return originalFn as T & { invalidateCache: (...args: Parameters<T>) => Promise<void> };
-  }
-
-  /**
-   * Get a safe copy of configuration information
-   * This exposes configuration in a safe way for UI components
+   * Get configuration info (alias for getConfig)
    */
   getConfigInfo(): Record<string, any> {
-    return {
-      defaultTtl: this.config.defaultTtl,
-      providers: Array.from(this.providers.keys()),
-      defaultProvider: this.config.defaultProvider,
-      // Include other safe properties but exclude sensitive information
-    };
+    return this.getConfig();
   }
-}
-
-/**
- * Get cache value by key
- */
-export function getCacheValue<T>(key: string): T | null {
-  // This is a placeholder implementation that would be properly implemented
-  return null;
-}
-
-/**
- * Set cache value with key
- */
-export async function setCacheValue<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
-  // This is a placeholder implementation that would be properly implemented
-}
-
-/**
- * Find keys by pattern
- */
-export async function findKeysByPattern(pattern: string): Promise<string[]> {
-  // This is a placeholder implementation that would be properly implemented
-  return [];
-}
-
-// Helper function to create a memory provider with a name
-function createMemoryProvider(adapter: MemoryAdapter, name: string): ICacheProvider {
-  return {
-    get: adapter.get.bind(adapter),
-    set: adapter.set.bind(adapter),
-    delete: adapter.delete.bind(adapter),
-    clear: adapter.clear.bind(adapter),
-    getMany: adapter.getMany?.bind(adapter),
-    setMany: adapter.setMany?.bind(adapter),
-    has: adapter.has?.bind(adapter),
-    // Implement the keys method
-    keys: async (pattern?: string) => {
-      return adapter.keys(pattern);
-    },
-    getStats: async () => ({
-      hits: 0,
-      misses: 0,
-      size: 0,
-      lastUpdated: Date.now(),
-      keyCount: 0,
-      entries: 0,
-      avgTtl: 0,
-      maxTtl: 0,
-      memoryUsage: 0
-    }),
-    // Add healthCheck method
-    healthCheck: async () => ({
-      status: 'healthy',
-      healthy: true,
-      timestamp: Date.now()
-    }),
-    name
-  };
+  
+  /**
+   * Get keys matching a pattern
+   */
+  async keys(pattern?: string): Promise<string[]> {
+    const provider = this.getProvider();
+    if (!provider) return [];
+    
+    if (providerHasMethod(provider, 'keys')) {
+      const keysMethod = provider.keys as (pattern?: string) => Promise<string[]>;
+      return await keysMethod(pattern);
+    }
+    
+    return [];
+  }
+  
+  /**
+   * Create a new provider adapter
+   */
+  createAdapter(name: string, type: string, options: any = {}): ICacheProvider {
+    // This is just a stub - implementation would depend on available adapters
+    throw createCacheError(
+      `Adapter type '${type}' not supported`,
+      CacheErrorCode.INITIALIZATION_ERROR
+    );
+  }
 }

@@ -1,186 +1,215 @@
-/**
- * @fileoverview React context provider for cache management with
- * configuration and dependency injection.
- */
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
+import { CacheOptions } from '../types/common';
 
-import React, {createContext, useContext, useMemo, useRef} from 'react';
-import {CacheManagerCore} from '../implementations';
-import {DEFAULT_CONFIG} from '../config/default-config';
-import {ICacheProvider} from '../interfaces/cache-provider';
+// Create a default cache manager
+const defaultCacheManager = new CacheManagerCore();
 
-interface CacheContextValue {
-  cacheManager: CacheManagerCore; // Make this required
+// Cache operation types
+type CacheOperation = 
+  | { type: 'get'; key: string }
+  | { type: 'set'; key: string; value: any }
+  | { type: 'delete'; key: string };
+
+// Cache context type
+interface CacheContextType {
+  get: <T = any>(key: string) => Promise<T | null>;
+  set: <T = any>(key: string, value: T, options?: CacheOptions) => Promise<void>;
+  delete: (key: string) => Promise<boolean>;
+  clear: () => Promise<void>;
+  invalidateByPrefix: (prefix: string) => Promise<number>;
+  invalidateByTag: (tag: string) => Promise<number>;
+  batchOperations: (operations: CacheOperation[]) => Promise<void>;
+  isLoading: boolean;
+  error: Error | null;
 }
 
-const CacheContext = createContext<CacheContextValue | null>(null);
+// Create context with default values
+const CacheContext = createContext<CacheContextType>({
+  get: async () => null,
+  set: async () => {},
+  delete: async () => false,
+  clear: async () => {},
+  invalidateByPrefix: async () => 0,
+  invalidateByTag: async () => 0,
+  batchOperations: async () => {},
+  isLoading: false,
+  error: null,
+});
 
+// Provider props
 interface CacheProviderProps {
-  children: React.ReactNode;
-  config?: typeof DEFAULT_CONFIG;
-  providers?: Array<{
-    name: string;
-    instance: ICacheProvider;
-    priority?: number;
-  }>;
+  children: ReactNode;
+  cacheManager?: CacheManagerCore;
 }
 
-/**
- * Cache context provider component
- */
-export function CacheProvider({ 
+// Cache provider component
+export const CacheProvider: React.FC<CacheProviderProps> = ({ 
   children, 
-  config,
-  providers = []
-}: CacheProviderProps) {
-  // Initialize cacheManager in useMemo to ensure stable reference
-  const cacheManager = useMemo(() => {
-    return new CacheManagerCore(config || DEFAULT_CONFIG);
-  }, [config]);
+  cacheManager = defaultCacheManager 
+}) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const contextValue = useMemo(() => ({
-    cacheManager // This is now guaranteed to be defined
-  }), [cacheManager]);
+  // Reset error when cache manager changes
+  useEffect(() => {
+    setError(null);
+  }, [cacheManager]);
+
+  // Get a value from cache
+  const get = useCallback(async <T = any>(key: string): Promise<T | null> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const cached = await cacheManager.get(key) as T | null;
+      return cached;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Set a value in cache
+  const set = useCallback(async <T = any>(
+    key: string, 
+    value: T, 
+    options?: CacheOptions
+  ): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Handle undefined values
+      const newValue = value === undefined ? null : value;
+      await cacheManager.set(key, newValue);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Delete a value from cache
+  const deleteValue = useCallback(async (key: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      return await cacheManager.delete(key);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Perform batch operations
+  const batchOperations = useCallback(async (operations: CacheOperation[]): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      for (const op of operations) {
+        switch (op.type) {
+          case 'get':
+            await cacheManager.get(op.key);
+            break;
+          case 'set':
+            await cacheManager.set(op.key, op.value);
+            break;
+          case 'delete':
+            await cacheManager.delete(op.key);
+            break;
+        }
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Clear all values from cache
+  const clear = useCallback(async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await cacheManager.clear();
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Invalidate cache entries by tag
+  const invalidateByTag = useCallback(async (tag: string): Promise<number> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      return await cacheManager.invalidateByTag(tag);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      return 0;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Invalidate cache entries by prefix
+  const invalidateByPrefix = useCallback(async (prefix: string): Promise<number> => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Get keys matching prefix
+      const keys = await cacheManager.keys(prefix);
+      
+      // Delete all matching keys
+      const keysToDelete = keys.filter(key => key.startsWith(prefix));
+      return Promise.all(keysToDelete.map(key => cacheManager.delete(key)))
+        .then(results => results.filter(Boolean).length);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      return 0;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [cacheManager]);
+
+  // Create context value
+  const contextValue = {
+    get,
+    set,
+    delete: deleteValue,
+    clear,
+    invalidateByPrefix,
+    invalidateByTag,
+    batchOperations,
+    isLoading,
+    error,
+  };
 
   return (
     <CacheContext.Provider value={contextValue}>
       {children}
     </CacheContext.Provider>
   );
-}
+};
 
-/**
- * Hook to access cache manager
- */
-export function useCacheManager() {
-  const context = useContext(CacheContext);
-  if (!context) {
-    throw new Error('useCacheManager must be used within a CacheProvider');
-  }
-  return context.cacheManager;
-}
+// Hook to use cache context
+export const useCache = () => useContext(CacheContext);
 
-/**
- * Hook to access cache value
- */
-export function useCacheValue<T>(key: string, initialValue?: T) {
-  const cacheManager = useCacheManager();
-  const [value, setValue] = React.useState<T | null>(initialValue || null);
-  const [error, setError] = React.useState<Error | null>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  // Load initial value
-  React.useEffect(() => {
-    let mounted = true;
-
-    async function loadValue() {
-      try {
-        const cached = await cacheManager.get(key) as T | null;
-        if (mounted) {
-          setValue(cached);
-          setError(null);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err as Error);
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadValue().then(r => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, [key, cacheManager]);
-
-  // Update value
-  const updateValue = React.useCallback(async (newValue: T) => {
-    try {
-      await cacheManager.set(key, newValue);
-      setValue(newValue);
-      setError(null);
-    } catch (err) {
-      setError(err as Error);
-      throw err;
-    }
-  }, [key, cacheManager]);
-
-  return {
-    value,
-    error,
-    isLoading,
-    setValue: updateValue
-  };
-}
-
-/**
- * Hook for batch operations
- */
-export function useCacheBatch() {
-  const cacheManager = useCacheManager();
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<Error | null>(null);
-
-  const executeBatch = React.useCallback(async <T,>(
-    operations: Array<{
-      type: 'get' | 'set' | 'delete';
-      key: string;
-      value?: T;
-    }>
-  ) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Process batch manually if not supported
-      const results: any[] = [];
-      // Execute operations sequentially
-      for (const op of operations) {
-        // Handle operations manually
-        if (op.type === 'get') {
-          await cacheManager.get(op.key);
-        } else if (op.type === 'set') {
-          await cacheManager.set(op.key, op.value);
-        } else if (op.type === 'delete') {
-          await cacheManager.delete(op.key);
-        }
-      }
-      return results;
-    } catch (err) {
-      setError(err as Error);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [cacheManager]);
-
-  return {
-    executeBatch,
-    isLoading,
-    error
-  };
-}
-
-/**
- * Hook for cache invalidation
- */
-export function useCacheInvalidation() {
-  const cacheManager = useCacheManager();
-
-  return {
-    invalidateKey: React.useCallback((key: string) => 
-      cacheManager.delete(key), [cacheManager]),
-    
-    invalidatePattern: React.useCallback((pattern: string) => {
-      const keysToDelete = Array.from(pattern);
-      return Promise.all(keysToDelete.map(key => cacheManager.delete(key)));
-    }, [cacheManager]),
-    
-    clearAll: React.useCallback(() =>
-      cacheManager.clear(), [cacheManager])
-  };
-}
+// Export default cache manager
+export { defaultCacheManager };

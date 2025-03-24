@@ -39,7 +39,9 @@ export enum CacheEventType {
   
   REFRESH_START = 'refresh:start',
   REFRESH_SUCCESS = 'refresh:success',
-  REFRESH_ERROR = 'refresh:error'
+  REFRESH_ERROR = 'refresh:error',
+  SET_MANY = "SET_MANY",
+  GET_MANY = "GET_MANY"
 }
 
 /**

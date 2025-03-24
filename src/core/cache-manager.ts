@@ -91,14 +91,20 @@ export class CacheManager implements ICacheManager {
       const result = await provider.delete(key);
       
       this.monitor.recordMetrics('delete', {
-        duration: performance.now() - startTime,
-        success: result,
-        hits: 0,
-        misses: 0,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
-        memoryUsage: 0,
-        timestamp: Date.now()
-      });
+                    duration: performance.now() - startTime,
+                    success: result,
+                    hits: 0,
+                    misses: 0,
+                    latency: () => ({ avg: 0, min: 0, max: 0, count: 1 }),
+                    memoryUsage: 0,
+                    timestamp: Date.now(),
+                    error: undefined,
+                    operationCount: 1,
+                    errorCount: result ? 0 : 1,
+                    cpuUsage: 0,
+                    size: 0,
+                    compressed: false
+                  });
       
       return result;
     } catch (error) {
@@ -116,14 +122,20 @@ export class CacheManager implements ICacheManager {
       await provider.clear();
       
       this.monitor.recordMetrics('clear', {
-        duration: performance.now() - startTime,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
-        memoryUsage: 0,
-        hits: 0,
-        misses: 0,
-        success: true,
-        timestamp: Date.now()
-      });
+                    duration: performance.now() - startTime,
+                    latency: (latency, arg1) => ({ avg: 0, min: 0, max: 0, count: 1 }),
+                    memoryUsage: 0,
+                    hits: 0,
+                    misses: 0,
+                    success: true,
+                    timestamp: Date.now(),
+                    error: null,
+                    operationCount: 1,
+                    errorCount: 0,
+                    cpuUsage: 0,
+                    size: 0,
+                    compressed: false
+                  });
     } catch (error) {
       this.handleError('clear', error as Error);
     }
@@ -190,14 +202,20 @@ export class CacheManager implements ICacheManager {
       await this.set(key, value, options);
       
       this.monitor.recordMetrics('compute', {
-        duration: performance.now() - startTime,
-        success: true,
-        hits: 0,
-        misses: 1,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
-        memoryUsage: 0,
-        timestamp: Date.now()
-      });
+              duration: performance.now() - startTime,
+              success: true,
+              hits: 0,
+              misses: 1,
+              latency: (latency, arg1) => ({ avg: 0, min: 0, max: 0, count: 1 }),
+              memoryUsage: 0,
+              timestamp: Date.now(),
+              error: undefined,
+              operationCount: 1,
+              errorCount: 0,
+              cpuUsage: 0,
+              size: 0,
+              compressed: false
+            });
       
       return value;
     } catch (error) {
@@ -243,14 +261,20 @@ export class CacheManager implements ICacheManager {
     await Promise.all(toDelete.map((key: string) => this.delete(key)));
     
     this.monitor.recordMetrics('invalidateByPrefix', {
-      duration: performance.now() - startTime,
-      latency: { avg: 0, min: 0, max: 0, count: 1 },
-      memoryUsage: 0,
-      hits: 0,
-      misses: 0,
-      success: true,
-      timestamp: Date.now()
-    });
+          duration: performance.now() - startTime,
+          latency: (latency, arg1) => ({ avg: 0, min: 0, max: 0, count: 1 }),
+          memoryUsage: 0,
+          hits: 0,
+          misses: 0,
+          success: true,
+          timestamp: Date.now(),
+          error: undefined,
+          operationCount: 1,
+          errorCount: 0,
+          cpuUsage: 0,
+          size: 0,
+          compressed: false
+        });
   }
 
   getProvider(name: string): ICacheProvider | null {
@@ -314,7 +338,7 @@ export class CacheManager implements ICacheManager {
       if (this.circuitBreaker.isOpen()) {
         throw new CacheError(
           CacheErrorCode.CIRCUIT_OPEN,
-          `Circuit breaker open for provider ${provider.name}`
+          CacheErrorCode.CIRCUIT_OPEN,
         );
       }
 
@@ -329,12 +353,18 @@ export class CacheManager implements ICacheManager {
       
       this.monitor.recordMetrics('get', {
         duration: performance.now() - startTime,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
+        latency: (latency, arg1) => ({ avg: 0, min: 0, max: 0, count: 1 }),
         memoryUsage: 0,
         hits: isHit ? 1 : 0,
         misses: isHit ? 0 : 1,
         success: true,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        error: undefined,
+        operationCount: 0,
+        errorCount: 0,
+        cpuUsage: undefined,
+        size: 0,
+        compressed: false
       });
 
       return value;
@@ -372,15 +402,20 @@ export class CacheManager implements ICacheManager {
         : serialized.metadata?.size || 0;
 
       this.monitor.recordMetrics('set', {
-        duration: performance.now() - startTime,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
-        memoryUsage: 0,
-        hits: 0,
-        misses: 0,
-        success: true,
-        timestamp: Date.now(),
-        size: dataSize
-      });
+              duration: performance.now() - startTime,
+              latency: () => ({ avg: 0, min: 0, max: 0, count: 1 }),
+              memoryUsage: 0,
+              hits: 0,
+              misses: 0,
+              success: true,
+              timestamp: Date.now(),
+              size: dataSize,
+              error: undefined,
+              operationCount: 1,
+              errorCount: 0,
+              cpuUsage: 0,
+              compressed: false
+            });
     } catch (error) {
       this.handleError('set', error as Error, { key, value });
     }
@@ -411,15 +446,20 @@ export class CacheManager implements ICacheManager {
       }
 
       this.monitor.recordMetrics('batch', {
-        duration: performance.now() - startTime,
-        operationCount: operations.length,
-        hits: 0,
-        misses: 0,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
-        memoryUsage: 0,
-        success: true,
-        timestamp: Date.now()
-      });
+                    duration: performance.now() - startTime,
+                    operationCount: operations.length,
+                    hits: 0,
+                    misses: 0,
+                    latency: () => ({ avg: 0, min: 0, max: 0, count: 1 }),
+                    memoryUsage: 0,
+                    success: true,
+                    timestamp: Date.now(),
+                    error: null,
+                    errorCount: 0,
+                    cpuUsage: 0,
+                    size: 0,
+                    compressed: false
+                  });
 
       return results;
     } catch (error) {
@@ -475,14 +515,14 @@ export class CacheManager implements ICacheManager {
     if (!key || typeof key !== 'string') {
       throw new CacheError(
         CacheErrorCode.INVALID_KEY,
-        'Invalid cache key'
+        CacheErrorCode.INVALID_KEY
       );
     }
 
     if (key.length > 250) {
       throw new CacheError(
         CacheErrorCode.KEY_TOO_LONG,
-        'Cache key exceeds maximum length'
+        CacheErrorCode.KEY_TOO_LONG
       );
     }
   }
@@ -491,7 +531,7 @@ export class CacheManager implements ICacheManager {
     if (value === undefined) {
       throw new CacheError(
         CacheErrorCode.INVALID_ARGUMENT,
-        'Cannot cache undefined value'
+         CacheErrorCode.INVALID_ARGUMENT
       );
     }
   }
@@ -507,7 +547,7 @@ export class CacheManager implements ICacheManager {
     if (!provider) {
       throw new CacheError(
         CacheErrorCode.PROVIDER_ERROR,
-        'No cache provider available'
+        CacheErrorCode.PROVIDER_ERROR
       );
     }
 
@@ -522,19 +562,24 @@ export class CacheManager implements ICacheManager {
     const cacheError = error instanceof CacheError ? error :
       new CacheError(
         CacheErrorCode.UNKNOWN,
-        error.message,
-        { operation, ...context }
+        CacheErrorCode.UNKNOWN_ERROR,
+        { message: error.message, name: error.name, ...context, details: { operation } } as any
       );
 
     const metrics: PerformanceMetrics = {
       duration: performance.now() - (context?.startTime || 0),
       hits: 0,
       misses: 1,
-      latency: { avg: 0, min: 0, max: 0, count: 1 },
+      latency: () => ({ avg: 0, min: 0, max: 0, count: 1 }),
       memoryUsage: 0,
       timestamp: Date.now(),
       success: false,
-      error: true
+      error: true,
+      operationCount: 1,
+      errorCount: 1,
+      cpuUsage: 0,
+      size: 0,
+      compressed: false
     };
 
     this.monitor.recordMetrics(operation, metrics);
@@ -563,26 +608,37 @@ export class CacheManager implements ICacheManager {
       const result = await fn();
       this.monitor.recordMetrics(operation, {
         duration: performance.now() - startTime,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
+        latency: () => ({ avg: 0, min: 0, max: 0, count: 1 }),
         memoryUsage: 0,
         hits: 0,
         misses: 0,
         success: true,
         timestamp: Date.now(),
-        ...context
+        ...context,
+        error: undefined,
+        operationCount: 0,
+        errorCount: 0,
+        cpuUsage: undefined,
+        size: 0,
+        compressed: false
       });
       return result;
     } catch (error) {
       this.monitor.recordMetrics(operation, {
         duration: performance.now() - startTime,
-        latency: { avg: 0, min: 0, max: 0, count: 1 },
+        latency: (latency, arg1) => ({ avg: 0, min: 0, max: 0, count: 1 }),
         memoryUsage: 0,
         hits: 0,
         misses: 0,
         success: false,
         error: true,
         timestamp: Date.now(),
-        ...context
+        ...context,
+        operationCount: 0,
+        errorCount: 0,
+        cpuUsage: undefined,
+        size: 0,
+        compressed: false
       });
       throw error;
     }

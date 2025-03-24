@@ -3,7 +3,7 @@
  */
 
 import { CacheEventType, emitCacheEvent } from '../../events/cache-events';
-import { compressData, decompressData } from '../../utils/compression-utils';
+import { compress, decompress } from '../../utils/compression-utils';
 import { IStorageAdapter } from '../../interfaces/i-storage-adapter';
 import { HealthStatus } from '../../types/common';
 
@@ -90,7 +90,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
       // Handle decompression if needed
       if (meta?.compressed && Buffer.isBuffer(value)) {
         try {
-          const decompressed = await decompressData(value, 'gzip');
+          const decompressed = await decompress(value, 'gzip');
           if (typeof decompressed === 'string') {
             try {
               return JSON.parse(decompressed) as T;
@@ -143,7 +143,7 @@ export class MemoryStorageAdapter implements IStorageAdapter {
             const serialized = typeof value === 'string' ? value : JSON.stringify(value);
             
             if (Buffer.byteLength(serialized, 'utf8') > threshold) {
-              const compressedData = await compressData(Buffer.from(serialized));
+              const compressedData = await compress(Buffer.from(serialized));
               processedValue = {
                 data: compressedData.data,
                 algorithm: compressedData.algorithm,

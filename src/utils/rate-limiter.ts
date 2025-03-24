@@ -1,239 +1,252 @@
 /**
- * @fileoverview Enhanced rate limiting utility
- * @author harborgrid-justin
- * @lastModified 2025-03-24
+ * Rate limiter for cache operations
  */
 
-import { CacheError, CacheErrorCode, createCacheError } from './error-utils';
-
-interface RateLimitConfig {
-  maxRequests: number;
-  burstable?: boolean; 
-  fairness?: boolean;
-  queueSize?: number;
-  operation?: string;
-  window: number; // Time window in milliseconds
-}
-
-interface RateLimitEntry {
-  timestamp: number;
-  count: number;
-}
+import { RateLimitConfig } from '../types/common';
+import { CacheError, CacheErrorCode } from './error-utils';
 
 /**
- * Rate limit statistics
- */
-export interface RateLimitStats {
-  operation: string;
-  currentUsage: number;
-  limit: number;
-  remaining: number;
-  resetTime: number;
-  queueSize: number;
-  burstCapacity: number;
-}
-
-/**
- * Enhanced rate limiter with fairness and burst handling
+ * Rate limiter implementation
  */
 export class RateLimiter {
-  private limits: Map<string, RateLimitConfig>;
-  private usage: Map<string, RateLimitEntry[]>;
-  private queue: Map<string, Array<() => void>>;
-
-  constructor(configs: Record<string, RateLimitConfig>) {
-    this.limits = new Map(Object.entries(configs));
-    this.usage = new Map();
-    this.queue = new Map();
-    this.startCleanupInterval();
-  }
-
   /**
-   * Check if operation is within rate limits
+   * Rate limit configuration
    */
-  public async checkLimit(
-    operation: string,
-    count: number = 1
-  ): Promise<void> {
-    const config = this.limits.get(operation);
-    if (!config) return;
-
-    const maxRequests = config.maxRequests || 100;
-    const burstable = config.burstable || false;
-    const fairness = config.fairness || false;
-    const queueSize = config.queueSize || 1000;
-
-    const now = Date.now();
-    const entry = this.getUsageEntry(operation);
-
-    if (this.isLimited(entry, config, count)) {
-      if (burstable) {
-        await this.handleBurst(operation, count);
-      } else if (fairness) {
-        await this.queueRequest(operation);
-      } else {
-        throw createCacheError(
-          CacheErrorCode.RATE_LIMIT_EXCEEDED,
-          `Rate limit exceeded for operation: ${operation}`,
-          { operation }
-        );
-      }
-    }
-
-    this.updateUsage(operation, count);
-  }
-
+  private config: Required<RateLimitConfig>;
+  
   /**
-   * Get current usage statistics
+   * Operation counters
    */
-  public getStats(operation: string): RateLimitStats | null {
-    const config = this.limits.get(operation);
-    const usage = this.usage.get(operation);
-    const queueSize = this.queue.get(operation)?.length || 0;
-
-    if (!config || !usage) {
-      return null;
-    }
-
-    const now = Date.now();
-    const windowUsage = this.calculateWindowUsage(usage, now, operation);
-
-    return {
-      operation,
-      currentUsage: windowUsage,
-      limit: config.maxRequests,
-      remaining: Math.max(0, config.maxRequests - windowUsage),
-      resetTime: this.getResetTime(usage, config),
-      queueSize,
-      burstCapacity: config.burstable ? config.maxRequests * 2 : config.maxRequests
+  private counters = new Map<string, { count: number; resetAt: number }>();
+  
+  /**
+   * Operation queues
+   */
+  private queues = new Map<string, Array<{ resolve: () => void; reject: (error: Error) => void; timeout: NodeJS.Timeout }>>();
+  
+  /**
+   * Create a new rate limiter
+   * 
+   * @param config - Rate limit configuration
+   */
+  constructor(config: RateLimitConfig) {
+    this.config = {
+      limit: config.limit,
+      window: config.window,
+      throwOnLimit: config.throwOnLimit || false,
+      queueExceeding: config.queueExceeding || false,
+      maxQueueSize: config.maxQueueSize || 100,
+      maxWaitTime: config.maxWaitTime || 30000
     };
   }
-
-  private getUsageEntry(operation: string): RateLimitEntry[] {
-    let entry = this.usage.get(operation);
-    if (!entry) {
-      entry = [];
-      this.usage.set(operation, entry);
-    }
-    return entry;
-  }
-
-  private isLimited(
-    entry: RateLimitEntry[],
-    config: RateLimitConfig,
-    count: number
-  ): boolean {
-    const now = Date.now();
-    // Use a safe operation string even if config.operation is undefined
-    const op = config.operation || 'unknown';
-    const windowUsage = this.calculateWindowUsage(entry, now, op);
-    return windowUsage + count > config.maxRequests;
-  }
-
-  private async handleBurst(
-    operation: string,
-    count: number
-  ): Promise<void> {
-    const config = this.limits.get(operation);
-    if (!config) return;
+  
+  /**
+   * Limit an operation
+   * 
+   * @param operation - Operation name
+   * @returns Promise that resolves when the operation can proceed
+   */
+  async limit(operation: string): Promise<void> {
+    // Get or create counter
+    const counter = this.getCounter(operation);
     
-    const burstLimit = config.maxRequests * 2;
-    const usage = this.getUsageEntry(operation);
-    const windowUsage = this.calculateWindowUsage(usage, Date.now(), operation);
-
-    if (windowUsage + count > burstLimit) {
-      throw new CacheError(
-        CacheErrorCode.RATE_LIMIT_EXCEEDED,
-        `Burst limit exceeded for operation: ${operation}`,
-        { operation }
-      );
-    }
-  }
-
-  private async queueRequest(operation: string): Promise<void> {
-    const config = this.limits.get(operation);
-    if (!config) return;
-    
-    let queue = this.queue.get(operation);
-
-    if (!queue) {
-      queue = [];
-      this.queue.set(operation, queue);
-    }
-
-    if (queue.length >= (config.queueSize || 1000)) {
-      throw new CacheError(
-        CacheErrorCode.RATE_LIMIT_EXCEEDED,
-        `Queue full for operation: ${operation}`,
-        { operation }
-      );
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        const index = queue!.indexOf(resolve);
-        if (index !== -1) {
-          queue!.splice(index, 1);
-          reject(new CacheError(
-            CacheErrorCode.TIMEOUT,
-            `Queue timeout for operation: ${operation}`,
-            { operation }
-          ));
-        }
-      }, 5000);
-
-      queue!.push(() => {
-        clearTimeout(timeout);
-        resolve();
-      });
-    });
-  }
-
-  private updateUsage(
-    operation: string,
-    count: number
-  ): void {
-    const entry = this.getUsageEntry(operation);
-    entry.push({
-      timestamp: Date.now(),
-      count
-    });
-  }
-
-  private calculateWindowUsage(
-    entry: RateLimitEntry[],
-    now: number,
-    operation: string
-  ): number {
-    const config = this.limits.get(operation);
-    if (!config) return 0;
-    
-    const windowStart = now - config.window;
-    return entry
-      .filter(e => e.timestamp >= windowStart)
-      .reduce((sum, e) => sum + e.count, 0);
-  }
-
-  private getResetTime(
-    entry: RateLimitEntry[],
-    config: RateLimitConfig
-  ): number {
-    if (entry.length === 0) return Date.now();
-    const oldestTimestamp = Math.min(...entry.map(e => e.timestamp));
-    return oldestTimestamp + config.window;
-  }
-
-  private startCleanupInterval(): void {
-    setInterval(() => {
-      const now = Date.now();
-      for (const [operation, config] of this.limits) {
-        const entry = this.usage.get(operation);
-        if (entry) {
-          const windowStart = now - config.window;
-          const filtered = entry.filter(e => e.timestamp >= windowStart);
-          this.usage.set(operation, filtered);
-        }
+    // Check if limit is exceeded
+    if (counter.count >= this.config.limit) {
+      // Check if we should queue
+      if (this.config.queueExceeding) {
+        await this.queueOperation(operation);
+        return;
       }
-    }, 60000); // Clean up every minute
+      
+      // Throw or return based on configuration
+      if (this.config.throwOnLimit) {
+        throw new CacheError(
+          `Rate limit exceeded for operation: ${operation}`,
+          CacheErrorCode.RATE_LIMIT_EXCEEDED
+        );
+      }
+      
+      // Wait for next window
+      await this.waitForNextWindow(counter);
+    }
+    
+    // Increment counter
+    counter.count++;
+  }
+  
+  /**
+   * Get or create a counter for an operation
+   * 
+   * @param operation - Operation name
+   * @returns Counter
+   */
+  private getCounter(operation: string): { count: number; resetAt: number } {
+    const now = Date.now();
+    
+    // Get existing counter
+    const counter = this.counters.get(operation);
+    
+    // Check if counter exists and is still valid
+    if (counter && counter.resetAt > now) {
+      return counter;
+    }
+    
+    // Create new counter
+    const resetAt = now + this.config.window;
+    const newCounter = { count: 0, resetAt };
+    
+    // Store counter
+    this.counters.set(operation, newCounter);
+    
+    // Schedule reset
+    setTimeout(() => {
+      // Reset counter
+      const currentCounter = this.counters.get(operation);
+      if (currentCounter && currentCounter.resetAt === resetAt) {
+        this.counters.delete(operation);
+      }
+    }, this.config.window);
+    
+    return newCounter;
+  }
+  
+  /**
+   * Wait for the next window
+   * 
+   * @param counter - Counter
+   */
+  private async waitForNextWindow(counter: { resetAt: number }): Promise<void> {
+    const delay = Math.max(0, counter.resetAt - Date.now());
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  
+  /**
+   * Queue an operation
+   * 
+   * @param operation - Operation name
+   */
+  private async queueOperation(operation: string): Promise<void> {
+    // Get or create queue
+    if (!this.queues.has(operation)) {
+      this.queues.set(operation, []);
+    }
+    
+    const queue = this.queues.get(operation)!;
+    
+    // Check if queue is full
+    if (queue.length >= this.config.maxQueueSize) {
+      throw new CacheError(
+        `Queue full for operation: ${operation}`,
+        CacheErrorCode.RATE_LIMIT_EXCEEDED
+      );
+    }
+    
+    // Add to queue
+    return new Promise<void>((resolve, reject) => {
+      // Create timeout
+      const timeout = setTimeout(() => {
+        // Remove from queue
+        const index = queue.findIndex(item => item.timeout === timeout);
+        if (index !== -1) {
+          queue.splice(index, 1);
+        }
+        
+        // Reject with timeout error
+        reject(new CacheError(
+          `Queue timeout for operation: ${operation}`,
+          CacheErrorCode.TIMEOUT
+        ));
+      }, this.config.maxWaitTime);
+      
+      // Add to queue
+      queue.push({ resolve, reject, timeout });
+      
+      // Process queue
+      this.processQueue(operation);
+    });
+  }
+  
+  /**
+   * Process the operation queue
+   * 
+   * @param operation - Operation name
+   */
+  private async processQueue(operation: string): Promise<void> {
+    // Get queue
+    const queue = this.queues.get(operation);
+    if (!queue || queue.length === 0) {
+      return;
+    }
+    
+    // Check if we can process an item
+    const counter = this.getCounter(operation);
+    if (counter.count < this.config.limit) {
+      // Get next item
+      const item = queue.shift();
+      if (item) {
+        // Clear timeout
+        clearTimeout(item.timeout);
+        
+        // Increment counter
+        counter.count++;
+        
+        // Resolve promise
+        item.resolve();
+      }
+    }
+    
+    // Schedule next check
+    setTimeout(() => this.processQueue(operation), 100);
+  }
+  
+  /**
+   * Check if an operation is rate limited
+   * 
+   * @param operation - Operation name
+   * @returns Whether the operation is rate limited
+   */
+  isLimited(operation: string): boolean {
+    const counter = this.counters.get(operation);
+    return counter !== undefined && counter.count >= this.config.limit;
+  }
+  
+  /**
+   * Get current rate limit status
+   * 
+   * @param operation - Operation name
+   * @returns Rate limit status
+   */
+  getStatus(operation: string): { limit: number; remaining: number; resetAt: number } {
+    const counter = this.counters.get(operation);
+    
+    if (!counter) {
+      return {
+        limit: this.config.limit,
+        remaining: this.config.limit,
+        resetAt: Date.now() + this.config.window
+      };
+    }
+    
+    return {
+      limit: this.config.limit,
+      remaining: Math.max(0, this.config.limit - counter.count),
+      resetAt: counter.resetAt
+    };
+  }
+  
+  /**
+   * Reset rate limit for an operation
+   * 
+   * @param operation - Operation name
+   */
+  reset(operation: string): void {
+    this.counters.delete(operation);
+  }
+  
+  /**
+   * Reset all rate limits
+   */
+  resetAll(): void {
+    this.counters.clear();
   }
 }

@@ -1,225 +1,99 @@
-import React, {createContext, useCallback, useContext, useMemo} from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
 import { CacheOptions } from '../types/common';
-import * as cacheCore from '../implementations/cache-manager-core';
-import {DEFAULT_CONFIG} from '../config/default-config';
-import {getCacheStats} from "../implementations/get-cache-stats";
-import {deleteCacheValue} from "../implementations/delete-cache-value";
 
-interface CacheContextValue {
-  get: <T>(key: string) => Promise<T | null>;
-  set: <T>(key: string, value: T, options?: CacheOptions) => Promise<void>;
+// Create a default instance of CacheManagerCore
+const cacheCore = new CacheManagerCore();
+
+// Context type
+interface CacheContextType {
+  get: <T = any>(key: string) => Promise<T | null>;
+  set: <T = any>(key: string, value: T, options?: CacheOptions) => Promise<void>;
   delete: (key: string) => Promise<boolean>;
   clear: () => Promise<void>;
-  getStats: () => Promise<Record<string, any>>;
-  getOrCompute: <T>(key: string, fn: () => Promise<T>, options?: CacheOptions) => Promise<T>;
-  invalidateByTag: (tag: string) => Promise<void>;
-  invalidateByPrefix: (prefix: string) => Promise<void>;
+  getOrCompute: <T = any>(key: string, fetcher: () => Promise<T>, options?: CacheOptions) => Promise<T>;
 }
 
-const CacheContext = createContext<CacheContextValue | null>(null);
+// Create context with default values
+const CacheContext = createContext<CacheContextType>({
+  get: async () => null,
+  set: async () => {},
+  delete: async () => false,
+  clear: async () => {},
+  getOrCompute: async (_, fetcher) => fetcher(),
+});
 
+// Provider props
 interface CacheProviderProps {
-  children: React.ReactNode;
-  config?: typeof DEFAULT_CONFIG;
+  children: ReactNode;
+  cacheManager?: CacheManagerCore;
 }
 
-export function CacheProvider({ children, config = DEFAULT_CONFIG }: CacheProviderProps) {
-  const get = useCallback(cacheCore.getCacheValue, []);
-  const set = useCallback(cacheCore.setCacheValue, []);
-  const delete_ = useCallback(deleteCacheValue, []);
-  const clear = useCallback(async () => {
-    // Use the deleteCacheValue to clear entries or implement a proper clear method
-    return Promise.resolve(); // Placeholder implementation
-  }, []);
-  const getStats = useCallback(() => Promise.resolve({}), []); // Placeholder implementation
-  const getOrCompute = useCallback(
-    async <T,>(key: string, fetcher: () => Promise<T>, options?: CacheOptions): Promise<T | null> => {
-      try {
-        // Check cache first
-        const cachedValue = await cacheCore.getCacheValue<T>(key);
-        if (cachedValue !== null) {
-          return cachedValue;
-        }
-        
-        // Compute value
-        const value = await fetcher();
-        
-        // Store in cache
-        await cacheCore.setCacheValue(key, value, options);
-        
-        return value;
-      } catch (error) {
-        console.error('Error in getOrCompute:', error);
-        return null;
-      }
-    },
-    []
-  );
-  
-  // Create a wrapper that enforces the right return type
-  const getOrComputeWrapper = async <T,>(
+// Cache provider component
+export const CacheProvider: React.FC<CacheProviderProps> = ({ 
+  children, 
+  cacheManager = cacheCore 
+}) => {
+  // Create memoized methods
+  const get = useCallback(<T = any>(key: string): Promise<T | null> => {
+    return cacheManager.getCacheValue<T>(key);
+  }, [cacheManager]);
+
+  const set = useCallback(<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> => {
+    return cacheManager.setCacheValue(key, value, options);
+  }, [cacheManager]);
+
+  const delete_ = useCallback((key: string): Promise<boolean> => {
+    return cacheManager.delete(key);
+  }, [cacheManager]);
+
+  const clear = useCallback((): Promise<void> => {
+    return cacheManager.clear();
+  }, [cacheManager]);
+
+  const getOrCompute = useCallback(async <T = any>(
     key: string, 
-    fn: () => Promise<T>, 
+    fetcher: () => Promise<T>, 
     options?: CacheOptions
   ): Promise<T> => {
-    const result = await getOrCompute(key, fn, options);
-    // Since we know fn returns T, and getOrCompute will either return cached T or compute new T,
-    // we can assert that null won't actually happen in practice (or throw if it does)
-    if (result === null) {
-      throw new Error(`Cache operation failed for key: ${key}`);
+    try {
+      // Try to get from cache first
+      const cachedValue = await cacheManager.getCacheValue<T>(key);
+      if (cachedValue !== null) {
+        return cachedValue;
+      }
+      
+      // Compute value
+      const value = await fetcher();
+      
+      // Store in cache
+      await cacheManager.setCacheValue(key, value, options);
+      
+      return value;
+    } catch (error) {
+      console.error(`Error in getOrCompute for key ${key}:`, error);
+      throw error;
     }
-    return result as T;
-  };
+  }, [cacheManager]);
 
-  const invalidateByTag = useCallback(async (tag: string) => {
-    // Implementation would use metadata utils to find and invalidate tagged entries
-    const keys: never[] = []; // Would use findKeysByTag
-    for (const key of keys) {
-      await deleteCacheValue(key);
-    }
-  }, []);
-
-  const invalidateByPrefix = useCallback(async (prefix: string) => {
-    // Implementation would use metadata utils to find and invalidate prefixed entries
-    const keys: never[] = []; // Would use findKeysByPrefix
-    for (const key of keys) {
-      await deleteCacheValue(key);
-    }
-  }, []);
-
-  const value = useMemo(() => ({
+  // Create context value
+  const contextValue = {
     get,
     set,
     delete: delete_,
     clear,
-    getStats,
-    getOrCompute: getOrComputeWrapper,
-    invalidateByTag,
-    invalidateByPrefix
-  }), [get, set, delete_, clear, getStats, getOrComputeWrapper, invalidateByTag, invalidateByPrefix]);
+    getOrCompute,
+  };
 
   return (
-    <CacheContext.Provider value={{
-      get: async <T,>(key: string): Promise<T | null> => {
-        try {
-          return await value.get(key);
-        } catch {
-          return null;
-        }
-      },
-      set,
-      delete: delete_,
-      clear,
-      getStats,
-      getOrCompute: getOrComputeWrapper,
-      invalidateByTag,
-      invalidateByPrefix
-    }}>
+    <CacheContext.Provider value={contextValue}>
       {children}
     </CacheContext.Provider>
   );
-}
+};
 
-export function useCache() {
-  const context = useContext(CacheContext);
-  if (!context) {
-    throw new Error('useCache must be used within a CacheProvider');
-  }
-  return context;
-}
+// Hook to use cache context
+export const useCache = () => useContext(CacheContext);
 
-// Custom hooks for specific cache operations
-export function useCacheValue<T>(key: string, initialValue?: T) {
-  const cache = useCache();
-  const [value, setValue] = React.useState<T | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<Error | null>(null);
-
-  React.useEffect(() => {
-    let mounted = true;
-
-    async function fetchValue() {
-      try {
-        const cached = await cache.get<T>(key);
-        if (mounted) {
-          setValue(cached);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchValue().then(r => {});
-
-    return () => {
-      mounted = false;
-    };
-  }, [key, cache]);
-
-  const updateValue = React.useCallback(async (newValue: T, options?: CacheOptions) => {
-    try {
-      await cache.set(key, newValue, options);
-      setValue(newValue);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    }
-  }, [key, cache]);
-
-  return {
-    value,
-    loading,
-    error,
-    setValue: updateValue
-  };
-}
-
-export function useCacheInvalidation() {
-  const cache = useCache();
-
-  return {
-    invalidateByTag: cache.invalidateByTag,
-    invalidateByPrefix: cache.invalidateByPrefix,
-    clearAll: cache.clear
-  };
-}
-
-export function useCacheStats() {
-  const cache = useCache();
-  const [stats, setStats] = React.useState<Record<string, any>>({});
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<Error | null>(null);
-
-  React.useEffect(() => {
-    let mounted = true;
-
-    async function fetchStats() {
-      try {
-        const currentStats = await cache.getStats();
-        if (mounted) {
-          setStats(currentStats);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err : new Error(String(err)));
-          setLoading(false);
-        }
-      }
-    }
-
-    fetchStats().then(r => {});
-    const interval = setInterval(fetchStats, 5000); // Refresh every 5 seconds
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [cache]);
-
-  return { stats, loading, error };
-}
+// Export cache core for direct usage
+export { cacheCore };

@@ -1,5 +1,5 @@
 /**
- * useCachedQuery.ts
+ * use-cached-query.ts
  * 
  * React hook for data fetching with cache support
  */
@@ -88,7 +88,7 @@ export function useCachedQuery<T>(
     try {
       // Check cache first unless disabled
       if (!options.disableCache) {
-        const cachedData = cache.data;
+        const cachedData = cache.value; // Changed from cache.data to cache.value
         
         if (cachedData !== null) {
           setData(cachedData);

@@ -1,360 +1,278 @@
 /**
- * @fileoverview High-performance query utilities for cache operations
- * with batching, deduplication, and background refresh capabilities.
+ * Query utilities for cache operations
  */
 
-import {CacheOptions} from '../types/common';
-import {DocCategory, DocPriority, PerformanceImpact} from '../docs/types';
-import {generateQueryKey} from './key-utils';
-import {CacheEventType, emitCacheEvent} from '../events/cache-events';
-import * as cacheCore from '../implementations/cache-manager-core';
-import {deleteCacheValue} from "../implementations/delete-cache-value";
+import { CacheOptions } from '../types/common';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
+import { CacheErrorCode, createCacheError, handleCacheError } from './error-utils';
 
-// Performance optimization: Query deduplication cache
-const inFlightQueries = new Map<string, Promise<QueryResult<any>>>();
+// Default cache manager instance
+const defaultCacheManager = new CacheManagerCore();
 
 /**
- * Query result interface with metadata
+ * Query result
  */
 export interface QueryResult<T> {
-  /** Query result data */
+  /**
+   * Query data
+   */
   data: T | null;
-  /** Error if query failed */
+  
+  /**
+   * Error if any
+   */
   error: Error | null;
-  /** Whether the data is stale */
-  isStale: boolean;
-  /** Timestamp of the result */
+  
+  /**
+   * Whether data is from cache
+   */
+  fromCache: boolean;
+  
+  /**
+   * When data was fetched
+   */
   timestamp: number;
-  /** Performance metrics */
-  metrics?: {
-    /** Query execution time */
-    duration: number;
-    /** Cache hit/miss */
-    cacheHit: boolean;
-    /** Data size in bytes */
-    size?: number;
-  };
 }
 
 /**
- * Execute a cached query with deduplication and performance tracking
+ * Query options
+ */
+export interface QueryOptions extends CacheOptions {
+  /**
+   * Whether to bypass cache
+   */
+  bypassCache?: boolean;
+  
+  /**
+   * Whether to refresh in background
+   */
+  backgroundRefresh?: boolean;
+  
+  /**
+   * Refresh threshold (0-1)
+   */
+  refreshThreshold?: number;
+  
+  /**
+   * Custom cache manager
+   */
+  cacheManager?: CacheManagerCore;
+}
+
+/**
+ * Execute a query with caching
  * 
- * @param queryName - Name of the query
- * @param queryFn - Function to execute the query
- * @param params - Query parameters
- * @param options - Cache options
- * @returns Query result with metadata
- * 
- * @complexity Time: O(1) for cache hits, O(n) for cache misses where n is query execution time
- * @category Core
- * @priority Critical
- * 
- * @example
- * ```typescript
- * const result = await executeQuery(
- *   'getUserProfile',
- *   () => fetchUserProfile(userId),
- *   { userId },
- *   { ttl: 3600 }
- * );
- * ```
+ * @param key - Cache key
+ * @param queryFn - Query function
+ * @param options - Query options
+ * @returns Query result
  */
 export async function executeQuery<T>(
-  queryName: string,
+  key: string,
   queryFn: () => Promise<T>,
-  params?: Record<string, any>,
-  options?: CacheOptions
+  options: QueryOptions = {}
 ): Promise<QueryResult<T>> {
-  const key = generateQueryKey(queryName, params);
-  const startTime = performance.now();
-
-  // Check for in-flight queries
-  const inFlight = inFlightQueries.get(key);
-  if (inFlight) {
-    return inFlight as Promise<QueryResult<T>>;
-  }
-
+  const {
+    bypassCache = false,
+    backgroundRefresh = true,
+    refreshThreshold = 0.8,
+    cacheManager = defaultCacheManager,
+    ...cacheOptions
+  } = options;
+  
   try {
-    // Create promise for this query
-    const queryPromise = (async () => {
-      try {
-        // Add required properties to event payload
-        emitCacheEvent(CacheEventType.COMPUTE_START, {
-          key,
-          type: CacheEventType.COMPUTE_START.toString(),
-          timestamp: Date.now()
-        });
-
-        // Try cache first
-        const cached = cacheCore.getCacheValue<T>(key);
-        if (cached !== null) {
-          const duration = performance.now() - startTime;
-          // Add required properties to event payload
-          emitCacheEvent(CacheEventType.GET_HIT, {
-            key,
-            duration,
-            size: JSON.stringify(cached).length,
-            type: CacheEventType.GET_HIT.toString(),
-            timestamp: Date.now()
-          });
-
-          return {
-            data: cached,
-            error: null,
-            isStale: false,
-            timestamp: Date.now(),
-            metrics: {
-              duration,
-              cacheHit: true,
-              size: JSON.stringify(cached).length
-            }
-          };
-        }
-
-        // Execute query
-        const result = await queryFn();
-        const duration = performance.now() - startTime;
-
-        // Cache result
-        await cacheCore.setCacheValue(key, result, options);
-
-        // Add required properties to event payload
-        emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
-          key,
-          duration,
-          size: JSON.stringify(result).length,
-          type: CacheEventType.COMPUTE_SUCCESS.toString(),
-          timestamp: Date.now()
-        });
-
-        return {
-          data: result,
+    // Check cache first unless bypassing
+    if (!bypassCache) {
+      const cached = await cacheManager.get<T>(key);
+      
+      if (cached !== null) {
+        // Return cached data
+        const result: QueryResult<T> = {
+          data: cached,
           error: null,
-          isStale: false,
-          timestamp: Date.now(),
-          metrics: {
-            duration,
-            cacheHit: false,
-            size: JSON.stringify(result).length
-          }
+          fromCache: true,
+          timestamp: Date.now()
         };
-      } finally {
-        // Clean up in-flight query
-        inFlightQueries.delete(key);
+        
+        // Refresh in background if needed
+        if (backgroundRefresh) {
+          refreshInBackground(key, queryFn, cacheOptions, cacheManager);
+        }
+        
+        return result;
       }
-    })();
-
-    // Store promise
-    inFlightQueries.set(key, queryPromise);
-    return queryPromise;
-
-  } catch (error) {
-    // Add required properties to event payload and fix error type
-    emitCacheEvent(CacheEventType.COMPUTE_ERROR, { 
-      key, 
-      error: error instanceof Error ? error : new Error('Unknown error'),
-      type: CacheEventType.COMPUTE_ERROR.toString(),
+    }
+    
+    // Execute query
+    const data = await queryFn();
+    
+    // Cache result
+    await cacheManager.set(key, data, cacheOptions);
+    
+    // Return fresh data
+    return {
+      data,
+      error: null,
+      fromCache: false,
       timestamp: Date.now()
-    });
+    };
+  } catch (error) {
+    // Handle error
+    const queryError = error instanceof Error ? error : new Error(String(error));
     
     return {
       data: null,
-      error: error instanceof Error ? error : new Error('Unknown error occurred'),
-      isStale: false,
-      timestamp: Date.now(),
-      metrics: {
-        duration: performance.now() - startTime,
-        cacheHit: false
-      }
+      error: queryError,
+      fromCache: false,
+      timestamp: Date.now()
     };
   }
 }
 
 /**
- * Batch multiple queries for efficient execution
+ * Refresh data in background
  * 
- * @param queries - Array of queries to execute
- * @returns Record of query results
+ * @param key - Cache key
+ * @param queryFn - Query function
+ * @param options - Cache options
+ * @param cacheManager - Cache manager
+ */
+async function refreshInBackground<T>(
+  key: string,
+  queryFn: () => Promise<T>,
+  options: CacheOptions = {},
+  cacheManager = defaultCacheManager
+): Promise<void> {
+  try {
+    // Execute query
+    const result = await queryFn();
+    
+    // Update cache
+    await cacheManager.set(key, result, options);
+  } catch (error) {
+    console.error(`Background refresh failed for key ${key}:`, error);
+  }
+}
+
+/**
+ * Batch execute queries with caching
  * 
- * @complexity Time: O(n) where n is number of queries
- * @category Core
- * @priority High
- * 
- * @example
- * ```typescript
- * const results = await batchQueries([
- *   {
- *     name: 'getUser',
- *     fn: () => fetchUser(userId),
- *     params: { userId }
- *   },
- *   {
- *     name: 'getPosts',
- *     fn: () => fetchUserPosts(userId),
- *     params: { userId }
- *   }
- * ]);
- * ```
+ * @param queries - Queries to execute
+ * @param options - Query options
+ * @returns Query results
  */
 export async function batchQueries<T>(
   queries: Array<{
-    name: string;
-    fn: () => Promise<T>;
-    params?: Record<string, any>;
-    options?: CacheOptions;
-  }>
+    key: string;
+    queryFn: () => Promise<T>;
+    options?: QueryOptions;
+  }>,
+  options: QueryOptions = {}
 ): Promise<Record<string, QueryResult<T>>> {
-  const startTime = performance.now();
+  const {
+    cacheManager = defaultCacheManager,
+    ...defaultOptions
+  } = options;
+  
   const results: Record<string, QueryResult<T>> = {};
-
-  try {
-    await Promise.all(
-      queries.map(async ({ name, fn, params, options }) => {
-        results[name] = await executeQuery(name, fn, params, options);
-      })
-    );
-
-    const duration = performance.now() - startTime;
-    // Add required properties to event payload
-    emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
-      message: 'Batch queries completed',
-      duration,
-      queryCount: queries.length,
-      type: CacheEventType.COMPUTE_SUCCESS.toString(),
-      timestamp: Date.now()
-    });
-
-  } catch (error) {
-    // Fix error type in event payload
-    emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
-      error: error instanceof Error ? error : new Error('Unknown error'),
-      message: 'Batch queries failed',
-      type: CacheEventType.COMPUTE_ERROR.toString(),
-      timestamp: Date.now()
-    });
-  }
-
+  
+  // Execute queries in parallel
+  await Promise.all(
+    queries.map(async ({ key, queryFn, options: queryOptions }) => {
+      const mergedOptions = {
+        ...defaultOptions,
+        ...queryOptions,
+        cacheManager
+      };
+      
+      results[key] = await executeQuery(key, queryFn, mergedOptions);
+    })
+  );
+  
   return results;
 }
 
 /**
- * Prefetch queries for improved performance
+ * Invalidate queries by pattern
  * 
- * @param queries - Array of queries to prefetch
- * 
- * @complexity Time: O(n) where n is number of queries
- * @category Optimization
- * @priority Medium
+ * @param pattern - Pattern to match keys against
+ * @param cacheManager - Cache manager
+ * @returns Number of invalidated keys
  */
-export async function prefetchQueries(
-  queries: Array<{
-    name: string;
-    fn: () => Promise<any>;
-    params?: Record<string, any>;
-    options?: CacheOptions;
-  }>
-): Promise<void> {
-  const startTime = performance.now();
-
+export async function invalidateQueries(
+  pattern: string,
+  cacheManager = defaultCacheManager
+): Promise<number> {
   try {
-    await Promise.all(
-      queries.map(({ name, fn, params, options }) =>
-        executeQuery(name, fn, params, {
-          ...options,
-          background: true
-        })
-      )
-    );
-
-    const duration = performance.now() - startTime;
-    // Add required properties to event payload
-    emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
-      message: 'Prefetch completed',
-      duration,
-      queryCount: queries.length
-    });
-
+    // Find keys matching pattern
+    const keys = await cacheManager.findKeysByPattern(`query:${pattern}`);
+    
+    // Delete matching keys
+    await Promise.all(keys.map((key: string) => deleteCacheValue(key)));
+    
+    return keys.length;
   } catch (error) {
-    // Fix error type
-    emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
-      error: error instanceof Error ? error : new Error('Unknown error'),
-      message: 'Prefetch failed',
-      type: CacheEventType.COMPUTE_ERROR.toString(),
-      timestamp: Date.now()
-    });
+    handleCacheError(error, { operation: 'invalidateQueries', pattern });
+    return 0;
   }
 }
 
 /**
- * Invalidate queries matching a pattern
+ * Delete a cache value
  * 
- * @param pattern - Pattern to match query keys
- * 
- * @complexity Time: O(n) where n is number of cached queries
- * @category Core
- * @priority High
+ * @param key - Cache key
+ * @param cacheManager - Cache manager
+ * @returns Whether the value was deleted
  */
-export async function invalidateQueries(
-  pattern: string
-): Promise<void> {
-  const startTime = performance.now();
-
+export async function deleteCacheValue(
+  key: string,
+  cacheManager = defaultCacheManager
+): Promise<boolean> {
   try {
-    const keys = await cacheCore.findKeysByPattern(`query:${pattern}`);
-    if (keys && keys.length > 0) {
-      await Promise.all(keys.map(key => deleteCacheValue(key)));
-    }
-
-    const duration = performance.now() - startTime;
-    // Add required properties to event payload
-    emitCacheEvent(CacheEventType.INVALIDATE, {
-      pattern,
-      duration,
-      keysInvalidated: keys ? keys.length : 0,
-      type: CacheEventType.INVALIDATE.toString(),
-      timestamp: Date.now()
-    });
-
+    return await cacheManager.delete(key);
   } catch (error) {
-    // Fix error type
-    emitCacheEvent(CacheEventType.ERROR, {
-      error: error instanceof Error ? error : new Error(String(error)),
-      message: 'Query invalidation failed',
-      pattern,
-      type: CacheEventType.ERROR.toString(),
-      timestamp: Date.now()
-    });
-    throw error instanceof Error ? error : new Error(String(error));
+    handleCacheError(error, { operation: 'deleteCacheValue', key });
+    return false;
   }
 }
 
-// Documentation metadata
-export const metadata = {
-  category: DocCategory.CORE,
-  priority: DocPriority.CRITICAL,
-  complexity: {
-    time: 'O(1) for cache hits, O(n) for cache misses',
-    space: 'O(m) where m is number of in-flight queries',
-    impact: PerformanceImpact.HIGH,
-    notes: 'Optimized with query deduplication and batching'
-  },
-  examples: [{
-    title: 'Basic Query Execution',
-    code: `
-      const result = await executeQuery(
-        'getUserProfile',
-        () => fetchUserProfile(userId),
-        { userId },
-        { ttl: 3600 }
-      );
-      
-      if (result.data) {
-        console.log('Profile:', result.data);
-        console.log('Cache hit:', result.metrics?.cacheHit);
-        console.log('Duration:', result.metrics?.duration);
-      }
-    `,
-    description: 'Execute a cached query with performance tracking'
-  }],
-  since: '1.0.0'
-};
+/**
+ * Get a cache value
+ * 
+ * @param key - Cache key
+ * @param cacheManager - Cache manager
+ * @returns Cached value or null if not found
+ */
+export async function getCacheValue<T>(
+  key: string,
+  cacheManager = defaultCacheManager
+): Promise<T | null> {
+  try {
+    return await cacheManager.get<T>(key);
+  } catch (error) {
+    handleCacheError(error, { operation: 'getCacheValue', key });
+    return null;
+  }
+}
+
+/**
+ * Set a cache value
+ * 
+ * @param key - Cache key
+ * @param value - Value to cache
+ * @param options - Cache options
+ * @param cacheManager - Cache manager
+ */
+export async function setCacheValue<T>(
+  key: string,
+  value: T,
+  options: CacheOptions = {},
+  cacheManager = defaultCacheManager
+): Promise<void> {
+  try {
+    await cacheManager.set(key, value, options);
+  } catch (error) {
+    handleCacheError(error, { operation: 'setCacheValue', key });
+    throw error;
+  }
+}

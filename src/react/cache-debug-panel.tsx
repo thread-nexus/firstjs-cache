@@ -1,322 +1,340 @@
-/**
- * @fileoverview Debug panel component for cache inspection and management
- * during development.
- */
-
-import React, { useState } from 'react';
-import { useCacheManager } from './cache-provider';
-import { CacheMonitor } from './cache-monitor';
+import React, { useState, useEffect } from 'react';
+import { CacheManagerCore } from '../implementations/cache-manager-core';
 
 interface CacheDebugPanelProps {
-  /** Initial position of the panel */
-  position?: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
-  /** Whether the panel is initially open */
-  defaultOpen?: boolean;
-  /** Custom styling */
-  className?: string;
+  cacheManager: CacheManagerCore;
 }
 
-export function CacheDebugPanel({
-  position = 'bottom-right',
-  defaultOpen = false,
-  className
-}: CacheDebugPanelProps) {
-  const cacheManager = useCacheManager();
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const [activeTab, setActiveTab] = useState<'monitor' | 'operations' | 'config'>('monitor');
-  const [operationResult, setOperationResult] = useState<any>(null);
-
-  // Key search state
-  const [searchKey, setSearchKey] = useState('');
-  const [searchResult, setSearchResult] = useState<any>(null);
-
-  // Operation form state
+export const CacheDebugPanel: React.FC<CacheDebugPanelProps> = ({ cacheManager }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [operationType, setOperationType] = useState<'get' | 'set' | 'delete'>('get');
   const [operationKey, setOperationKey] = useState('');
   const [operationValue, setOperationValue] = useState('');
-  const [operationType, setOperationType] = useState<'get' | 'set' | 'delete'>('get');
+  const [operationResult, setOperationResult] = useState<any>(null);
+  const [searchKey, setSearchKey] = useState('');
+  const [searchResult, setSearchResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Handle cache operations
-  const handleOperation = async () => {
+  // Fetch stats on mount and when panel is opened
+  useEffect(() => {
+    if (isOpen) {
+      fetchStats();
+    }
+  }, [isOpen]);
+
+  // Fetch cache statistics
+  const fetchStats = async () => {
     try {
+      const stats = await cacheManager.getStats();
+      setStats(stats);
+      setError(null);
+    } catch (err) {
+      setError(`Error fetching stats: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
+  // Perform cache operation
+  const performOperation = async () => {
+    try {
+      setError(null);
       let result;
+
       switch (operationType) {
         case 'get':
           result = await cacheManager.get(operationKey);
           break;
         case 'set':
           try {
-            const value = JSON.parse(operationValue);
+            // Try to parse as JSON if it looks like an object or array
+            const value = operationValue.trim().startsWith('{') || operationValue.trim().startsWith('[')
+              ? JSON.parse(operationValue)
+              : operationValue;
             await cacheManager.set(operationKey, value);
-            result = 'Success';
-          } catch {
+          } catch (parseError) {
+            // If JSON parsing fails, store as string
             await cacheManager.set(operationKey, operationValue);
-            result = 'Success';
           }
+          result = 'Value set successfully';
           break;
         case 'delete':
           result = await cacheManager.delete(operationKey);
           break;
+        default:
+          result = 'Unknown operation';
       }
+
       setOperationResult(result);
-    } catch (error) {
-      setOperationResult({ 
-        error: error instanceof Error ? error.message : String(error) 
-      });
+      await fetchStats(); // Refresh stats after operation
+    } catch (err) {
+      setError(`Error performing operation: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
-  // Handle key search
-  const handleSearch = async () => {
+  // Search for a key
+  const searchForKey = async () => {
     try {
+      setError(null);
       const result = await cacheManager.get(searchKey);
       setSearchResult(result);
-    } catch (error) {
-      setSearchResult({ 
-        error: error instanceof Error ? error.message : String(error) 
-      });
+    } catch (err) {
+      setError(`Error searching: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
+  if (!isOpen) {
+    return (
+      <div className="cache-debug-panel-toggle" style={styles.toggle}>
+        <button onClick={() => setIsOpen(true)} style={styles.toggleButton}>
+          Debug Cache
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className={`cache-debug-panel ${position} ${className || ''}`}>
-      {/* Toggle Button */}
-      <button 
-        className="toggle-button"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? 'Close Debug Panel' : 'Open Cache Debug'}
-      </button>
+    <div className="cache-debug-panel" style={styles.panel}>
+      <div className="cache-debug-panel-header" style={styles.header}>
+        <h3 style={styles.title}>Cache Debug Panel</h3>
+        <button onClick={() => setIsOpen(false)} style={styles.closeButton}>
+          Close
+        </button>
+      </div>
 
-      {isOpen && (
-        <div className="panel-content">
-          {/* Tabs */}
-          <div className="tabs">
-            <button 
-              className={`tab ${activeTab === 'monitor' ? 'active' : ''}`}
-              onClick={() => setActiveTab('monitor')}
-            >
-              Monitor
-            </button>
-            <button 
-              className={`tab ${activeTab === 'operations' ? 'active' : ''}`}
-              onClick={() => setActiveTab('operations')}
-            >
-              Operations
-            </button>
-            <button 
-              className={`tab ${activeTab === 'config' ? 'active' : ''}`}
-              onClick={() => setActiveTab('config')}
-            >
-              Config
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          <div className="tab-content">
-            {activeTab === 'monitor' && (
-              <CacheMonitor 
-                showDetails 
-                showEvents 
-                refreshInterval={1000}
-              />
-            )}
-
-            {activeTab === 'operations' && (
-              <div className="operations-panel">
-                {/* Key Search */}
-                <div className="search-section">
-                  <h4>Search Cache</h4>
-                  <div className="input-group">
-                    <input
-                      type="text"
-                      placeholder="Cache key"
-                      value={searchKey}
-                      onChange={(e) => setSearchKey(e.target.value)}
-                    />
-                    <button onClick={handleSearch}>Search</button>
-                  </div>
-                  {searchResult && (
-                    <div className="result-box">
-                      <pre>{JSON.stringify(searchResult, null, 2)}</pre>
-                    </div>
-                  )}
-                </div>
-
-                {/* Cache Operations */}
-                <div className="operations-section">
-                  <h4>Cache Operations</h4>
-                  <div className="operation-form">
-                    <select 
-                      value={operationType}
-                      onChange={(e) => setOperationType(e.target.value as any)}
-                    >
-                      <option value="get">Get</option>
-                      <option value="set">Set</option>
-                      <option value="delete">Delete</option>
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="Cache key"
-                      value={operationKey}
-                      onChange={(e) => setOperationKey(e.target.value)}
-                    />
-                    {operationType === 'set' && (
-                      <textarea
-                        placeholder="Value (JSON or string)"
-                        value={operationValue}
-                        onChange={(e) => setOperationValue(e.target.value)}
-                      />
-                    )}
-                    <button onClick={handleOperation}>Execute</button>
-                  </div>
-                  {operationResult && (
-                    <div className="result-box">
-                      <pre>{JSON.stringify(operationResult, null, 2)}</pre>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'config' && (
-              <div className="config-panel">
-                <h4>Cache Configuration</h4>
-                {/* Use getConfigInfo method instead of accessing private config property */}
-                <pre>{JSON.stringify(cacheManager.getConfigInfo ? cacheManager.getConfigInfo() : {}, null, 2)}</pre>
-              </div>
-            )}
-          </div>
+      {error && (
+        <div className="cache-debug-panel-error" style={styles.error}>
+          {error}
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
-        .cache-debug-panel {
-          position: fixed;
-          z-index: 9999;
-          font-family: -apple-system, system-ui, sans-serif;
-        }
+      <div className="cache-debug-panel-section" style={styles.section}>
+        <h4 style={styles.sectionTitle}>Cache Operations</h4>
+        <div style={styles.form}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Operation:
+              <select
+                value={operationType}
+                onChange={(e) => setOperationType(e.target.value as any)}
+                style={styles.select}
+              >
+                <option value="get">Get</option>
+                <option value="set">Set</option>
+                <option value="delete">Delete</option>
+              </select>
+            </label>
+          </div>
 
-        .cache-debug-panel.top-right { top: 20px; right: 20px; }
-        .cache-debug-panel.top-left { top: 20px; left: 20px; }
-        .cache-debug-panel.bottom-right { bottom: 20px; right: 20px; }
-        .cache-debug-panel.bottom-left { bottom: 20px; left: 20px; }
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Key:
+              <input
+                type="text"
+                value={operationKey}
+                onChange={(e) => setOperationKey(e.target.value)}
+                style={styles.input}
+              />
+            </label>
+          </div>
 
-        .toggle-button {
-          background: #4299e1;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        }
+          {operationType === 'set' && (
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Value:
+                <textarea
+                  value={operationValue}
+                  onChange={(e) => setOperationValue(e.target.value)}
+                  style={styles.textarea}
+                />
+              </label>
+            </div>
+          )}
 
-        .toggle-button:hover {
-          background: #3182ce;
-        }
+          <button onClick={performOperation} style={styles.button}>
+            Execute
+          </button>
 
-        .panel-content {
-          margin-top: 8px;
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          width: 500px;
-          max-height: 600px;
-          overflow: auto;
-        }
+          {operationResult !== null && (
+            <div style={styles.result}>
+              <h5>Result:</h5>
+              <pre>{JSON.stringify(operationResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      </div>
 
-        .tabs {
-          display: flex;
-          border-bottom: 1px solid #e2e8f0;
-          background: #f7fafc;
-          border-top-left-radius: 8px;
-          border-top-right-radius: 8px;
-        }
+      <div className="cache-debug-panel-section" style={styles.section}>
+        <h4 style={styles.sectionTitle}>Search Cache</h4>
+        <div style={styles.form}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              Key:
+              <input
+                type="text"
+                value={searchKey}
+                onChange={(e) => setSearchKey(e.target.value)}
+                style={styles.input}
+              />
+            </label>
+          </div>
 
-        .tab {
-          padding: 12px 24px;
-          border: none;
-          background: none;
-          cursor: pointer;
-          color: #4a5568;
-          font-size: 14px;
-        }
+          <button onClick={searchForKey} style={styles.button}>
+            Search
+          </button>
 
-        .tab:hover {
-          color: #2d3748;
-        }
+          {searchResult !== null && (
+            <div style={styles.result}>
+              <h5>Result:</h5>
+              <pre>{JSON.stringify(searchResult, null, 2)}</pre>
+            </div>
+          )}
+        </div>
+      </div>
 
-        .tab.active {
-          color: #4299e1;
-          border-bottom: 2px solid #4299e1;
-        }
+      <div className="cache-debug-panel-section" style={styles.section}>
+        <h4 style={styles.sectionTitle}>Cache Statistics</h4>
+        <button onClick={fetchStats} style={styles.button}>
+          Refresh Stats
+        </button>
+        <div style={styles.stats}>
+          {stats ? (
+            <pre>{JSON.stringify(stats, null, 2)}</pre>
+          ) : (
+            <p>No statistics available</p>
+          )}
+        </div>
+      </div>
 
-        .tab-content {
-          padding: 16px;
-        }
-
-        .input-group {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 16px;
-        }
-
-        input, textarea, select {
-          padding: 8px;
-          border: 1px solid #e2e8f0;
-          border-radius: 4px;
-          font-size: 14px;
-        }
-
-        textarea {
-          min-height: 100px;
-          width: 100%;
-        }
-
-        button {
-          background: #4299e1;
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-
-        button:hover {
-          background: #3182ce;
-        }
-
-        .result-box {
-          background: #f7fafc;
-          padding: 12px;
-          border-radius: 4px;
-          margin-top: 8px;
-          overflow: auto;
-        }
-
-        pre {
-          margin: 0;
-          font-size: 13px;
-          white-space: pre-wrap;
-          word-wrap: break-word;
-        }
-
-        .operations-section,
-        .search-section {
-          margin-bottom: 24px;
-        }
-
-        h4 {
-          margin: 0 0 12px;
-          color: #2d3748;
-        }
-
-        .operation-form {
-          display: grid;
-          gap: 8px;
-        }
-      `}} />
+      <div className="cache-debug-panel-section" style={styles.section}>
+        <h4 style={styles.sectionTitle}>Configuration</h4>
+        <div style={styles.stats}>
+          {cacheManager && (
+            <pre>{JSON.stringify(cacheManager.getConfig ? cacheManager.getConfig() : {}, null, 2)}</pre>
+          )}
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+// Inline styles
+const styles = {
+  toggle: {
+    position: 'fixed' as const,
+    bottom: '20px',
+    right: '20px',
+    zIndex: 9999,
+  },
+  toggleButton: {
+    padding: '8px 12px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+  },
+  panel: {
+    position: 'fixed' as const,
+    top: '20px',
+    right: '20px',
+    bottom: '20px',
+    width: '400px',
+    backgroundColor: 'white',
+    boxShadow: '0 0 10px rgba(0, 0, 0, 0.2)',
+    borderRadius: '8px',
+    padding: '16px',
+    overflowY: 'auto' as const,
+    zIndex: 9999,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '16px',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottom: '1px solid #eee',
+    paddingBottom: '8px',
+  },
+  title: {
+    margin: 0,
+    fontSize: '18px',
+  },
+  closeButton: {
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '16px',
+  },
+  section: {
+    borderBottom: '1px solid #eee',
+    paddingBottom: '16px',
+  },
+  sectionTitle: {
+    margin: '0 0 8px 0',
+    fontSize: '16px',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+  },
+  formGroup: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+  },
+  label: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '4px',
+    fontSize: '14px',
+  },
+  input: {
+    padding: '8px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+  },
+  textarea: {
+    padding: '8px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    minHeight: '100px',
+    fontFamily: 'monospace',
+  },
+  select: {
+    padding: '8px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+  },
+  button: {
+    padding: '8px 12px',
+    backgroundColor: '#007bff',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    alignSelf: 'flex-start',
+  },
+  result: {
+    backgroundColor: '#f8f9fa',
+    padding: '8px',
+    borderRadius: '4px',
+  },
+  stats: {
+    backgroundColor: '#f8f9fa',
+    padding: '8px',
+    borderRadius: '4px',
+    marginTop: '8px',
+    maxHeight: '200px',
+    overflowY: 'auto' as const,
+  },
+  error: {
+    backgroundColor: '#f8d7da',
+    color: '#721c24',
+    padding: '8px',
+    borderRadius: '4px',
+  },
+};
+
+export default CacheDebugPanel;

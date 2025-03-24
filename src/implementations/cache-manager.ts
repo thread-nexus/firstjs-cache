@@ -1,9 +1,9 @@
-import { CacheOptions } from '../types/common';
+import { CacheOptions, CacheStats, EntryMetadata } from '../types/common';
 import { ICacheProvider } from '../interfaces/i-cache-provider';
-import { CacheMetadata } from './CacheMetadata';
+import { CacheMetadata } from './cache-metadata';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
-import { handleCacheError, ensureError } from '../utils/error-utils';
-import { mergeCacheOptions } from './cache-manager-utils';
+import { handleCacheError, ensureError, CacheErrorCode, createCacheError } from '../utils/error-utils';
+import { mergeCacheOptions, providerHasMethod } from './cache-manager-utils';
 import { DEFAULT_CONFIG, CACHE_CONSTANTS } from '../config/default-config';
 
 /**
@@ -13,6 +13,7 @@ export class CacheManager {
   private providers = new Map<string, ICacheProvider>();
   private metadata = new CacheMetadata();
   private config = DEFAULT_CONFIG;
+  private inFlightRequests = new Map<string, Promise<any>>();
 
   /**
    * Create a new cache manager
@@ -26,11 +27,16 @@ export class CacheManager {
    */
   async get<T = any>(key: string): Promise<T | null> {
     try {
+      // Validate key
+      if (!key) {
+        throw createCacheError('Invalid cache key', CacheErrorCode.INVALID_KEY);
+      }
+
       for (const provider of this.providers.values()) {
         const value = await provider.get(key);
         if (value !== null) {
           this.metadata.recordAccess(key);
-          return value;
+          return value as T;
         }
       }
       return null;
@@ -45,10 +51,22 @@ export class CacheManager {
    */
   async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
     try {
-      for (const provider of this.providers.values()) {
-        await provider.set(key, value, options);
+      // Validate key and value
+      if (!key) {
+        throw createCacheError('Invalid cache key', CacheErrorCode.INVALID_KEY);
       }
-      this.metadata.set(key, { tags: options?.tags || [] });
+      
+      if (value === undefined) {
+        throw createCacheError('Cannot cache undefined value', CacheErrorCode.INVALID_VALUE);
+      }
+
+      const mergedOptions = mergeCacheOptions(options, this.config.defaultOptions);
+      
+      for (const provider of this.providers.values()) {
+        await provider.set(key, value, mergedOptions);
+      }
+      
+      this.metadata.set(key, { tags: mergedOptions.tags || [] });
     } catch (error) {
       handleCacheError(error, { operation: 'set', key });
       throw error;
@@ -114,6 +132,11 @@ export class CacheManager {
    * Register a cache provider
    */
   registerProvider(name: string, provider: ICacheProvider): void {
+    // Add name property to provider if it doesn't exist
+    if (!provider.name) {
+      (provider as any).name = name;
+    }
+    
     this.providers.set(name, provider);
     emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, { provider: name });
   }
@@ -127,27 +150,51 @@ export class CacheManager {
     options?: CacheOptions
   ): Promise<T> {
     try {
+      // Check if we should deduplicate in-flight requests
+      if (this.config.deduplicateRequests && this.inFlightRequests.has(key)) {
+        return await this.inFlightRequests.get(key) as T;
+      }
+      
       // Check cache first
       const cachedValue = await this.get<T>(key);
       if (cachedValue !== null) {
         return cachedValue;
       }
       
-      // Compute value
-      emitCacheEvent(CacheEventType.COMPUTE_START, { key });
-      const value = await fetcher();
+      // Create a promise for this request
+      const fetchPromise = (async () => {
+        try {
+          // Compute value
+          emitCacheEvent(CacheEventType.COMPUTE_START, { key });
+          const value = await fetcher();
+          
+          // Store in cache
+          await this.set(key, value, options);
+          emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, { key });
+          
+          return value;
+        } finally {
+          // Remove from in-flight requests
+          this.inFlightRequests.delete(key);
+        }
+      })();
       
-      // Store in cache
-      await this.set(key, value, options);
-      emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, { key });
+      // Store the promise for deduplication
+      if (this.config.deduplicateRequests) {
+        this.inFlightRequests.set(key, fetchPromise);
+      }
       
-      return value;
+      return await fetchPromise;
     } catch (error) {
       const safeError = ensureError(error);
       emitCacheEvent(CacheEventType.COMPUTE_ERROR, { 
         key, 
         error: safeError 
       });
+      
+      // Remove from in-flight requests
+      this.inFlightRequests.delete(key);
+      
       throw safeError;
     }
   }
@@ -157,17 +204,19 @@ export class CacheManager {
    */
   wrap<T extends (...args: any[]) => Promise<any>>(
     fn: T,
-    keyGenerator: (...args: T extends ((...args: infer P) => any) ? P : never[]) => string,
+    keyGenerator: (...args: Parameters<T>) => string,
     options?: CacheOptions
   ): T {
-    return (async (...args: T extends ((...args: infer P) => any) ? P : never[]) => {
+    const wrappedFn = async (...args: Parameters<T>): Promise<ReturnType<T>> => {
       const key = keyGenerator(...args);
       return this.getOrCompute(
         key,
         () => fn(...args),
         options
-      );
-    }) as T;
+      ) as Promise<ReturnType<T>>;
+    };
+    
+    return wrappedFn as T;
   }
 
   /**
@@ -229,8 +278,9 @@ export class CacheManager {
     try {
       // Try to use batch get if available on first provider
       const firstProvider = [...this.providers.values()][0];
-      if (firstProvider && typeof firstProvider.getMany === 'function') {
-        return await firstProvider.getMany<T>(keys);
+      if (firstProvider && providerHasMethod(firstProvider, 'getMany')) {
+        const getMany = firstProvider.getMany as <U>(keys: string[]) => Promise<Record<string, U | null>>;
+        return await getMany<T>(keys);
       }
       
       // Fall back to individual gets
@@ -267,8 +317,9 @@ export class CacheManager {
       
       // Try to use batch set if available on first provider
       const firstProvider = [...this.providers.values()][0];
-      if (firstProvider && typeof firstProvider.setMany === 'function') {
-        await firstProvider.setMany(entries, mergedOptions);
+      if (firstProvider && providerHasMethod(firstProvider, 'setMany')) {
+        const setMany = firstProvider.setMany as (entries: Record<string, any>, options?: CacheOptions) => Promise<void>;
+        await setMany(entries, mergedOptions);
         
         // Update metadata
         for (const key of Object.keys(entries)) {
@@ -300,8 +351,9 @@ export class CacheManager {
       
       // Collect stats from providers
       for (const [name, provider] of this.providers.entries()) {
-        if (typeof provider.getStats === 'function') {
-          stats.providers[name] = await provider.getStats();
+        if (providerHasMethod(provider, 'getStats')) {
+          const getStats = provider.getStats as () => Promise<any>;
+          stats.providers[name] = await getStats();
         }
       }
       
@@ -311,5 +363,19 @@ export class CacheManager {
       handleCacheError(error, { operation: 'getStats' });
       return {};
     }
+  }
+
+  /**
+   * Get a provider by name
+   */
+  getProvider(name: string): ICacheProvider | null {
+    return this.providers.get(name) || null;
+  }
+
+  /**
+   * Get metadata for a cache key
+   */
+  getMetadata(key: string): any {
+    return this.metadata.get(key);
   }
 }

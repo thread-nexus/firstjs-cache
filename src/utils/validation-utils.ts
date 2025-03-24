@@ -1,89 +1,49 @@
 /**
- * @fileoverview Validation utilities for cache operations
+ * Validation utilities for cache operations
  */
 
-import { CacheOptions } from '../types/common';
+import { CacheOptions, CacheOperationContext } from '../types/common';
 import { CacheError, CacheErrorCode } from './error-utils';
+import { CACHE_CONSTANTS } from '../config/default-config';
 
 /**
- * Cache operation context
+ * Maximum key length
  */
-export interface CacheOperationContext {
-  /** Operation name */
-  operation?: string;
-  
-  /** Cache key */
-  key?: string;
-  
-  /** List of cache keys */
-  keys?: string[];
-  
-  /** Cache provider name */
-  provider?: string;
-  
-  /** Additional context data */
-  context?: Record<string, any>;
-  
-  /** Optional error cause */
-  cause?: Error;
-  
-  /** Cache tag */
-  tag?: string;
-  
-  /** Cache key prefix */
-  prefix?: string;
-  
-  /** Entries for batch operations */
-  entries?: Record<string, any> | string[];
-  
-  /** Operation error count */
-  errorCount?: number;
-  
-  /** Whether the data is compressed */
-  compressed?: boolean;
-  
-  /** Operation start time */
-  startTime?: number;
-  
-  /** Operation options */
-  options?: any;
-  
-  /** Custom properties for specific operations */
-  [key: string]: any;
-}
+const MAX_KEY_LENGTH = CACHE_CONSTANTS.MAX_KEY_LENGTH;
 
 /**
- * Maximum allowed key length
+ * Export CacheOperationContext for other modules to use
  */
-const MAX_KEY_LENGTH = 1024;
+export { CacheOperationContext };
+
 /**
  * Validate a cache key
  * 
  * @param key - Cache key to validate
- * @throws {CacheError} If key is invalid
+ * @throws CacheError if the key is invalid
  */
-export function validateCacheKey(key: string): void {
-  if (!key) {
+export function validateCacheKey(key: unknown): void {
+  // Check if key is empty
+  if (key === null || key === undefined || (typeof key === 'string' && key.trim() === '')) {
     throw new CacheError(
-      CacheErrorCode.INVALID_KEY,
       'Cache key cannot be empty',
-      { operation: 'validate' }
+      CacheErrorCode.INVALID_KEY
     );
   }
   
+  // Check if key is a string
   if (typeof key !== 'string') {
     throw new CacheError(
-      CacheErrorCode.INVALID_KEY,
       `Cache key must be a string, got ${typeof key}`,
-      { operation: 'validate' }
+      CacheErrorCode.INVALID_KEY
     );
   }
-
+  
+  // Check key length
   if (key.length > MAX_KEY_LENGTH) {
     throw new CacheError(
-      CacheErrorCode.KEY_TOO_LONG,
       `Cache key exceeds maximum length of ${MAX_KEY_LENGTH} characters`,
-      { operation: 'validate', key }
+      CacheErrorCode.KEY_TOO_LONG
     );
   }
 }
@@ -92,61 +52,137 @@ export function validateCacheKey(key: string): void {
  * Validate cache options
  * 
  * @param options - Cache options to validate
- * @throws {CacheError} If options are invalid
+ * @throws CacheError if options are invalid
  */
-export function validateCacheOptions(options?: CacheOptions): void {
-  if (!options) {
-    return;
-  }
-
-  if (typeof options !== 'object') {
+export function validateCacheOptions(options: unknown): void {
+  // Check if options is an object
+  if (options !== undefined && options !== null && typeof options !== 'object') {
     throw new CacheError(
-      CacheErrorCode.INVALID_ARGUMENT,
       `Cache options must be an object, got ${typeof options}`,
-      { operation: 'validate' }
+      CacheErrorCode.INVALID_ARGUMENT
     );
   }
-
-  if (options.ttl !== undefined && (typeof options.ttl !== 'number' || options.ttl < 0)) {
+  
+  // Cast to CacheOptions for type checking
+  const cacheOptions = options as CacheOptions;
+  
+  // Check TTL if provided
+  if (cacheOptions?.ttl !== undefined && (typeof cacheOptions.ttl !== 'number' || cacheOptions.ttl < 0)) {
     throw new CacheError(
-      CacheErrorCode.INVALID_ARGUMENT,
-      `TTL must be a non-negative number, got ${options.ttl}`,
-      { operation: 'validate' }
+      `TTL must be a non-negative number, got ${cacheOptions.ttl}`,
+      CacheErrorCode.INVALID_ARGUMENT
     );
   }
-
-  if (options.tags !== undefined && !Array.isArray(options.tags)) {
+  
+  // Check tags if provided
+  if (cacheOptions?.tags !== undefined && !Array.isArray(cacheOptions.tags)) {
     throw new CacheError(
-      CacheErrorCode.INVALID_ARGUMENT,
-      `Tags must be an array, got ${typeof options.tags}`,
-      { operation: 'validate' }
+      `Tags must be an array, got ${typeof cacheOptions.tags}`,
+      CacheErrorCode.INVALID_ARGUMENT
     );
   }
 }
 
 /**
- * Validate that a value can be cached
+ * Validate a cache value
  * 
- * @param value - Value to validate
- * @throws {CacheError} If value cannot be cached
+ * @param value - Cache value to validate
+ * @throws CacheError if the value is invalid
  */
-export function validateCacheValue(value: any): void {
+export function validateCacheValue(value: unknown): void {
+  // Check if value is undefined
   if (value === undefined) {
     throw new CacheError(
-      CacheErrorCode.INVALID_ARGUMENT,
       'Cannot cache undefined value',
-      { operation: 'validate' }
+      CacheErrorCode.INVALID_VALUE
     );
   }
-
+  
+  // Check if value can be serialized
   try {
-    // Check if value can be serialized
     JSON.stringify(value);
   } catch (error) {
     throw new CacheError(
-      CacheErrorCode.SERIALIZATION_ERROR,
       'Value cannot be serialized to JSON',
-      { operation: 'validate' }
+      CacheErrorCode.SERIALIZATION_ERROR,
+      error instanceof Error ? error : undefined
     );
   }
+}
+
+/**
+ * Validate a cache pattern
+ * 
+ * @param pattern - Cache pattern to validate
+ * @throws CacheError if the pattern is invalid
+ */
+export function validateCachePattern(pattern: unknown): void {
+  // Check if pattern is a string
+  if (pattern !== undefined && pattern !== null && typeof pattern !== 'string') {
+    throw new CacheError(
+      `Cache pattern must be a string, got ${typeof pattern}`,
+      CacheErrorCode.INVALID_ARGUMENT
+    );
+  }
+  
+  // Check if pattern is a valid regex
+  if (typeof pattern === 'string' && pattern.length > 0) {
+    try {
+      new RegExp(pattern);
+    } catch (error) {
+      throw new CacheError(
+        `Invalid cache pattern: ${error instanceof Error ? error.message : String(error)}`,
+        CacheErrorCode.INVALID_ARGUMENT,
+        error instanceof Error ? error : undefined
+      );
+    }
+  }
+}
+
+/**
+ * Validate cache entries for batch operations
+ * 
+ * @param entries - Cache entries to validate
+ * @throws CacheError if entries are invalid
+ */
+export function validateCacheEntries(entries: unknown): void {
+  // Check if entries is an object
+  if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
+    throw new CacheError(
+      `Cache entries must be an object, got ${entries === null ? 'null' : typeof entries}`,
+      CacheErrorCode.INVALID_ARGUMENT
+    );
+  }
+  
+  // Check if entries is empty
+  if (Object.keys(entries as object).length === 0) {
+    throw new CacheError(
+      'Cache entries cannot be empty',
+      CacheErrorCode.INVALID_ARGUMENT
+    );
+  }
+  
+  // Validate each key and value
+  for (const [key, value] of Object.entries(entries as Record<string, unknown>)) {
+    validateCacheKey(key);
+    validateCacheValue(value);
+  }
+}
+
+/**
+ * Sanitize a cache key
+ * 
+ * @param key - Cache key to sanitize
+ * @returns Sanitized cache key
+ */
+export function sanitizeCacheKey(key: string): string {
+  // Replace invalid characters
+  let sanitized = key.replace(/[^\w\-:.]/g, '_');
+  
+  // Truncate if too long
+  if (sanitized.length > MAX_KEY_LENGTH) {
+    sanitized = sanitized.substring(0, MAX_KEY_LENGTH);
+  }
+  
+  return sanitized;
 }

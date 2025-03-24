@@ -104,12 +104,13 @@ export class CacheCompute {
   ): Promise<ComputeResult<T>> {
     try {
       // Try to get from cache
-      const cachedValue = await this.provider.get<T>(key);
+      const cachedValue = await this.provider.get(key);
 
       // If found, check if refresh needed
       if (cachedValue !== null) {
         const metadata = await this.provider.getMetadata?.(key);
-        const isStale = this.isValueStale(metadata?.refreshedAt, options);
+        const refreshedAt = typeof metadata?.refreshedAt === 'number' ? new Date(metadata.refreshedAt) : metadata?.refreshedAt;
+        const isStale = this.isValueStale(refreshedAt, options);
 
         // Schedule background refresh if needed
         if (isStale && this.shouldBackgroundRefresh(options)) {

@@ -1,216 +1,118 @@
 /**
- * @fileoverview Enhanced interface for cache providers
- * @author harborgrid-justin
- * @lastModified 2025-03-24
+ * Cache provider interface
  */
 
-import { CacheOptions, CacheStats, CacheMetrics } from '../types/common';
-import { HealthStatus as CommonHealthStatus } from '../types/common';
+import { CacheOptions, CacheStats, EntryMetadata, HealthStatus } from '../types/common';
 
 /**
- * Enhanced interface for cache providers
+ * Interface for cache providers
  */
 export interface ICacheProvider {
-  /** Provider name */
-  readonly name: string;
-  
   /**
-   * Get a value from the cache with enhanced error handling
+   * Get a value from cache
    * 
-   * @param key - Cache key
-   * @param options - Additional options for the get operation
-   * @returns Promise resolving to cached value or null
-   * @throws CacheError if operation fails
+   * @param key - The cache key
+   * @returns The cached value or null if not found
    */
-  get<T = any>(key: string): Promise<T | null>;
+  get(key: string): Promise<any>;
   
   /**
-   * Set a value in the cache with validation
+   * Store a value in cache
    * 
-   * @param key - Cache key
-   * @param value - Value to cache
-   * @param options - Cache options
-   * @returns Promise resolving when operation completes
-   * @throws CacheError if operation fails
+   * @param key - The cache key
+   * @param value - The value to cache
+   * @param options - Cache options including TTL and tags
    */
-  set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void>;
+  set(key: string, value: any, options?: CacheOptions): Promise<void>;
   
   /**
-   * Delete a value from the cache
+   * Delete a value from cache
    * 
-   * @param key - Cache key
-   * @returns Promise resolving to true if key was deleted
-   * @throws CacheError if operation fails
+   * @param key - The cache key
+   * @returns True if the item was deleted, false otherwise
    */
   delete(key: string): Promise<boolean>;
   
   /**
-   * Clear all values from the cache
-   * 
-   * @returns Promise resolving when operation completes
-   * @throws CacheError if operation fails
+   * Clear all values
    */
   clear(): Promise<void>;
   
   /**
-   * Get cache statistics
+   * Check if a key exists in cache
    * 
-   * @returns Promise resolving to cache statistics
-   */
-  getStats?(): Promise<CacheStats>;
-
-  /**
-   * Check if a key exists in the cache
-   * 
-   * @param key - Cache key
-   * @returns Promise resolving to true if key exists
+   * @param key - The cache key
+   * @returns Whether the key exists
    */
   has?(key: string): Promise<boolean>;
   
   /**
-   * Get multiple values from the cache
+   * Get cache statistics
    * 
-   * @param keys - Array of cache keys
-   * @returns Promise resolving to a map of key-value pairs
+   * @returns Cache statistics
    */
-  getMany?<T = any>(keys: string[]): Promise<Record<string, T | null>>;
+  getStats?(): Promise<CacheStats>;
   
   /**
-   * Set multiple values in the cache
-   * 
-   * @param entries - Map of key-value pairs
-   * @param options - Cache options
-   * @returns Promise resolving when operation completes
-   */
-  setMany?<T = any>(entries: Record<string, T>, options?: CacheOptions): Promise<void>;
-  
-  /**
-   * Get metadata for a cache key
-   * 
-   * @param key - Cache key
-   * @returns Promise resolving to metadata or null
-   */
-  getMetadata?(key: string): Promise<any | null>;
-
-  /**
-   * Set metadata for a cache key
-   * 
-   * @param key - Cache key
-   * @param metadata - Metadata to set
-   */
-  setMetadata?(key: string, metadata: any): Promise<void>;
-
-  /**
-   * Get all keys in cache
-   * 
-   * @returns All cache keys
-   */
-  keys?(): Promise<string[]>;
-
-  /**
-   * Batch operations for improved performance
-   */
-  batch?: {
-    get: <T = any>(keys: string[]) => Promise<Map<string, T | null>>;
-    set: <T = any>(entries: Map<string, T>) => Promise<void>;
-    delete: (keys: string[]) => Promise<boolean[]>;
-  };
-
-  /**
-   * Health check method
-   */
-  healthCheck?(): Promise<CommonHealthStatus>;
-
-  /**
-   * Invalidate cache entries by tag
+   * Invalidate all entries with a given tag
    * 
    * @param tag - Tag to invalidate
-   * @returns Number of invalidated entries
    */
-  invalidateByTag?(tag: string): Promise<number>;
-}
-
-/**
- * Enhanced get options
- */
-export interface GetOptions extends CacheOptions {
-  /**
-   * Whether to return stale data if fresh data unavailable
-   */
-  allowStale?: boolean;
+  invalidateByTag?(tag: string): Promise<void>;
   
   /**
-   * Custom deserializer
+   * Initialize with options
+   * 
+   * @param options - Provider options
    */
-  deserializer?: (data: string) => any;
+  init?(options: any): void;
   
   /**
-   * Whether to refresh data in background if stale
+   * Get all keys matching a pattern
+   * 
+   * @param pattern - The pattern to match keys against
+   * @returns Array of matching keys
    */
-  backgroundRefresh?: boolean;
-}
-
-/**
- * Enhanced set options
- */
-export interface SetOptions extends CacheOptions {
-  /**
-   * Whether to compress data
-   */
-  compress?: boolean;
-
-  /**
-   * Custom serializer
-   */
-  serializer?: (data: any) => string;
-
-  /**
-   * Tags for cache invalidation
-   */
-  tags?: string[];
-
-  /**
-   * Compute time in milliseconds
-   */
-  computeTime?: number;
-}
-
-/**
- * Clear options
- */
-export interface ClearOptions {
-  /**
-   * Pattern to match keys for selective clearing
-   */
-  pattern?: string;
+  keys?(pattern?: string): Promise<string[]>;
   
   /**
-   * Whether to clear expired entries only
+   * Get multiple values at once
+   * 
+   * @param keys - Keys to retrieve
+   * @returns Object mapping keys to values
    */
-  expiredOnly?: boolean;
-}
-
-/**
- * Enhanced cache statistics
- */
-export interface EnhancedCacheStats extends CacheStats {
-  metrics?: CacheMetrics;
-  latencyPercentiles?: {
-    p50: number;
-    p95: number;
-    p99: number;
-  };
-  errorRates?: {
-    total: number;
-    byType: Record<string, number>;
-  };
-}
-
-/**
- * Health status interface
- */
-export interface HealthStatus {
-  healthy: boolean;
-  message?: string;
-  lastCheck: Date;
+  getMany?<T>(keys: string[]): Promise<Record<string, T | null>>;
+  
+  /**
+   * Set multiple values at once
+   * 
+   * @param entries - Key-value pairs to set
+   * @param options - Cache options
+   */
+  setMany?(entries: Record<string, any>, options?: CacheOptions): Promise<void>;
+  
+  /**
+   * Perform a health check
+   * 
+   * @returns Health status
+   */
+  healthCheck?(): Promise<HealthStatus>;
+  
+  /**
+   * Dispose of resources
+   */
+  dispose?(): Promise<void>;
+  
+  /**
+   * Get metadata for a key
+   * 
+   * @param key - The cache key
+   * @returns Entry metadata or null if not found
+   */
+  getMetadata?(key: string): Promise<EntryMetadata | null>;
+  
+  /**
+   * Provider name (optional)
+   */
+  name?: string;
 }

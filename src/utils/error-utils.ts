@@ -1,137 +1,151 @@
 /**
- * @fileoverview Error handling utilities
+ * Error utilities for cache operations
  */
-
-import { CacheOperationContext } from './validation-utils';
 
 /**
  * Cache error codes
  */
 export enum CacheErrorCode {
-  // General error codes
-  UNKNOWN = 'UNKNOWN',
-  NOT_FOUND = 'NOT_FOUND',
-  INVALID_ARGUMENT = 'INVALID_ARGUMENT',
-  KEY_TOO_LONG = 'KEY_TOO_LONG',
-  TIMEOUT = 'TIMEOUT',
-  
-  // Provider errors
+  INVALID_KEY = 'INVALID_KEY',
+  INVALID_VALUE = 'INVALID_VALUE',
   PROVIDER_ERROR = 'PROVIDER_ERROR',
-  NO_PROVIDER = 'NO_PROVIDER',
-  CIRCUIT_OPEN = 'CIRCUIT_OPEN',
-  
-  // Data processing errors
   SERIALIZATION_ERROR = 'SERIALIZATION_ERROR',
   DESERIALIZATION_ERROR = 'DESERIALIZATION_ERROR',
   COMPRESSION_ERROR = 'COMPRESSION_ERROR',
-  DATA_INTEGRITY_ERROR = 'DATA_INTEGRITY_ERROR',
+  DECOMPRESSION_ERROR = 'DECOMPRESSION_ERROR',
+  STORAGE_ERROR = 'STORAGE_ERROR',
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  TIMEOUT_ERROR = 'TIMEOUT_ERROR',
+  NOT_FOUND = 'NOT_FOUND',
+  INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
+  INVALID_CONFIGURATION = 'INVALID_CONFIGURATION',
+  OPERATION_FAILED = 'OPERATION_FAILED',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
   
-  // Operation errors
+  // Add missing error codes
+  KEY_TOO_LONG = 'KEY_TOO_LONG',
+  INVALID_ARGUMENT = 'INVALID_ARGUMENT',
+  CIRCUIT_OPEN = 'CIRCUIT_OPEN',
   OPERATION_ERROR = 'OPERATION_ERROR',
+  NO_PROVIDER = 'NO_PROVIDER',
   BATCH_ERROR = 'BATCH_ERROR',
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-  NETWORK_ERROR = 'NETWORK_ERROR',
-  OPERATION_ABORTED = 'OPERATION_ABORTED',
-  
-  // Validation errors
-  INVALID_KEY = 'INVALID_KEY',
-  INVALID_OPTIONS = 'INVALID_OPTIONS',
-  INVALID_TTL = 'INVALID_TTL',
-  INVALID_VALUE = 'INVALID_VALUE',
-  INVALID_STATE = 'INVALID_STATE'
+  TIMEOUT = 'TIMEOUT',
+  DATA_INTEGRITY_ERROR = 'DATA_INTEGRITY_ERROR',
+  UNKNOWN = 'UNKNOWN'
 }
 
 /**
  * Cache error class
  */
 export class CacheError extends Error {
-  public readonly code: CacheErrorCode;
-  public readonly operation?: string;
-  public readonly key?: string;
-  public readonly context?: Record<string, any>;
-
+  /**
+   * Error code
+   */
+  code: CacheErrorCode;
+  
+  /**
+   * Original error
+   */
+  cause?: Error;
+  
+  /**
+   * Additional context
+   */
+  context?: Record<string, any>;
+  
+  /**
+   * Create a new cache error
+   * 
+   * @param message - Error message
+   * @param code - Error code
+   * @param cause - Original error
+   * @param context - Additional context
+   */
   constructor(
-    code: CacheErrorCode = CacheErrorCode.UNKNOWN,
     message: string,
-    operationContext?: CacheOperationContext
+    code: CacheErrorCode = CacheErrorCode.UNKNOWN_ERROR,
+    cause?: Error,
+    context?: Record<string, any>
   ) {
     super(message);
     this.name = 'CacheError';
     this.code = code;
-    this.operation = operationContext?.operation;
-    this.key = operationContext?.key;
-    this.context = operationContext?.context;
+    this.cause = cause;
+    this.context = context;
     
-    // Ensures proper prototype chain for instanceof checks
-    Object.setPrototypeOf(this, CacheError.prototype);
+    // Capture stack trace
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, CacheError);
+    }
   }
 }
 
 /**
- * Create a cache error with context
+ * Create a cache error
+ * 
+ * @param message - Error message
+ * @param code - Error code
+ * @param cause - Original error
+ * @param context - Additional context
+ * @returns Cache error
  */
 export function createCacheError(
-  code: CacheErrorCode = CacheErrorCode.UNKNOWN,
   message: string,
-  context?: CacheOperationContext
+  code: CacheErrorCode = CacheErrorCode.UNKNOWN_ERROR,
+  cause?: Error,
+  context?: Record<string, any>
 ): CacheError {
-  return new CacheError(code, message, context);
+  return new CacheError(message, code, cause, context);
 }
 
 /**
- * Handles cache errors, logs them, and optionally emits events
+ * Ensure an error is a proper Error object
+ * 
+ * @param error - Error to normalize
+ * @returns Normalized error
  */
-export function handleCacheError(
-  error: unknown,
-  context?: CacheOperationContext
-): Error {
-  // Convert unknown errors to CacheError
-  const cacheError = ensureError(error, context);
-  
-  // Log error (could be extended to use a proper logger)
-  console.error(`Cache error [${cacheError.code}]: ${cacheError.message}`, {
-    operation: context?.operation,
-    key: context?.key,
-    provider: context?.provider
-  });
-  
-  return cacheError;
-}
-
-/**
- * Ensure the error is a CacheError
- */
-export function ensureError(
-  error: unknown,
-  context?: CacheOperationContext
-): CacheError {
-  if (error instanceof CacheError) {
-    // If already a CacheError, just return it
+export function ensureError(error: unknown): Error {
+  if (error instanceof Error) {
     return error;
   }
   
-  // Convert Error objects
-  if (error instanceof Error) {
-    return new CacheError(
-      CacheErrorCode.UNKNOWN,
-      error.message,
-      context
-    );
-  }
-  
-  // Convert string errors
   if (typeof error === 'string') {
-    return new CacheError(
-      CacheErrorCode.UNKNOWN,
-      error,
-      context
-    );
+    return new Error(error);
   }
   
-  // Handle all other types
-  return new CacheError(
-    CacheErrorCode.UNKNOWN,
-    `Unknown cache error: ${String(error)}`,
-    context
-  );
+  try {
+    return new Error(JSON.stringify(error));
+  } catch {
+    return new Error('Unknown error');
+  }
+}
+
+/**
+ * Handle a cache error
+ * 
+ * @param error - Error to handle
+ * @param context - Error context
+ * @param throwError - Whether to throw the error
+ * @returns Normalized error
+ */
+export function handleCacheError(
+  error: unknown,
+  context: Record<string, any> = {},
+  throwError: boolean = false
+): Error {
+  const normalizedError = ensureError(error);
+  
+  // Log the error
+  console.error(`Cache error: ${normalizedError.message}`, {
+    context,
+    stack: normalizedError.stack
+  });
+  
+  // Throw if requested
+  if (throwError) {
+    throw normalizedError;
+  }
+  
+  return normalizedError;
 }

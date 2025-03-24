@@ -1,168 +1,411 @@
 /**
- * @fileoverview Memory cache provider implementation
- */
-
-// Update the import path to the correct location or ensure the file exists
-import { ICacheProvider } from '../interfaces/i-cache-provider';
-import { CacheOptions, CacheStats, HealthStatus } from '../types/common';
-import { MemoryStorageAdapter } from './memory-adapter';
-import { IStorageAdapter } from '../interfaces/i-storage-adapter';
-
-/**
  * Memory cache provider implementation
  */
-export class MemoryProvider implements ICacheProvider {
-  private adapter: MemoryStorageAdapter;
-  readonly name = 'memory';
-  private stats: CacheStats;
 
+import { CacheOptions, CacheStats, HealthStatus } from '../types/common';
+import { ICacheProvider } from '../interfaces/i-cache-provider';
+import { MemoryAdapter } from './memory-adapter';
+import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+
+/**
+ * Memory provider options
+ */
+export interface MemoryProviderOptions {
+  /**
+   * Maximum cache size in bytes
+   */
+  maxSize?: number;
+  
+  /**
+   * Maximum number of items
+   */
+  maxItems?: number;
+  
+  /**
+   * Default TTL in seconds
+   */
+  defaultTtl?: number;
+  
+  /**
+   * Whether to update item age on get
+   */
+  updateAgeOnGet?: boolean;
+  
+  /**
+   * Whether to return stale items
+   */
+  allowStale?: boolean;
+  
+  /**
+   * Name for this provider
+   */
+  name?: string;
+}
+
+/**
+ * Memory cache provider
+ */
+export class MemoryProvider<T = any> implements ICacheProvider {
+  /**
+   * Provider name
+   */
+  public name: string;
+  
+  /**
+   * Memory adapter instance
+   */
+  private adapter: MemoryAdapter;
+  
+  /**
+   * Cache statistics
+   */
+  private stats = {
+    hits: 0,
+    misses: 0,
+    operations: 0,
+    lastUpdated: Date.now()
+  };
+  
   /**
    * Create a new memory cache provider
-   * 
-   * @param options - Memory storage options
    */
-  constructor(options?: {
-    maxSize?: number;
-    maxItems?: number;
-    defaultTtl?: number;
-    updateAgeOnGet?: boolean;
-    allowStale?: boolean;
-  }) {
-    this.adapter = new MemoryStorageAdapter(options);
-    this.stats = {
-      hits: 0,
-      misses: 0,
-      size: 0,
-      entries: 0,
-      avgTtl: 0,
-      maxTtl: 0,
-      keyCount: 0,
-      memoryUsage: 0,
-      lastUpdated: Date.now(),
-      hitRatio: 0
-    };
+  constructor(options: MemoryProviderOptions = {}) {
+    this.name = options.name || 'memory';
+    this.adapter = new MemoryAdapter({
+      maxSize: options.maxSize,
+      maxItems: options.maxItems,
+      defaultTtl: options.defaultTtl,
+      updateAgeOnGet: options.updateAgeOnGet,
+      allowStale: options.allowStale,
+      name: this.name
+    });
   }
   
-  private async updateStats(hit: boolean) {
-    const stats = await this.adapter.getStats();
-    this.stats = {
-      ...this.stats,
-      hits: hit ? this.stats.hits + 1 : this.stats.hits,
-      misses: hit ? this.stats.misses : this.stats.misses + 1,
-      size: stats.size || 0,
-      entries: stats.size || 0,
-      keyCount: stats.size || 0,
-      memoryUsage: stats.memoryUsage || 0,
-      lastUpdated: Date.now(),
-      hitRatio: (this.stats.hits / (this.stats.hits + this.stats.misses)) || 0
-    };
-  }
-
   /**
    * Get a value from the cache
-   * 
-   * @param key - Cache key
-   * @returns Cached value or null if not found
    */
-  async get<T = any>(key: string): Promise<T | null> {
-    const value = await this.adapter.get<T>(key);
-    this.updateStats(value !== null);
-    return value;
+  async get(key: string): Promise<T | null> {
+    try {
+      const start = Date.now();
+      const value = await this.adapter.get(key);
+      const duration = Date.now() - start;
+      
+      this.updateStats(value !== null);
+      
+      emitCacheEvent(value !== null ? CacheEventType.GET_HIT : CacheEventType.GET_MISS, {
+        key,
+        provider: this.name,
+        duration,
+        timestamp: Date.now()
+      });
+      
+      return value;
+    } catch (error) {
+      this.stats.misses++;
+      
+      emitCacheEvent(CacheEventType.ERROR, {
+        key,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      return null;
+    }
   }
   
   /**
    * Set a value in the cache
-   * 
-   * @param key - Cache key
-   * @param value - Value to cache
-   * @param options - Cache options
    */
-  async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    // Create a compatible options object without tags
-    const entryOptions: { ttl?: number } = {
-      ttl: options?.ttl
-    };
-
-    // Handle tags separately if needed
-    if (options?.tags && this.adapter.setMetadata) {
-      await this.adapter.setMetadata(key, { tags: options.tags });
+  async set(key: string, value: T, options: CacheOptions = {}): Promise<void> {
+    try {
+      const start = Date.now();
+      await this.adapter.set(key, value, options);
+      const duration = Date.now() - start;
+      
+      this.stats.operations++;
+      
+      emitCacheEvent(CacheEventType.SET, {
+        key,
+        provider: this.name,
+        duration,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        key,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      throw error;
     }
-
-    await this.adapter.set(key, value, entryOptions);
   }
   
   /**
    * Delete a value from the cache
-   * 
-   * @param key - Cache key
-   * @returns Whether the key was deleted
    */
   async delete(key: string): Promise<boolean> {
-    return this.adapter.delete(key);
+    try {
+      const start = Date.now();
+      const result = await this.adapter.delete(key);
+      const duration = Date.now() - start;
+      
+      this.stats.operations++;
+      
+      emitCacheEvent(CacheEventType.DELETE, {
+        key,
+        provider: this.name,
+        duration,
+        timestamp: Date.now()
+      });
+      
+      return result;
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        key,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      return false;
+    }
   }
   
   /**
    * Clear all values from the cache
    */
   async clear(): Promise<void> {
-    await this.adapter.clear();
+    try {
+      const start = Date.now();
+      await this.adapter.clear();
+      const duration = Date.now() - start;
+      
+      this.stats.operations++;
+      
+      emitCacheEvent(CacheEventType.CLEAR, {
+        provider: this.name,
+        duration,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      throw error;
+    }
+  }
+  
+  /**
+   * Check if a key exists in the cache
+   */
+  async has(key: string): Promise<boolean> {
+    try {
+      return await this.adapter.has(key);
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        key,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      return false;
+    }
+  }
+  
+  /**
+   * Get multiple values from the cache
+   */
+  async getMany<U>(keys: string[]): Promise<Record<string, U | null>> {
+    try {
+      const start = Date.now();
+      const result = await this.adapter.getMany<U>(keys);
+      const duration = Date.now() - start;
+      
+      // Update stats
+      const hits = Object.values(result).filter(v => v !== null).length;
+      const misses = keys.length - hits;
+      
+      this.stats.hits += hits;
+      this.stats.misses += misses;
+      this.stats.operations++;
+      
+      emitCacheEvent(CacheEventType.GET_MANY, {
+        keys,
+        provider: this.name,
+        duration,
+        hits,
+        misses,
+        timestamp: Date.now()
+      });
+      
+      return result;
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        keys,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      // Return null for all keys on error
+      return keys.reduce((acc, key) => {
+        acc[key] = null;
+        return acc;
+      }, {} as Record<string, U | null>);
+    }
+  }
+  
+  /**
+   * Set multiple values in the cache
+   */
+  async setMany(entries: Record<string, T>, options: CacheOptions = {}): Promise<void> {
+    try {
+      const start = Date.now();
+      await this.adapter.setMany(entries, options);
+      const duration = Date.now() - start;
+      
+      this.stats.operations++;
+      
+      emitCacheEvent(CacheEventType.SET_MANY, {
+        keys: Object.keys(entries),
+        provider: this.name,
+        duration,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        keys: Object.keys(entries),
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      throw error;
+    }
   }
   
   /**
    * Get cache statistics
-   * 
-   * @returns Cache statistics
    */
   async getStats(): Promise<CacheStats> {
-    return this.stats;
+    try {
+      const adapterStats = await this.adapter.getStats();
+      
+      return {
+        ...adapterStats,
+        hits: this.stats.hits,
+        misses: this.stats.misses,
+        operations: this.stats.operations,
+        lastUpdated: Date.now()
+      };
+    } catch (error) {
+      return {
+        hits: this.stats.hits,
+        misses: this.stats.misses,
+        keyCount: 0,
+        size: 0,
+        memoryUsage: 0,
+        lastUpdated: Date.now(),
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
   }
-
+  
+  /**
+   * Invalidate cache entries by prefix
+   */
+  async invalidateByPrefix(prefix: string): Promise<void> {
+    try {
+      // Get all keys
+      const allKeys = await this.adapter.keys();
+      const toDelete = allKeys.filter((key: string) => key.startsWith(prefix));
+      await Promise.all(toDelete.map((key: string) => this.delete(key)));
+    } catch (error) {
+      throw error;
+    }
+  }
+  
+  /**
+   * Invalidate cache entries by tag
+   */
+  async invalidateByTag(tag: string): Promise<void> {
+    try {
+      await this.adapter.invalidateByTag(tag);
+    } catch (error) {
+      emitCacheEvent(CacheEventType.ERROR, {
+        tag,
+        provider: this.name,
+        error,
+        timestamp: Date.now()
+      });
+      
+      throw error;
+    }
+  }
+  
   /**
    * Perform a health check
-   * 
-   * @returns Health status
    */
   async healthCheck(): Promise<HealthStatus> {
-    return {
-      status: 'healthy',
-      healthy: true, // Ensure this is always a boolean, not undefined
-      details: {
-        size: this.stats.size || 0,
-        memoryUsage: process.memoryUsage().heapUsed
-      }
-    };
-  }
-
-  async getMany<T = any>(keys: string[]): Promise<Record<string, T | null>> {
-    return this.adapter.getMany<T>(keys);
-  }
-
-  async setMany<T = any>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
-    return this.adapter.setMany(entries, options);
-  }
-
-  async has(key: string): Promise<boolean> {
-    return this.adapter.has(key);
-  }
-
-  async invalidateByPrefix(prefix: string): Promise<void> {
-    const keys = await this.adapter.keys();
-    const toDelete = keys.filter(key => key.startsWith(prefix));
-    await Promise.all(toDelete.map(key => this.delete(key)));
-  }
-
-  async invalidateByTag(tag: string): Promise<number> {
-    const keys = await this.adapter.keys();
-    const toDelete: string[] = [];
-
-    for (const key of keys) {
-      const metadata = await this.adapter.getMetadata(key);
-      if (metadata?.tags.includes(tag)) {
-        toDelete.push(key);
-      }
+    try {
+      const result = await this.adapter.healthCheck();
+      
+      return {
+        healthy: result.healthy,
+        message: result.message,
+        lastCheck: new Date(),
+        status: result.healthy ? 'healthy' : 'unhealthy'
+      };
+    } catch (error) {
+      return {
+        healthy: false,
+        message: error instanceof Error ? error.message : String(error),
+        lastCheck: new Date(),
+        status: 'unhealthy'
+      };
     }
-
-    await Promise.all(toDelete.map(key => this.delete(key)));
-    return toDelete.length;
+  }
+  
+  /**
+   * Get metadata for a key
+   */
+  async getMetadata(key: string): Promise<any> {
+    try {
+      return await this.adapter.getMetadata(key);
+    } catch (error) {
+      return null;
+    }
+  }
+  
+  /**
+   * Get keys matching a pattern
+   */
+  async keys(pattern?: string): Promise<string[]> {
+    try {
+      return await this.adapter.keys(pattern);
+    } catch (error) {
+      return [];
+    }
+  }
+  
+  /**
+   * Update cache statistics
+   */
+  private updateStats(hit: boolean): void {
+    if (hit) {
+      this.stats.hits++;
+    } else {
+      this.stats.misses++;
+    }
+    
+    this.stats.operations++;
+    this.stats.lastUpdated = Date.now();
   }
 }

@@ -1,128 +1,111 @@
 /**
- * @fileoverview Enhanced configuration interface for the cache system
- * @author harborgrid-justin
- * @lastModified 2025-03-24
+ * Cache configuration interface
  */
 
+import { CacheOptions, CacheStats } from '../types/common';
 import { ICacheProvider } from './i-cache-provider';
-import { CacheOptions, SecurityOptions, MonitoringConfig } from '../types/common';
 
 /**
- * Enhanced configuration for the cache system
+ * Cache configuration
  */
-export interface ICacheConfig {
+export interface CacheConfig {
   /**
-   * List of cache providers with improved typing
+   * Configured cache providers
    */
-  providers: Array<IProviderConfig>;
+  providers: ProviderConfig[];
   
   /**
    * Default TTL in seconds
-   * @minimum 0
-   * @default 3600
    */
   defaultTtl?: number;
   
   /**
-   * Default cache options
+   * Default options for cache operations
    */
   defaultOptions?: CacheOptions;
   
   /**
-   * Request deduplication settings
+   * Whether to throw errors or suppress them
    */
-  deduplication?: {
-    enabled: boolean;
-    timeout: number;
-    maxPending: number;
-  };
+  throwOnErrors?: boolean;
   
   /**
-   * Background refresh configuration
+   * Whether to enable background refresh
    */
-  backgroundRefresh?: {
-    enabled: boolean;
-    threshold: number;
-    maxConcurrent: number;
-    errorHandling: 'fail-silent' | 'retry' | 'fallback';
-  };
+  backgroundRefresh?: boolean;
   
   /**
-   * Enhanced error handling configuration
+   * Default refresh threshold (0-1)
    */
-  errorHandling?: {
-    throwOnErrors: boolean;
-    retryAttempts: number;
-    retryDelay: number;
-    fallbackValue?: any;
-  };
+  refreshThreshold?: number;
   
   /**
-   * Improved logging configuration
+   * Whether to deduplicate in-flight requests
    */
-  logging?: {
-    enabled: boolean;
-    level: 'debug' | 'info' | 'warn' | 'error';
-    includeStackTraces: boolean;
-    format?: 'json' | 'text';
-    destination?: 'console' | 'file';
-    customLogger?: (entry: LogEntry) => void;
+  deduplicateRequests?: boolean;
+  
+  /**
+   * Whether to enable logging
+   */
+  logging?: boolean;
+  
+  /**
+   * Whether to include stack traces in logs
+   */
+  logStackTraces?: boolean;
+  
+  /**
+   * Custom logger function
+   */
+  logger?: (logEntry: any) => void;
+  
+  /**
+   * Default batch size for batch operations
+   */
+  batchSize?: number;
+  
+  /**
+   * Retry configuration
+   */
+  retry?: {
+    /**
+     * Number of retry attempts
+     */
+    attempts: number;
+    
+    /**
+     * Delay between retries in milliseconds
+     */
+    delay: number;
+    
+    /**
+     * Whether to use exponential backoff
+     */
+    backoff?: boolean;
   };
-
-  /**
-   * Security settings
-   */
-  security?: SecurityOptions;
-
-  /**
-   * Monitoring configuration
-   */
-  monitoring?: MonitoringConfig;
 }
 
 /**
- * Enhanced provider configuration
+ * Provider configuration
  */
-export interface IProviderConfig {
+export interface ProviderConfig {
   /**
-   * Unique provider identifier
+   * Name/identifier for this provider
    */
   name: string;
   
   /**
-   * Provider instance
+   * The provider instance
    */
   instance: ICacheProvider;
   
   /**
-   * Priority (lower numbers checked first)
-   * @minimum 0
+   * Priority (lower = faster/first checked)
    */
   priority?: number;
   
   /**
-   * Connection configuration
-   */
-  connection?: {
-    timeout: number;
-    retries: number;
-    poolSize?: number;
-  };
-  
-  /**
    * Provider-specific options
    */
-  options?: Record<string, any>;
-}
-
-/**
- * Log entry interface
- */
-export interface LogEntry {
-  timestamp: Date;
-  level: string;
-  message: string;
-  context?: Record<string, any>;
-  error?: Error;
-  stackTrace?: string;
+  options?: any;
 }

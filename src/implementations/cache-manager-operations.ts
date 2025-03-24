@@ -1,438 +1,207 @@
 /**
- * @fileoverview Advanced cache operations implementation
+ * Cache manager operations implementation
  */
 
+import { CacheOptions } from '../types/common';
 import { ICacheProvider } from '../interfaces/i-cache-provider';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
-import { handleCacheError } from '../utils/error-utils';
-import { validateCacheKey } from '../utils/validation-utils';
-import { CacheOptions } from '../types/common';
+import { CacheErrorCode, createCacheError, handleCacheError } from '../utils/error-utils';
+import { providerHasMethod } from './cache-manager-utils';
 
 /**
- * Advanced cache operations implementation
+ * Cache manager operations
  */
 export class CacheManagerOperations {
   /**
-   * Create a new cache operations manager
-   * 
-   * @param provider - Primary cache provider
+   * Cache provider
    */
-  constructor(private provider: ICacheProvider) {}
-
+  protected provider: ICacheProvider;
+  
   /**
-   * Update specific fields in a cached object
+   * Create a new cache manager operations instance
    * 
-   * @param key - Cache key
-   * @param fields - Fields to update
-   * @param options - Cache options
-   * @returns Updated object or false if operation failed
+   * @param provider - Cache provider
    */
-  async updateFields(
-    key: string, 
-    fields: Record<string, any>, 
-    options?: CacheOptions
-  ): Promise<Record<string, any> | boolean> {
-    validateCacheKey(key);
-    
-    try {
-      // Get the current value
-      const current = await this.provider.get(key);
-      
-      // If key doesn't exist, create new object with fields
-      if (current === null) {
-        await this.provider.set(key, fields, options);
-        return fields;
-      }
-      
-      // If current value is not an object, fail
-      if (typeof current !== 'object' || Array.isArray(current)) {
-        return false;
-      }
-      
-      // Update fields
-      const updated = { ...current, ...fields };
-      
-      // Store back to cache
-      await this.provider.set(key, updated, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'updateFields',
-        fieldsUpdated: Object.keys(fields)
-      });
-      
-      return updated;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: 'updateFields', 
-        key 
-      });
-      return false;
-    }
+  constructor(provider: ICacheProvider) {
+    this.provider = provider;
   }
-
+  
   /**
-   * Append items to an array in the cache
+   * Push a value to an array in cache
    * 
    * @param key - Cache key
-   * @param items - Items to append
+   * @param value - Value to push
    * @param options - Cache options
-   * @returns Updated array or true if operation succeeded
+   * @returns Updated array length
    */
-  async arrayAppend(
-    key: string, 
-    items: any[], 
-    options?: CacheOptions & { maxLength?: number }
-  ): Promise<any[] | boolean> {
-    validateCacheKey(key);
-    
+  async pushToArray<T>(key: string, value: T, options?: CacheOptions): Promise<number> {
     try {
-      // Get the current value
-      const current = await this.provider.get(key);
+      // Get current array or create new one
+      const current = await this.provider.get(key) as T[] | null;
+      const array = current || [];
       
-      // Initialize if not exists or not an array
-      const currentArray = Array.isArray(current) ? current : [];
-      
-      // Append items
-      const updated = [...currentArray, ...items];
-      
-      // Apply max length if specified
-      const maxLength = options?.maxLength;
-      if (maxLength && maxLength > 0 && updated.length > maxLength) {
-        const startIndex = updated.length - maxLength;
-        const truncated = updated.slice(startIndex);
+      // Push value
+      if (Array.isArray(array)) {
+        array.push(value);
         
-        // Store back to cache
-        await this.provider.set(key, truncated, options);
+        // Update cache
+        await this.provider.set(key, array, options);
         
-        emitCacheEvent(CacheEventType.SET, { 
-          key, 
-          operation: 'arrayAppend',
-          itemsAppended: items.length,
-          truncated: true,
-          maxLength
-        });
-        
-        return truncated;
+        return array.length;
+      } else {
+        throw createCacheError(
+          `Value at key '${key}' is not an array`,
+          CacheErrorCode.INVALID_VALUE
+        );
       }
-      
-      // Store back to cache
-      await this.provider.set(key, updated, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'arrayAppend',
-        itemsAppended: items.length
-      });
-      return updated;
     } catch (error) {
-      handleCacheError(error, { 
-        operation: 'arrayAppend', 
-        key 
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Remove items from an array in the cache
-   * 
-   * @param key - Cache key
-   * @param predicate - Function to determine which items to remove
-   * @param options - Cache options
-   * @returns Updated array or -1 if operation failed
-   */
-  async arrayRemove<T>(
-    key: string, 
-    predicate: (item: T) => boolean,
-    options?: CacheOptions
-  ): Promise<any[] | number> {
-    validateCacheKey(key);
-    
-    try {
-      // Get the current value
-      const current = await this.provider.get<T[]>(key);
-      
-      // If key doesn't exist or not an array, return empty array
-      if (!Array.isArray(current)) {
-        return [];
-      }
-
-      // Filter out items
-      const originalLength = current.length;
-      const updated = current.filter(item => !predicate(item));
-      const removedCount = originalLength - updated.length;
-      
-      // Store back to cache
-      await this.provider.set(key, updated, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'arrayRemove',
-        itemsRemoved: removedCount
-      });
-      
-      return updated;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: 'arrayRemove', 
-        key 
-      });
-      return -1;
-    }
-  }
-
-  /**
-   * Increment a numeric value in the cache
-   * 
-   * @param key - Cache key
-   * @param increment - Amount to increment (default: 1)
-   * @param options - Cache options
-   * @returns New value after increment, or null if operation failed
-   */
-  async increment(
-    key: string, 
-    increment: number = 1, 
-    options?: CacheOptions
-  ): Promise<number | null> {
-    validateCacheKey(key);
-    
-    try {
-      // Get the current value
-      const current = await this.provider.get<number>(key);
-      
-      // Calculate new value
-      const newValue = typeof current === 'number' ? current + increment : increment;
-      
-      // Store back to cache
-      await this.provider.set(key, newValue, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'increment',
-        increment,
-        newValue
-      });
-      
-      return newValue;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: 'increment', 
-        key 
-      });
-      return null;
-    }
-  }
-
-  /**
-   * Decrement a numeric value in the cache
-   * 
-   * @param key - Cache key
-   * @param decrement - Amount to decrement (default: 1)
-   * @param options - Cache options
-   * @returns New value after decrement, or null if operation failed
-   */
-  async decrement(
-    key: string, 
-    decrement: number = 1, 
-    options?: CacheOptions
-  ): Promise<number | null> {
-    return this.increment(key, -decrement, options);
-  }
-
-  /**
-   * Get and set a value atomically
-   * 
-   * @param key - Cache key
-   * @param value - New value to set
-   * @param options - Cache options
-   * @returns Previous value, or null if not found
-   */
-  async getAndSet<T>(
-    key: string, 
-    value: T, 
-    options?: CacheOptions
-  ): Promise<T | null> {
-    validateCacheKey(key);
-    
-    try {
-      // Get the current value
-      const previous = await this.provider.get<T>(key);
-      
-      // Set the new value
-      await this.provider.set(key, value, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'getAndSet'
-      });
-      
-      return previous;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: 'getAndSet', 
-        key 
-      });
-      return null;
-    }
-  }
-
-  /**
-   * Set a value only if the key doesn't exist
-   * 
-   * @param key - Cache key
-   * @param value - Value to set
-   * @param options - Cache options
-   * @returns Whether the value was set
-   */
-  async setIfNotExists<T>(
-    key: string, 
-    value: T, 
-    options?: CacheOptions
-  ): Promise<boolean> {
-    validateCacheKey(key);
-    
-    try {
-      // Check if key exists
-      const exists = await this.provider.get(key) !== null;
-      
-      if (!exists) {
-        // Set the value
-        await this.provider.set(key, value, options);
-        
-        emitCacheEvent(CacheEventType.SET, { 
-          key, 
-          operation: 'setIfNotExists',
-          set: true
-        });
-        
-        return true;
-      }
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: 'setIfNotExists',
-        set: false
-      });
-      
-      return false;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: 'setIfNotExists', 
-        key 
-      });
-      return false;
-    }
-  }
-
-  /**
-   * Perform set operations on arrays
-   * 
-   * @param key - Cache key
-   * @param operation - Set operation (union, intersection, difference)
-   * @param items - Items for the operation
-   * @param options - Cache options
-   * @returns Result of the set operation
-   */
-  async setOperations<T>(
-    key: string,
-    operation: 'union' | 'intersection' | 'difference',
-    items: T[],
-    options?: CacheOptions
-  ): Promise<T[]> {
-    validateCacheKey(key);
-    
-    try {
-      // Get the current value
-      const current = await this.provider.get<T[]>(key);
-      const currentArray = Array.isArray(current) ? current : [];
-      
-      let result: T[];
-      
-      switch (operation) {
-        case 'union':
-          // Combine arrays and remove duplicates
-          result = [...new Set([...currentArray, ...items])];
-          break;
-          
-        case 'intersection':
-          // Keep only items that are in both arrays
-          result = currentArray.filter(item => 
-            items.some(i => JSON.stringify(i) === JSON.stringify(item))
-          );
-          break;
-          
-        case 'difference':
-          // Keep only items that are in current but not in items
-          result = currentArray.filter(item => 
-            !items.some(i => JSON.stringify(i) === JSON.stringify(item))
-          );
-          break;
-          
-        default:
-          throw new Error('Unknown set operation');
-      }
-      
-      // Store back to cache
-      await this.provider.set(key, result, options);
-      
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
-        operation: `setOperation:${operation}`,
-        resultSize: result.length
-      });
-      
-      return result;
-    } catch (error) {
-      handleCacheError(error, { 
-        operation: `setOperation:${operation}`, 
-        key 
-      });
+      handleCacheError(error, { operation: 'pushToArray', key });
       throw error;
     }
   }
-
+  
   /**
-   * Batch get multiple keys
+   * Pop a value from an array in cache
    * 
-   * @param keys - Keys to get
-   * @returns Object with values keyed by cache key
+   * @param key - Cache key
+   * @param options - Cache options
+   * @returns Popped value or undefined if array is empty
    */
-  async batchGet<T>(keys: string[]): Promise<Record<string, T | null>> {
+  async popFromArray<T>(key: string, options?: CacheOptions): Promise<T | undefined> {
     try {
-      // Safely check and call getMany
-      if (this.provider && typeof this.provider.getMany === 'function') {
-        return await this.provider.getMany<T>(keys) as Record<string, T | null>;
+      // Get current array
+      const current = await this.provider.get(key) as T[] | null;
+      
+      if (!current || !Array.isArray(current)) {
+        return undefined;
+      }
+      
+      // Pop value
+      const value = current.pop();
+      
+      // Update cache
+      await this.provider.set(key, current, options);
+      
+      return value;
+    } catch (error) {
+      handleCacheError(error, { operation: 'popFromArray', key });
+      throw error;
+    }
+  }
+  
+  /**
+   * Increment a value in cache
+   * 
+   * @param key - Cache key
+   * @param increment - Increment amount
+   * @param options - Cache options
+   * @returns New value
+   */
+  async increment(key: string, increment = 1, options?: CacheOptions): Promise<number> {
+    try {
+      // Get current value
+      const current = await this.provider.get(key) as number | null;
+      
+      // Calculate new value
+      const value = (typeof current === 'number' ? current : 0) + increment;
+      
+      // Update cache
+      await this.provider.set(key, value, options);
+      
+      return value;
+    } catch (error) {
+      handleCacheError(error, { operation: 'increment', key });
+      throw error;
+    }
+  }
+  
+  /**
+   * Decrement a value in cache
+   * 
+   * @param key - Cache key
+   * @param decrement - Decrement amount
+   * @param options - Cache options
+   * @returns New value
+   */
+  async decrement(key: string, decrement = 1, options?: CacheOptions): Promise<number> {
+    return this.increment(key, -decrement, options);
+  }
+  
+  /**
+   * Update a value in cache
+   * 
+   * @param key - Cache key
+   * @param updater - Function to update the value
+   * @param options - Cache options
+   * @returns Updated value
+   */
+  async update<T>(
+    key: string,
+    updater: (currentValue: T | null) => T,
+    options?: CacheOptions
+  ): Promise<T> {
+    try {
+      // Get current value
+      const previous = await this.provider.get(key) as T | null;
+      
+      // Update value
+      const value = updater(previous);
+      
+      // Update cache
+      await this.provider.set(key, value, options);
+      
+      return value;
+    } catch (error) {
+      handleCacheError(error, { operation: 'update', key });
+      throw error;
+    }
+  }
+  
+  /**
+   * Get multiple values from cache
+   * 
+   * @param keys - Cache keys
+   * @returns Values by key
+   */
+  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
+    try {
+      // Check if provider supports getMany
+      if (providerHasMethod(this.provider, 'getMany')) {
+        const getMany = this.provider.getMany as <U>(keys: string[]) => Promise<Record<string, U | null>>;
+        return await getMany<T>(keys);
       }
       
       // Fall back to individual gets
       const result: Record<string, T | null> = {};
       
       for (const key of keys) {
-        result[key] = await this.provider.get<T>(key);
+        result[key] = await this.provider.get(key) as T | null;
       }
       
       return result;
     } catch (error) {
-      handleCacheError(error, { 
-        operation: 'getMany',
-        key: keys.join(',')
-      });
-      throw error;
+      handleCacheError(error, { operation: 'getMany', keys });
+      
+      // Return null for all keys on error
+      return keys.reduce((acc, key) => {
+        acc[key] = null;
+        return acc;
+      }, {} as Record<string, T | null>);
     }
   }
-
+  
   /**
-   * Batch set multiple key-value pairs
+   * Set multiple values in cache
    * 
-   * @param entries - Key-value pairs to set
+   * @param entries - Cache entries
    * @param options - Cache options
    */
-  async batchSet<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
+  async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
     try {
-      // Safely check and call setMany
-      if (this.provider && typeof this.provider.setMany === 'function') {
-        await this.provider.setMany(entries, options);
+      // Check if provider supports setMany
+      if (providerHasMethod(this.provider, 'setMany')) {
+        const setMany = this.provider.setMany as (entries: Record<string, any>, options?: CacheOptions) => Promise<void>;
+        await setMany(entries, options);
         return;
       }
       
@@ -441,134 +210,132 @@ export class CacheManagerOperations {
         await this.provider.set(key, value, options);
       }
     } catch (error) {
-      handleCacheError(error, { 
-        operation: 'setMany',
-        key: Object.keys(entries).join(',')
-      });
+      handleCacheError(error, { operation: 'setMany', entries: Object.keys(entries) });
       throw error;
     }
   }
-
+  
   /**
-   * Get multiple values from cache
-   */
-  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
-    if (!this.provider || typeof this.provider.getMany !== 'function') {
-      // Fallback implementation using get
-      const result: Record<string, T | null> = {};
-      for (const key of keys) {
-        result[key] = await this.provider.get<T>(key);
-      }
-      return result;
-    }
-    
-    return await this.provider.getMany<T>(keys);
-  }
-
-  /**
-   * Set multiple values in cache
-   */
-  async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
-    if (!this.provider || typeof this.provider.setMany !== 'function') {
-      // Fallback implementation using set
-      for (const [key, value] of Object.entries(entries)) {
-        await this.provider.set(key, value, options);
-      }
-      return;
-    }
-    
-    await this.provider.setMany(entries, options);
-  }
-
-  /**
-   * Execute a transaction of operations
+   * Delete multiple values from cache
    * 
-   * @param operations - Operations to execute
-   * @param options - Transaction options
-   * @returns Results of operations that return values
+   * @param keys - Cache keys
+   * @returns Number of deleted keys
    */
-  async transaction(
-    operations: Array<{
-      type: 'get' | 'set' | 'delete' | 'has';
-      key: string;
-      value?: any;
-      options?: CacheOptions;
-    }>,
-    options?: {
-      atomic?: boolean;
-    }
-  ): Promise<any[]> {
+  async deleteMany(keys: string[]): Promise<number> {
     try {
-      const results: any[] = [];
+      let count = 0;
       
-      for (const op of operations) {
-        switch (op.type) {
-          case 'get':
-            results.push(await this.provider.get(op.key));
-            break;
-            
-          case 'set':
-            await this.provider.set(op.key, op.value, op.options);
-            results.push(undefined);
-            break;
-            
-          case 'delete':
-            results.push(await this.provider.delete(op.key));
-            break;
-            
-          case 'has':
-            results.push(await this.provider.get(op.key) !== null);
-            break;
-            
-          default:
-            throw new Error('Unknown operation type');
-        }
+      for (const key of keys) {
+        const deleted = await this.provider.delete(key);
+        if (deleted) count++;
       }
       
-      // Filter out undefined results (from set operations)
-      return results.filter(r => r !== undefined);
+      return count;
     } catch (error) {
-      handleCacheError(error, { 
-        operation: 'transaction'
-      });
+      handleCacheError(error, { operation: 'deleteMany', keys });
       throw error;
     }
   }
-
+  
   /**
-   * Execute an atomic operation on a cache value
+   * Add a value to a set in cache
    * 
    * @param key - Cache key
-   * @param operation - Operation to execute
+   * @param value - Value to add
    * @param options - Cache options
-   * @returns Result of the operation
+   * @returns Whether the value was added
    */
-  async atomic<T, R>(
-    key: string,
-    operation: (value: T | null) => R | Promise<R>,
-    options?: CacheOptions
-  ): Promise<R> {
-    validateCacheKey(key);
-    
+  async addToSet<T>(key: string, value: T, options?: CacheOptions): Promise<boolean> {
     try {
-      // Get current value
-      const current = await this.provider.get<T>(key);
+      // Get current set or create new one
+      const current = await this.provider.get(key) as T[] | null;
+      const set = current || [];
       
-      // Execute operation
-      const result = await operation(current);
+      // Check if value already exists
+      if (Array.isArray(set)) {
+        const exists = set.some(item => JSON.stringify(item) === JSON.stringify(value));
+        
+        if (!exists) {
+          // Add value
+          set.push(value);
+          
+          // Update cache
+          await this.provider.set(key, set, options);
+          
+          return true;
+        }
+        
+        return false;
+      } else {
+        throw createCacheError(
+          `Value at key '${key}' is not an array`,
+          CacheErrorCode.INVALID_VALUE
+        );
+      }
+    } catch (error) {
+      handleCacheError(error, { operation: 'addToSet', key });
+      throw error;
+    }
+  }
+  
+  /**
+   * Remove a value from a set in cache
+   * 
+   * @param key - Cache key
+   * @param value - Value to remove
+   * @param options - Cache options
+   * @returns Whether the value was removed
+   */
+  async removeFromSet<T>(key: string, value: T, options?: CacheOptions): Promise<boolean> {
+    try {
+      // Get current set
+      const current = await this.provider.get(key) as T[] | null;
       
-      // If result is not undefined, store it back
-      if (result !== undefined) {
-        await this.provider.set(key, result as any, options);
+      if (!current || !Array.isArray(current)) {
+        return false;
       }
       
-      return result;
+      // Find value index
+      const index = current.findIndex(item => JSON.stringify(item) === JSON.stringify(value));
+      
+      if (index !== -1) {
+        // Remove value
+        current.splice(index, 1);
+        
+        // Update cache
+        await this.provider.set(key, current, options);
+        
+        return true;
+      }
+      
+      return false;
     } catch (error) {
-      handleCacheError(error, { 
-        operation: 'atomic', 
-        key 
-      });
+      handleCacheError(error, { operation: 'removeFromSet', key });
       throw error;
+    }
+  }
+  
+  /**
+   * Check if a value exists in a set
+   * 
+   * @param key - Cache key
+   * @param value - Value to check
+   * @returns Whether the value exists in the set
+   */
+  async isInSet<T>(key: string, value: T): Promise<boolean> {
+    try {
+      // Get current set
+      const current = await this.provider.get(key) as T[] | null;
+      
+      if (!current || !Array.isArray(current)) {
+        return false;
+      }
+      
+      // Check if value exists
+      return current.some(item => JSON.stringify(item) === JSON.stringify(value));
+    } catch (error) {
+      handleCacheError(error, { operation: 'isInSet', key });
+      return false;
     }
   }
 }

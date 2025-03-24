@@ -1,178 +1,196 @@
 /**
- * cache-manager-stats.ts
- * 
- * Implementation of cache statistics and monitoring functionality
+ * Cache manager statistics implementation
  */
+
 import { CacheStats } from '../types/common';
-// Fix the import for CacheEventType
+import { ICacheProvider } from '../interfaces/i-cache-provider';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
-import { CacheManagerAdvanced } from './cache-manager-advanced';
-import { CacheStatistics } from './cache-statistics';
+import { handleCacheError } from '../utils/error-utils';
+import { providerHasMethod } from './cache-manager-utils';
 
 /**
- * Extension of CacheManager with statistics functionality
+ * Cache manager statistics
  */
-export class CacheManagerStats extends CacheManagerAdvanced {
-  private cacheStats: CacheStatistics;
-
-  constructor(...args: ConstructorParameters<typeof CacheManagerAdvanced>) {
-    super(...args);
-    this.cacheStats = new CacheStatistics();
-  }
-
+export class CacheManagerStats {
   /**
-   * Log an error message
-   * @param message Error message
-   * @param error Error object
-   * @private
+   * Cache providers
    */
-  private logError(message: string, error: unknown): void {
-    console.error(message, error);
-    // You might want to implement more sophisticated logging
-  }
-
+  private providers = new Map<string, ICacheProvider>();
+  
   /**
-   * Get cache statistics from all layers
+   * Statistics collection interval
+   */
+  private statsInterval: NodeJS.Timeout | null = null;
+  
+  /**
+   * Last collected stats
+   */
+  private lastStats: Record<string, CacheStats> = {};
+  
+  /**
+   * Create a new cache manager statistics instance
    * 
-   * @returns Object containing stats for each cache layer
+   * @param providers - Cache providers
    */
-  async getStats(): Promise<Record<string, CacheStats>> {
-    try {
-      const stats: Record<string, CacheStats> = {};
-      
-      // Get providers from parent class
-      const providers = this.getProviders();
-      
-      // Gather stats from each provider concurrently
-      const statsPromises = Array.from(providers.entries()).map(
-        async ([layerName, provider]): Promise<[string, CacheStats]> => {
-          try {
-            // Check if the provider implements a getStats method
-            if (typeof provider.getStats === 'function') {
-              const providerStats = await provider.getStats();
-              return [layerName, providerStats];
-            } else {
-              // Default stats for providers that don't implement getStats
-              return [layerName, {
-                size: 0,
-                hits: 0, 
-                misses: 0,
-                keyCount: 0,
-                memoryUsage: 0,
-                lastUpdated: Date.now(),
-                hitRatio: 0,
-                timestamp: Date.now(),
-                entries: 0,
-                avgTtl: 0,
-                maxTtl: 0
-              }];
-            }
-          } catch (error) {
-            this.logError(`Failed to get stats from cache layer ${layerName}`, error);
-            // Return basic stats object on error
-            return [layerName, {
-              size: 0,
-              hits: 0,
-              misses: 0,
-              keyCount: 0,
-              memoryUsage: 0,
-              lastUpdated: Date.now(),
-              hitRatio: 0,
-              timestamp: Date.now(),
-              entries: 0,
-              avgTtl: 0,
-              maxTtl: 0
-            }];
+  constructor(providers: Map<string, ICacheProvider>) {
+    this.providers = providers;
+  }
+  
+  /**
+   * Start collecting statistics
+   * 
+   * @param interval - Collection interval in seconds
+   */
+  startCollecting(interval = 60): void {
+    // Stop existing interval if any
+    this.stopCollecting();
+    
+    // Start new interval
+    this.statsInterval = setInterval(async () => {
+      try {
+        const stats = await this.collectStats();
+        this.lastStats = stats;
+        
+        emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });
+      } catch (error) {
+        console.error('Error collecting cache stats:', error);
+      }
+    }, interval * 1000);
+  }
+  
+  /**
+   * Stop collecting statistics
+   */
+  stopCollecting(): void {
+    if (this.statsInterval) {
+      clearInterval(this.statsInterval);
+      this.statsInterval = null;
+    }
+  }
+  
+  /**
+   * Collect statistics from all providers
+   * 
+   * @returns Statistics by provider
+   */
+  async collectStats(): Promise<Record<string, CacheStats>> {
+    const result: Record<string, CacheStats> = {};
+    
+    for (const [name, provider] of this.providers.entries()) {
+      try {
+        if (providerHasMethod(provider, 'getStats')) {
+          const getStats = provider.getStats as () => Promise<CacheStats>;
+          const stats = await getStats();
+          
+          if (stats) {
+            result[name] = stats;
           }
         }
-      );
-      
-      // Wait for all stats to be collected
-      const results = await Promise.all(statsPromises);
-      
-      // Build the stats object from results
-      for (const result of results) {
-        const [layerName, layerStats] = result;
-        stats[layerName] = layerStats;
+      } catch (error) {
+        console.error(`Error getting stats for provider ${name}:`, error);
+        
+        // Add error stats
+        result[name] = {
+          hits: 0,
+          misses: 0,
+          keyCount: 0,
+          lastUpdated: Date.now(),
+          error: error instanceof Error ? error.message : String(error)
+        };
       }
-      
-      // Add aggregate statistics
-      stats['aggregate'] = this.calculateAggregateStats(stats);
-      
-      // Use the imported CacheEventType
-      emitCacheEvent(CacheEventType.STATS_UPDATE, { 
-        stats,
-        timestamp: Date.now(),
-        type: CacheEventType.STATS_UPDATE.toString()
-      });
-      return stats;
-    } catch (error) {
-      this.logError('Error collecting cache statistics', error);
-      
-      // Get config from parent class or use default
-      const config = this.getConfig();
-      
-      if (config?.throwOnErrors) {
-        throw error;
-      }
-      
-      // Return empty stats on error
-      return {};
-    }
-  }
-  
-  /**
-   * Get providers map from parent class
-   * @private
-   */
-  private getProviders(): Map<string, any> {
-    // This is a workaround - you'll need to implement this based on how providers are stored in CacheManagerAdvanced
-    return (this as any).providers || new Map();
-  }
-  
-  /**
-   * Get config from parent class
-   * @private
-   */
-  private getConfig(): any {
-    // This is a workaround - you'll need to implement this based on how config is stored in CacheManagerAdvanced
-    return (this as any).config || { throwOnErrors: false };
-  }
-  
-  /**
-   * Calculate aggregate statistics across all cache layers
-   * 
-   * @param layerStats - Statistics from individual cache layers
-   * @returns Aggregated statistics
-   * @private
-   */
-  private calculateAggregateStats(
-    layerStats: Record<string, CacheStats>
-  ): CacheStats {
-    const aggregate: CacheStats = {
-      size: 0,
-      hits: 0,
-      misses: 0,
-      keyCount: 0,
-      memoryUsage: 0,
-      lastUpdated: Date.now(),
-      hitRatio: 0,
-      timestamp: Date.now(),
-      entries: 0,
-      avgTtl: 0,
-      maxTtl: 0
-    };
-    for (const [layerName, stats] of Object.entries(layerStats)) {
-      aggregate.size += stats.size || 0;
-      aggregate.hits += stats.hits || 0;
-      aggregate.misses += stats.misses || 0;
-      aggregate.keyCount += (stats.keyCount || 0);
-      aggregate.memoryUsage += stats.memoryUsage || 0;
     }
     
-    // Calculate hit ratio
-    const totalOps = aggregate.hits + aggregate.misses;
-    aggregate.hitRatio = totalOps > 0 ? aggregate.hits / totalOps : 0;
-    return aggregate;
+    return result;
+  }
+  
+  /**
+   * Get the last collected statistics
+   * 
+   * @returns Last collected statistics
+   */
+  getLastStats(): Record<string, CacheStats> {
+    return this.lastStats;
+  }
+  
+  /**
+   * Get aggregated statistics
+   * 
+   * @returns Aggregated statistics
+   */
+  async getAggregatedStats(): Promise<CacheStats> {
+    try {
+      const stats = await this.collectStats();
+      
+      const aggregate: CacheStats = {
+        hits: 0,
+        misses: 0,
+        keyCount: 0,
+        size: 0,
+        memoryUsage: 0,
+        lastUpdated: Date.now()
+      };
+      
+      // Aggregate stats
+      for (const providerStats of Object.values(stats)) {
+        aggregate.hits += providerStats.hits;
+        aggregate.misses += providerStats.misses;
+        aggregate.keyCount += providerStats.keyCount;
+        
+        // Handle possibly undefined properties
+        if (providerStats.size) {
+          aggregate.size = (aggregate.size || 0) + providerStats.size;
+        }
+        
+        if (providerStats.memoryUsage) {
+          aggregate.memoryUsage = (aggregate.memoryUsage || 0) + providerStats.memoryUsage;
+        }
+      }
+      
+      return aggregate;
+    } catch (error) {
+      handleCacheError(error, { operation: 'getAggregatedStats' });
+      
+      // Return basic stats on error
+      return {
+        hits: 0,
+        misses: 0,
+        keyCount: 0,
+        lastUpdated: Date.now(),
+        error: error instanceof Error ? error.message : String(error)
+      };
+    }
+  }
+  
+  /**
+   * Get hit rate
+   * 
+   * @returns Hit rate (0-1)
+   */
+  async getHitRate(): Promise<number> {
+    try {
+      const stats = await this.getAggregatedStats();
+      const total = stats.hits + stats.misses;
+      
+      return total > 0 ? stats.hits / total : 0;
+    } catch (error) {
+      handleCacheError(error, { operation: 'getHitRate' });
+      return 0;
+    }
+  }
+  
+  /**
+   * Get statistics for a specific provider
+   * 
+   * @param providerName - Provider name
+   * @returns Provider statistics
+   */
+  async getProviderStats(providerName: string): Promise<CacheStats | null> {
+    try {
+      const stats = await this.collectStats();
+      return stats[providerName] || null;
+    } catch (error) {
+      handleCacheError(error, { operation: 'getProviderStats', provider: providerName });
+      return null;
+    }
   }
 }

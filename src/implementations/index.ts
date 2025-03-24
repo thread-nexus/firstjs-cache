@@ -1,28 +1,30 @@
 /**
- * index.ts
- * 
- * Main export file for the cache manager implementation
+ * Re-export all implementations
  */
-import { ICacheConfig } from '../interfaces/i-cache-config';
-import { CacheManager } from './cache-manager';
-import { CacheManagerAdvanced } from './cache-manager-advanced';
-import { CacheManagerCore } from './cache-manager-core';
-import { CacheManagerStats } from './cache-manager-stats';
 
-// Export the main classes
-export { 
+import { CacheManager } from './cache-manager';
+import { CacheManagerCore } from './cache-manager-core';
+import { CacheMetadata } from './cache-metadata';
+import { CacheManagerStats } from './cache-manager-stats';
+import { CacheConfig } from '../interfaces/i-cache-config';
+
+// Export all implementations
+export {
   CacheManager,
-  CacheManagerAdvanced,
   CacheManagerCore,
-  CacheManagerStats
+  CacheMetadata,
+  CacheManagerStats,
 };
 
-// Helper function to create a cache manager instance
-export function createCacheManager(config: ICacheConfig): CacheManager {
+// Create a new cache manager
+export function createCacheManager(config: CacheConfig): CacheManager {
   return new CacheManager(config);
 }
 
-// Export a default factory function
-export default function(config: ICacheConfig): CacheManager {
-  return createCacheManager(config);
+// Create a new cache manager core
+export function createCacheManagerCore(config: CacheConfig): CacheManagerCore {
+  return new CacheManagerCore(config);
 }
+
+// Export default cache manager
+export default CacheManager;
