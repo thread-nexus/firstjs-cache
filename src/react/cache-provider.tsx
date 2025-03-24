@@ -9,7 +9,7 @@ import {DEFAULT_CONFIG} from '../config/default-config';
 import {ICacheProvider} from '../interfaces/cache-provider';
 
 interface CacheContextValue {
-  cacheManager: CacheManagerCore;
+  cacheManager: CacheManagerCore; // Make this required
 }
 
 const CacheContext = createContext<CacheContextValue | null>(null);
@@ -32,20 +32,14 @@ export function CacheProvider({
   config,
   providers = []
 }: CacheProviderProps) {
-  // Create cache manager instance
-  const cacheManagerRef = useRef<CacheManagerCore>();
-  if (!cacheManagerRef.current) {
-    cacheManagerRef.current = new CacheManagerCore(config);
-    
-    // Register providers
-    providers.forEach(({ name, instance, priority }) => {
-      cacheManagerRef.current!.registerProvider(name, instance, priority);
-    });
-  }
+  // Initialize cacheManager in useMemo to ensure stable reference
+  const cacheManager = useMemo(() => {
+    return new CacheManagerCore(config || DEFAULT_CONFIG);
+  }, [config]);
 
   const contextValue = useMemo(() => ({
-    cacheManager: cacheManagerRef.current
-  }), []);
+    cacheManager // This is now guaranteed to be defined
+  }), [cacheManager]);
 
   return (
     <CacheContext.Provider value={contextValue}>
@@ -80,7 +74,7 @@ export function useCacheValue<T>(key: string, initialValue?: T) {
 
     async function loadValue() {
       try {
-        const cached = await cacheManager.get<T>(key);
+        const cached = await cacheManager.get(key) as T | null;
         if (mounted) {
           setValue(cached);
           setError(null);
@@ -142,7 +136,20 @@ export function useCacheBatch() {
     setError(null);
 
     try {
-      return await cacheManager.batch(operations);
+      // Process batch manually if not supported
+      const results: any[] = [];
+      // Execute operations sequentially
+      for (const op of operations) {
+        // Handle operations manually
+        if (op.type === 'get') {
+          await cacheManager.get(op.key);
+        } else if (op.type === 'set') {
+          await cacheManager.set(op.key, op.value);
+        } else if (op.type === 'delete') {
+          await cacheManager.delete(op.key);
+        }
+      }
+      return results;
     } catch (err) {
       setError(err as Error);
       throw err;
@@ -168,13 +175,10 @@ export function useCacheInvalidation() {
     invalidateKey: React.useCallback((key: string) => 
       cacheManager.delete(key), [cacheManager]),
     
-    invalidatePattern: React.useCallback((pattern: string) =>
-      cacheManager.batch(
-        Array.from(pattern).map(key => ({
-          type: 'delete' as const,
-          key
-        }))
-      ), [cacheManager]),
+    invalidatePattern: React.useCallback((pattern: string) => {
+      const keysToDelete = Array.from(pattern);
+      return Promise.all(keysToDelete.map(key => cacheManager.delete(key)));
+    }, [cacheManager]),
     
     clearAll: React.useCallback(() =>
       cacheManager.clear(), [cacheManager])

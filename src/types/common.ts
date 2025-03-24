@@ -1,55 +1,303 @@
-/**
- * @fileoverview Common types used throughout the cache module
- */
+import { CacheOperationContext as BaseOperationContext } from '../utils/validation-utils';
 
 /**
- * Cache options for storing values
+ * Cache metrics for performance monitoring
+ */
+export interface CacheMetrics {
+  /**
+   * Total number of operations
+   */
+  operations: number;
+
+  /**
+   * Average operation latency in milliseconds
+   */
+  averageLatency: number;
+  /**
+   * Maximum operation latency in milliseconds
+   */
+  maxLatency: number;
+  /**
+   * Error rate (0-1)
+   */
+  errorRate: number;
+  /**
+   * Hit rate (0-1)
+   */
+  hitRate: number;
+  /**
+   * Throughput in operations per second
+   */
+  throughput: number;
+  /**
+   * Memory usage in bytes
+   */
+  memoryUsage: number;
+}
+/**
+ * Security options for cache
+ */
+export interface SecurityOptions {
+  /**
+   * Enable encryption for sensitive data
+   */
+  encryption: boolean;
+  /**
+   * Encryption key or key identifier
+   */
+  encryptionKey?: string;
+  /**
+   * Enable data signing
+   */
+  signing: boolean;
+  /**
+   * Signing key or key identifier
+   */
+  signingKey?: string;
+  /**
+   * Access control list
+   */
+  acl?: {
+    /**
+     * Allowed operations
+     */
+    allowedOperations: string[];
+    /**
+     * Restricted keys pattern
+     */
+    restrictedKeys?: string[];
+  };
+}
+/**
+ * Latency statistics
+ */
+export interface LatencyStats {
+  /**
+   * Average latency
+   */
+  avg: number;
+  /**
+   * Minimum latency
+   */
+  min: number;
+  /**
+   * Maximum latency
+   */
+  max: number;
+  /**
+   * Count of measurements
+   */
+  count: number;
+}
+/**
+ * Monitoring configuration
+ */
+export interface MonitoringConfig {
+  /**
+   * Enable performance monitoring
+   */
+  enabled: boolean;
+  /**
+   * Sampling rate (0-1)
+   */
+  samplingRate: number;
+  /**
+   * Metrics collection interval in milliseconds
+   */
+  interval: number;
+  /**
+   * Maximum number of events to keep in history
+   */
+  historySize: number;
+  /**
+   * Metrics to collect
+   */
+  metrics: string[];
+  /**
+   * Alert thresholds
+   */
+  alertThresholds: {
+    /**
+     * Latency threshold in milliseconds
+     */
+    latency: number;
+    /**
+     * Error rate threshold (0-100)
+     */
+    errorRate: number;
+    /**
+     * CPU usage threshold (percentage)
+     */
+    cpuUsage?: number;
+    /**
+     * Memory usage threshold (bytes)
+     */
+    memoryUsage?: number;
+    /**
+     * Maximum allowed connections
+     */
+    connections?: number;
+  };
+  /**
+   * Resource monitoring options
+   */
+  resourceMonitoring?: {
+    /**
+     * Enable CPU monitoring
+     */
+    cpu: boolean;
+    /**
+     * Enable memory monitoring
+     */
+    memory: boolean;
+    /**
+     * Enable network monitoring
+     */
+    network: boolean;
+  };
+}
+
+/**
+ * Resource usage metrics
+ */
+export interface ResourceUsage {
+  /**
+   * Memory usage in bytes
+   */
+  memory: number;
+  /**
+   * CPU usage percentage (0-100)
+   */
+  cpu: number;
+  /**
+   * Active connection count
+   */
+  connections: number;
+  /**
+   * Network bandwidth usage in bytes/sec
+   */
+  network?: number;
+  /**
+   * Disk I/O usage in bytes/sec
+   */
+  disk?: number;
+}
+
+/**
+ * Health metrics with resource usage information
+ */
+export interface HealthMetrics {
+  /**
+   * Overall health status
+   */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  /**
+   * Error rate percentage (0-100)
+   */
+  errorRate: number;
+  /**
+   * Average latency in milliseconds
+   */
+  latency: number;
+  /**
+   * Resource utilization percentage (0-100)
+   */
+  utilization: number;
+  /**
+   * Detailed resource usage metrics
+   */
+  resourceUsage?: ResourceUsage;
+}
+
+/**
+ * Performance metrics
+ */
+export interface PerformanceMetrics {
+  hits: number;
+  misses: number;
+  error?: boolean;
+  size?: number;
+  duration?: number;
+  latency: LatencyStats;
+  memoryUsage: number; // Make this non-optional
+  success: boolean;
+  timestamp: number;
+  operationCount?: number;
+  errorCount?: number;
+  cpuUsage?: number;
+  networkTransfer?: number;
+}
+
+export interface CacheErrorInfo {
+  code: string;
+  message: string;
+  operation?: string;
+  key?: string;
+}
+
+/**
+ * Cache options
  */
 export interface CacheOptions {
   /**
-   * Time to live in seconds
+   * Time-to-live in seconds
    */
   ttl?: number;
-  
   /**
-   * Tags for categorizing and invalidating cache entries
+   * Tags associated with the cache entry
    */
   tags?: string[];
-  
   /**
-   * Whether to enable compression for this entry
+   * Enable compression
    */
   compression?: boolean;
-  
   /**
-   * Size threshold in bytes for applying compression
+   * Compression threshold in bytes
    */
   compressionThreshold?: number;
-  
   /**
-   * Whether to enable background refresh for this entry
+   * Enable background refresh
    */
-  backgroundRefresh?: boolean;
-  
+  background?: boolean;
   /**
-   * Percentage of TTL elapsed before triggering background refresh (0-1)
+   * Maximum size in bytes
+   */
+  maxSize?: number;
+  /**
+   * Maximum number of items
+   */
+  maxItems?: number;
+  /**
+   * Compression level (0-9)
+   */
+  compressionLevel?: number;
+  /**
+   * Refresh threshold (0-1)
    */
   refreshThreshold?: number;
-  
   /**
-   * Custom serialization function
+   * Stats collection interval in milliseconds
    */
-  serialize?: (value: any) => string;
-  
+  statsInterval?: number;
   /**
-   * Custom deserialization function
+   * Providers to use
    */
-  deserialize?: (serialized: string) => any;
-  
+  providers?: string[];
   /**
-   * Additional provider-specific options
+   * Default provider
    */
-  [key: string]: any;
+  defaultProvider?: string;
+  /**
+   * Enable background refresh
+   */
+  backgroundRefresh?: boolean;
+  /**
+   * Operation name
+   */
+  operation?: string;
+  computeTime?: number;
+  maxRetries?: number;
+  compressed?: boolean;
 }
 
 /**
@@ -57,152 +305,325 @@ export interface CacheOptions {
  */
 export interface CacheStats {
   /**
-   * Number of cache hits
+   * Total number of cache hits
    */
   hits: number;
-  
   /**
-   * Number of cache misses
+   * Total number of cache misses
    */
   misses: number;
-  
   /**
-   * Number of cache entries
+   * Total size of cache entries in bytes
    */
   size: number;
-  
   /**
-   * Average hit ratio (hits / (hits + misses))
+   * Memory usage in bytes
    */
-  hitRatio: number;
-  
+  memoryUsage: number; // Make this non-optional to solve the inconsistency
   /**
-   * Total memory usage in bytes
+   * Last updated timestamp
    */
-  memoryUsage: number;
-  
+  lastUpdated: number;
   /**
-   * Provider-specific statistics
+   * Total number of cache entries
    */
-  providers: Record<string, any>;
-  
+  keyCount: number;
   /**
-   * Timestamp when stats were collected
+   * Cache hit ratio
    */
-  timestamp: number;
+  hitRatio?: number;
+  /**
+   * Total number of cache entries
+   */
+  entries: number;
+  /**
+   * Average time-to-live for cache entries in seconds
+   */
+  avgTtl: number;
+  /**
+   * Maximum time-to-live for cache entries in seconds
+   */
+  maxTtl: number;
+  /**
+   * Timestamp
+   */
+  timestamp?: number;
+  /**
+   * Error count
+   */
+  errors?: number;
 }
 
 /**
- * Cache compute result
+ * Entry metadata
  */
-export interface CacheComputeResult<T> {
+export interface EntryMetadata {
   /**
-   * Computed value
+   * Tags associated with the entry
    */
-  value: T;
-  
+  tags: string[];
   /**
-   * Whether the value was from cache
+   * Creation timestamp
    */
-  fromCache: boolean;
-  
-  /**
-   * Whether the value is stale
-   */
-  isStale?: boolean;
-  
-  /**
-   * Time taken to compute in milliseconds
-   */
-  computeTime?: number;
-  
-  /**
-   * Metadata about the cache entry
-   */
-  metadata?: Record<string, any>;
-}
-
-/**
- * Cache operation result
- */
-export interface CacheOperationResult {
-  /**
-   * Whether the operation was successful
-   */
-  success: boolean;
-  
-  /**
-   * Error message if operation failed
-   */
-  error?: string;
-  
-  /**
-   * Time taken to complete operation in milliseconds
-   */
-  duration: number;
-  
-  /**
-   * Additional result data
-   */
-  data?: any;
-}
-
-/**
- * Cache event handler
- */
-export type CacheEventHandler = (event: string, payload: Record<string, any>) => void;
-
-/**
- * Cache key generation function
- */
-export type CacheKeyGenerator = (...args: any[]) => string;
-
-/**
- * Cache value fetcher function
- */
-export type CacheValueFetcher<T> = () => Promise<T>;
-
-/**
- * Cache entry
- */
-export interface CacheEntry<T> {
-  /**
-   * Cached value
-   */
-  value: T;
-  
+  createdAt: number;
   /**
    * Expiration timestamp
    */
   expiresAt?: number;
-  
-  /**
-   * When the entry was created
-   */
-  createdAt: number;
-  
-  /**
-   * When the entry was last accessed
-   */
-  accessedAt?: number;
-  
   /**
    * Size of the entry in bytes
    */
-  size?: number;
-  
-  /**
-   * Associated tags
-   */
-  tags?: string[];
-  
+  size: number;
   /**
    * Whether the entry is compressed
    */
   compressed?: boolean;
+  /**
+   * Last accessed timestamp
+   */
+  lastAccessed: number;
+  /**
+   * Last updated timestamp
+   */
+  updatedAt?: number;
+  /**
+   * Access count
+   */
+  accessCount: number;
+  /** Compute time in ms */
+  computeTime?: number;
+}
+
+/**
+ * Cache operation context
+ */
+export type CacheOperationContext = BaseOperationContext;
+
+/**
+ * Cache key generator type
+ */
+export type CacheKeyGenerator<P extends any[] = any[]> = 
+  (...args: P) => string;
+
+/**
+ * Cache function wrapper type
+ */
+export type CacheFunctionWrapper<T extends (...args: any[]) => Promise<any>> = 
+  T & { 
+    invalidateCache: (...args: Parameters<T>) => Promise<void> 
+  };
+
+/**
+ * Cache provider type
+ */
+export type CacheProvider = {
+  name: string;
+  priority: number;
+  status: 'active' | 'inactive';
+  errorCount: number;
+};
+
+/**
+ * Use cache query options type
+ */
+export type UseCacheQueryOptions<T> = CacheOptions & {
+  backgroundRefresh?: boolean;
+  staleWhileRevalidate?: boolean;
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+};
+
+export interface CompressionOptions {
+  algorithm: CompressionAlgorithm;
+  threshold?: number;
+  level?: number;
+}
+
+export type CompressionAlgorithm = 'gzip' | 'deflate' | 'brotli' | 'none';
+
+/**
+ * Health status information for a cache provider or component
+ */
+export interface HealthStatus {
+  /** Status string */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  /** Boolean indicating if the component is healthy */
+  healthy: boolean;
+  /** Optional timestamp of health check */
+  timestamp?: number;
+  /** Optional details about health status */
+  details?: Record<string, any>;
+  /** Optional error information */
+  error?: string;
+}
+
+/**
+ * Compression result
+ */
+export interface CompressionResult {
+  /**
+   * Compressed data
+   */
+  data: Buffer;
+  /**
+   * Whether the data is compressed
+   */
+  compressed: boolean;
+  /**
+   * Compression algorithm
+   */
+  algorithm?: CompressionAlgorithm;
+  /**
+   * Compressed size in bytes
+   */
+  size?: number;
+  /**
+   * Original size in bytes - add this property
+   */
+  originalSize?: number;
+  /**
+   * Compression ratio - add this property
+   */
+  compressionRatio?: number;
+}
+
+export interface RateLimitConfig {
+  maxRequests: number;
+  window: number; // Time window in milliseconds
+  operation?: string;
+}
+
+/**
+ * Cache event payload
+ */
+export interface CacheEventPayload {
+  /**
+   * Event type
+   */
+  type: string;
   
   /**
-   * Additional metadata
+   * Event timestamp
    */
-  metadata?: Record<string, any>;
+  timestamp: number;
+  
+  /**
+   * Cache key
+   */
+  key?: string;
+  
+  /**
+   * Operation duration in milliseconds
+   */
+  duration?: number;
+  
+  /**
+   * Data size in bytes
+   */
+  size?: number;
+  
+  /**
+   * Error if any
+   */
+  error?: Error;
+
+  /**
+   * Provider name
+   */
+  provider?: string;
+  
+  /**
+   * Whether the operation was successful
+   */
+  success?: boolean;
+  
+  /**
+   * Value (for debugging)
+   */
+  value?: any;
+  
+  /**
+   * Tags associated with the cache entry
+   */
+  tags?: string[];
+  
+  /**
+   * TTL in seconds
+   */
+  ttl?: number;
+  
+  /**
+   * Reason for eviction/operation
+   */
+  reason?: string;
+  
+  /**
+   * Host information for remote providers
+   */
+  host?: string;
+  
+  /**
+   * Age of entry in milliseconds
+   */
+  age?: number;
+  
+  /**
+   * Number of keys cleared
+   */
+  clearedKeys?: number;
+  
+  /**
+   * Number of fields updated
+   */
+  fieldsUpdated?: string[];
+  
+  /**
+   * Number of items appended
+   */
+  itemsAppended?: number;
+  
+  /**
+   * Number of items removed
+   */
+  itemsRemoved?: number;
+  
+  /**
+   * Increment value
+   */
+  increment?: number;
+  
+  /**
+   * Set operation flag
+   */
+  set?: boolean;
+  
+  /**
+   * Result size
+   */
+  resultSize?: number;
+  
+  /**
+   * Query count
+   */
+  queryCount?: number;
+  
+  /**
+   * Compute time in milliseconds
+   */
+  computeTime?: number;
+  
+  /**
+   * Compute status
+   */
+  computeStatus?: string;
+  
+  /**
+   * Number of keys invalidated
+   */
+  keysInvalidated?: number;
+  
+  /**
+   * Additional properties
+   */
+  [key: string]: any;
 }

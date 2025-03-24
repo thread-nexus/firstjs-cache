@@ -1,6 +1,6 @@
 "use strict";
+/**
+ * @fileoverview Interface for storage adapters
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.StorageAdapterConfig = void 0;
-class StorageAdapterConfig {
-}
-exports.StorageAdapterConfig = StorageAdapterConfig;
+//# sourceMappingURL=storage-adapter.js.map

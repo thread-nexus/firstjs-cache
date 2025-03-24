@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeWithDeduplication = executeWithDeduplication;
 exports.retryOperation = retryOperation;
@@ -25,37 +16,36 @@ const inFlightRequests = new Map();
 /**
  * Execute with deduplication
  */
-function executeWithDeduplication(key, operation) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const existing = inFlightRequests.get(key);
-        if (existing) {
-            return existing;
-        }
-        const promise = operation().finally(() => {
-            inFlightRequests.delete(key);
-        });
-        inFlightRequests.set(key, promise);
-        return promise;
+async function executeWithDeduplication(key, operation) {
+    const existing = inFlightRequests.get(key);
+    if (existing) {
+        return existing;
+    }
+    const promise = operation().finally(() => {
+        inFlightRequests.delete(key);
     });
+    inFlightRequests.set(key, promise);
+    return promise;
 }
 /**
  * Retry operation with backoff
  */
-function retryOperation(operation_1) {
-    return __awaiter(this, arguments, void 0, function* (operation, maxRetries = 3, baseDelay = 1000) {
-        let lastError;
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                return yield operation();
-            }
-            catch (error) {
-                lastError = error;
-                const delay = baseDelay * Math.pow(2, attempt);
-                yield new Promise(resolve => setTimeout(resolve, delay));
-            }
+async function retryOperation(operation, maxRetries = 3, baseDelay = 1000) {
+    let lastError;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            return await operation();
         }
-        throw lastError;
-    });
+        catch (error) {
+            // Convert unknown error to Error type
+            const normalizedError = error instanceof Error ? error : new Error(String(error));
+            // Update error fields
+            lastError = normalizedError;
+            const delay = baseDelay * Math.pow(2, attempt);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+    throw lastError;
 }
 /**
  * Check if value should be refreshed
@@ -68,19 +58,35 @@ function shouldRefresh(timestamp, ttl, refreshThreshold) {
 /**
  * Background refresh handler
  */
-function handleBackgroundRefresh(key, provider, compute, options) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_START, { key });
-            const value = yield compute();
-            yield provider.set(key, value, options);
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_SUCCESS, { key });
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_ERROR, { key, error });
-            throw error;
-        }
-    });
+async function handleBackgroundRefresh(key, provider, compute, options) {
+    try {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_START, {
+            key,
+            type: 'refresh:start', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+        // Compute new value
+        const value = await compute();
+        await provider.set(key, value, options);
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_SUCCESS, {
+            key,
+            type: 'refresh:success', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+    }
+    catch (error) {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_ERROR, {
+            key,
+            error: error instanceof Error ? error : new Error(String(error)),
+            type: 'refresh:error', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+        // Log error but don't throw since this is background
+        console.error(`Background refresh failed for key ${key}:`, error);
+    }
 }
 /**
  * Generate cache key from function arguments
@@ -92,45 +98,46 @@ function generateCacheKey(prefix, args) {
 /**
  * Batch operations helper
  */
-function batchOperations(items_1, operation_1) {
-    return __awaiter(this, arguments, void 0, function* (items, operation, batchSize = 10) {
-        for (let i = 0; i < items.length; i += batchSize) {
-            const batch = items.slice(i, i + batchSize);
-            yield Promise.all(batch.map(operation));
-        }
-    });
+async function batchOperations(items, operation, batchSize = 10) {
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        await Promise.all(batch.map(operation));
+    }
 }
 /**
  * Safe delete operation
  */
-function safeDelete(key, provider) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            return yield provider.delete(key);
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-                key,
-                error,
-                message: 'Failed to delete cache entry'
-            });
-            return false;
-        }
-    });
+async function safeDelete(key, provider) {
+    try {
+        return await provider.delete(key);
+    }
+    catch (error) {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
+            key,
+            error: error instanceof Error ? error : new Error(String(error)),
+            message: 'Failed to delete cache entry',
+            type: cache_events_1.CacheEventType.ERROR.toString(),
+            timestamp: Date.now()
+        });
+        return false;
+    }
 }
 /**
  * Safe clear operation
  */
-function safeClear(provider) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            yield provider.clear();
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-                error,
-                message: 'Failed to clear cache'
-            });
-        }
-    });
+async function safeClear(provider) {
+    try {
+        await provider.clear();
+    }
+    catch (error) {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
+            error: error instanceof Error ? error : new Error(String(error)),
+            message: 'Failed to clear cache',
+            type: cache_events_1.CacheEventType.ERROR.toString(),
+            timestamp: Date.now()
+        });
+    }
 }
+//# sourceMappingURL=cache-operations.js.map

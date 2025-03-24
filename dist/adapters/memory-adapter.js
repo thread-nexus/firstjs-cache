@@ -2,190 +2,182 @@
 /**
  * @fileoverview In-memory storage adapter implementation with LRU caching
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MemoryStorageAdapter = exports.MemoryAdapter = void 0;
+exports.MemoryAdapter = exports.MemoryStorageAdapter = void 0;
 const cache_events_1 = require("../events/cache-events");
-class MemoryAdapter {
-    constructor(config = {}) {
-        this.store = new Map();
-        this.currentSize = 0;
-        this.maxSize = config.maxSize || 100 * 1024 * 1024; // 100MB default
-        this.prefix = config.prefix || '';
+const compression_utils_1 = require("../utils/compression-utils");
+/**
+ * In-memory storage adapter using LRU cache
+ */
+class MemoryStorageAdapter {
+    constructor(config) {
+        this.name = 'memory';
+        this.storage = new Map();
+        this.metadata = new Map();
+        this.config = config || {};
     }
-    /**
-     * Get value from memory
-     */
-    get(key) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const prefixedKey = this.getKeyWithPrefix(key);
-            const entry = this.store.get(prefixedKey);
-            if (!entry) {
+    emit(event, payload) {
+        (0, cache_events_1.emitCacheEvent)(event, {
+            provider: 'memory',
+            ...payload
+        });
+    }
+    async get(key) {
+        const value = this.storage.get(key);
+        if (!value) {
+            this.emit(cache_events_1.CacheEventType.GET_MISS, { key });
+            return null;
+        }
+        this.emit(cache_events_1.CacheEventType.GET_HIT, { key });
+        if (value.compressed) {
+            try {
+                const decompressed = await (0, compression_utils_1.decompressData)(value.data, value.algorithm);
+                return decompressed;
+            }
+            catch (e) {
                 return null;
             }
-            // Check expiration
-            if (entry.expiresAt && Date.now() > entry.expiresAt) {
-                this.store.delete(prefixedKey);
-                this.currentSize -= entry.size;
-                return null;
-            }
-            // Update last accessed
-            entry.lastAccessed = Date.now();
-            return entry.value;
-        });
+        }
+        return value;
     }
-    /**
-     * Set value in memory
-     */
-    set(key, value, ttl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const prefixedKey = this.getKeyWithPrefix(key);
-            const size = this.getSize(value);
-            // Ensure enough space
-            while (this.currentSize + size > this.maxSize && this.store.size > 0) {
-                this.evictLRU();
+    async set(key, value, options) {
+        let processedValue = value;
+        let size = 0;
+        if (this.config.compression) {
+            try {
+                const serialized = JSON.stringify(value);
+                const compressedData = await (0, compression_utils_1.compressData)(Buffer.from(serialized));
+                if (compressedData.compressed) {
+                    size = compressedData.data.length;
+                    processedValue = {
+                        data: compressedData.data,
+                        algorithm: compressedData.algorithm,
+                        compressed: true
+                    };
+                }
             }
-            const entry = {
-                value,
-                size,
-                lastAccessed: Date.now(),
-                expiresAt: ttl ? Date.now() + (ttl * 1000) : undefined
-            };
-            // Update size tracking
-            if (this.store.has(prefixedKey)) {
-                this.currentSize -= this.store.get(prefixedKey).size;
+            catch (e) {
+                // If compression fails, use the original value
+                processedValue = value;
             }
-            this.currentSize += size;
-            this.store.set(prefixedKey, entry);
-        });
+        }
+        const metadata = {
+            tags: [],
+            createdAt: Date.now(),
+            size: size || this.calculateSize(value),
+            lastAccessed: Date.now(),
+            accessCount: 0,
+            compressed: !!this.config.compression
+        };
+        if (options?.ttl) {
+            metadata.expiresAt = Date.now() + (options.ttl * 1000);
+        }
+        this.storage.set(key, processedValue);
+        this.metadata.set(key, metadata);
+        this.emit(cache_events_1.CacheEventType.SET, { key, size: metadata.size });
     }
-    /**
-     * Check if key exists
-     */
-    has(key) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const prefixedKey = this.getKeyWithPrefix(key);
-            const entry = this.store.get(prefixedKey);
-            if (!entry) {
-                return false;
-            }
-            if (entry.expiresAt && Date.now() > entry.expiresAt) {
-                this.store.delete(prefixedKey);
-                this.currentSize -= entry.size;
-                return false;
-            }
-            return true;
-        });
+    calculateSize(value) {
+        if (value === null || value === undefined) {
+            return 8;
+        }
+        if (typeof value === 'string') {
+            return Buffer.byteLength(value, 'utf8');
+        }
+        try {
+            const serialized = JSON.stringify(value);
+            return Buffer.byteLength(serialized, 'utf8');
+        }
+        catch (e) {
+            return 100; // Default size
+        }
     }
-    /**
-     * Delete value from memory
-     */
-    delete(key) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const prefixedKey = this.getKeyWithPrefix(key);
-            const entry = this.store.get(prefixedKey);
-            if (entry) {
-                this.store.delete(prefixedKey);
-                this.currentSize -= entry.size;
-                return true;
-            }
+    async getMetadata(key) {
+        return this.metadata.get(key) || null;
+    }
+    async setMetadata(key, metadata) {
+        const existing = await this.getMetadata(key);
+        if (existing) {
+            this.metadata.set(key, { ...existing, ...metadata });
+        }
+    }
+    async getMany(keys) {
+        const result = {};
+        for (const key of keys) {
+            result[key] = await this.get(key);
+        }
+        return result;
+    }
+    async setMany(entries, options) {
+        for (const [key, value] of Object.entries(entries)) {
+            await this.set(key, value, options);
+        }
+    }
+    async delete(key) {
+        const exists = this.storage.has(key);
+        if (exists) {
+            this.storage.delete(key);
+            this.metadata.delete(key);
+            this.emit(cache_events_1.CacheEventType.DELETE, { key });
+        }
+        return exists;
+    }
+    async clear() {
+        this.storage.clear();
+        this.metadata.clear();
+        this.emit(cache_events_1.CacheEventType.CLEAR, {});
+    }
+    async has(key) {
+        const meta = this.metadata.get(key);
+        const exists = this.storage.has(key);
+        // Check if expired
+        if (exists && meta?.expiresAt && Date.now() > meta.expiresAt) {
+            await this.delete(key);
             return false;
-        });
+        }
+        return exists;
     }
-    /**
-     * Clear all values
-     */
-    clear() {
-        return __awaiter(this, void 0, void 0, function* () {
-            this.store.clear();
-            this.currentSize = 0;
-        });
+    async keys(pattern) {
+        const allKeys = Array.from(this.storage.keys());
+        if (!pattern) {
+            return allKeys;
+        }
+        const regex = new RegExp(pattern.replace('*', '.*'));
+        return allKeys.filter(key => regex.test(key));
     }
-    /**
-     * Get matching keys
-     */
-    keys(pattern) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const keys = Array.from(this.store.keys());
-            if (!pattern) {
-                return keys.map(key => this.removePrefix(key));
-            }
-            const regex = new RegExp(pattern.replace('*', '.*'));
-            return keys
-                .filter(key => regex.test(this.removePrefix(key)))
-                .map(key => this.removePrefix(key));
-        });
-    }
-    /**
-     * Get multiple values
-     */
-    getMany(keys) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const result = {};
-            for (const key of keys) {
-                result[key] = yield this.get(key);
-            }
-            return result;
-        });
-    }
-    /**
-     * Set multiple values
-     */
-    setMany(entries, ttl) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const [key, value] of Object.entries(entries)) {
-                yield this.set(key, value, ttl);
-            }
-        });
-    }
-    /**
-     * Get storage stats
-     */
-    getStats() {
+    async getStats() {
+        let totalSize = 0;
+        for (const meta of this.metadata.values()) {
+            totalSize += meta.size;
+        }
         return {
-            size: this.currentSize,
-            count: this.store.size,
-            maxSize: this.maxSize
+            size: this.storage.size,
+            memoryUsage: process.memoryUsage().heapUsed,
+            keys: await this.keys(),
+            totalSize
         };
     }
-    getKeyWithPrefix(key) {
-        return this.prefix ? `${this.prefix}:${key}` : key;
-    }
-    removePrefix(key) {
-        return this.prefix ? key.slice(this.prefix.length + 1) : key;
-    }
-    getSize(value) {
-        return Buffer.byteLength(value, 'utf8');
-    }
-    evictLRU() {
-        let oldestKey = null;
-        let oldestAccess = Infinity;
-        for (const [key, entry] of this.store.entries()) {
-            if (entry.lastAccessed < oldestAccess) {
-                oldestAccess = entry.lastAccessed;
-                oldestKey = key;
-            }
+    async healthCheck() {
+        try {
+            // Get current stats for the health check
+            const statsData = await this.getStats();
+            return {
+                status: 'healthy',
+                healthy: true, // Add the required healthy property
+                details: {
+                    size: typeof statsData === 'object' ? statsData.size || 0 : 0,
+                    memoryUsage: typeof statsData === 'object' ? statsData.memoryUsage || 0 : 0
+                }
+            };
         }
-        if (oldestKey) {
-            const entry = this.store.get(oldestKey);
-            this.store.delete(oldestKey);
-            this.currentSize -= entry.size;
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.EXPIRE, {
-                key: this.removePrefix(oldestKey),
-                reason: 'lru'
-            });
+        catch (error) {
+            return {
+                status: 'unhealthy',
+                healthy: false,
+                error: error instanceof Error ? error.message : String(error)
+            };
         }
     }
-}
-exports.MemoryAdapter = MemoryAdapter;
-class MemoryStorageAdapter {
 }
 exports.MemoryStorageAdapter = MemoryStorageAdapter;
+exports.MemoryAdapter = MemoryStorageAdapter;
+//# sourceMappingURL=memory-adapter.js.map

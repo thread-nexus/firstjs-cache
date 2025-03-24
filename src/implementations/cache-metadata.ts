@@ -1,10 +1,30 @@
 import { EntryMetadata } from '../types/common';
 
-/**
- * Cache metadata manager
- */
-export class CacheMetadata {
-  private metadata: Map<string, EntryMetadata> = new Map();
+export class CacheMetadataManager {
+  private metadata = new Map<string, EntryMetadata>();
+
+  set(key: string, data: Partial<EntryMetadata>): void {
+    const now = Date.now();
+    const existing = this.metadata.get(key);
+    
+    const entry: EntryMetadata = {
+      tags: data.tags || existing?.tags || [],
+      createdAt: existing?.createdAt || now,
+      lastAccessed: now,
+      updatedAt: now,
+      accessCount: existing?.accessCount || 0,
+      size: data.size || existing?.size || 0,
+      compressed: data.compressed || existing?.compressed,
+      computeTime: data.computeTime,
+      expiresAt: data.expiresAt,
+    };
+
+    this.metadata.set(key, entry);
+  }
+
+  get(key: string): EntryMetadata | undefined {
+    return this.metadata.get(key);
+  }
 
   /**
    * Clear all metadata
@@ -84,42 +104,6 @@ export class CacheMetadata {
   }
 
   /**
-   * Get metadata for a cache key
-   * 
-   * @param key - The cache key
-   * @returns Metadata for the key or undefined if not found
-   */
-  get(key: string): EntryMetadata | undefined {
-    return this.metadata.get(key);
-  }
-
-  /**
-   * Set metadata for a cache key
-   * 
-   * @param key - The cache key
-   * @param data - Metadata to store
-   */
-  set(key: string, data: Partial<EntryMetadata>): void {
-    const existing = this.metadata.get(key);
-    
-    if (existing) {
-      this.metadata.set(key, {
-        ...existing,
-        ...data,
-        updatedAt: new Date()
-      });
-    } else {
-      this.metadata.set(key, {
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        accessCount: 0,
-        tags: [],
-        ...data
-      });
-    }
-  }
-
-  /**
    * Update access count for a key
    * 
    * @param key - The cache key
@@ -129,7 +113,7 @@ export class CacheMetadata {
     
     if (metadata) {
       metadata.accessCount += 1;
-      metadata.updatedAt = new Date();
+      metadata.updatedAt = Date.now();
     }
   }
 

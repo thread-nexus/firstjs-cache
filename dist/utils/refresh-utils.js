@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.scheduleRefresh = scheduleRefresh;
 exports.cancelRefresh = cancelRefresh;
@@ -72,39 +63,48 @@ function scheduleRefresh(key, fn, options) {
 /**
  * Execute background refresh for a task
  */
-function executeRefresh(task) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_START, { key: task.key });
-            const value = yield task.fn();
-            yield cacheCore.setCacheValue(task.key, value, task.options);
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_SUCCESS, { key: task.key });
-            // Schedule next refresh
-            scheduleRefresh(task.key, task.fn, task.options);
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_ERROR, {
-                key: task.key,
-                error: error
-            });
-        }
-    });
+async function executeRefresh(task) {
+    try {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_START, {
+            key: task.key,
+            type: 'refresh:start', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+        const value = await task.fn();
+        await cacheCore.setCacheValue(task.key, value, task.options);
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_SUCCESS, {
+            key: task.key,
+            type: 'refresh:success', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+        // Schedule next refresh
+        scheduleRefresh(task.key, task.fn, task.options);
+    }
+    catch (error) {
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.REFRESH_ERROR, {
+            key: task.key,
+            error: error,
+            type: 'refresh:error', // Use string literal since enum may not have this value
+            timestamp: Date.now()
+        });
+    }
 }
 /**
  * Process all pending refresh tasks
  */
-function processRefreshTasks() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const now = Date.now();
-        for (const [key, task] of refreshTasks.entries()) {
-            if (task.nextRefresh <= now) {
-                refreshTasks.delete(key);
-                executeRefresh(task).catch(() => {
-                    // Error is already handled in executeRefresh
-                });
-            }
+async function processRefreshTasks() {
+    const now = Date.now();
+    for (const [key, task] of refreshTasks.entries()) {
+        if (task.nextRefresh <= now) {
+            refreshTasks.delete(key);
+            executeRefresh(task).catch(() => {
+                // Error is already handled in executeRefresh
+            });
         }
-    });
+    }
 }
 // Start the background refresh processor
 const REFRESH_INTERVAL = 1000; // Check every second
@@ -134,13 +134,11 @@ function needsRefresh(key) {
 /**
  * Force immediate refresh of a cached value
  */
-function forceRefresh(key) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const task = refreshTasks.get(key);
-        if (task) {
-            yield executeRefresh(task);
-        }
-    });
+async function forceRefresh(key) {
+    const task = refreshTasks.get(key);
+    if (task) {
+        await executeRefresh(task);
+    }
 }
 /**
  * Clear all scheduled refresh tasks
@@ -148,3 +146,4 @@ function forceRefresh(key) {
 function clearAllRefreshTasks() {
     refreshTasks.clear();
 }
+//# sourceMappingURL=refresh-utils.js.map

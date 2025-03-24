@@ -198,7 +198,15 @@ export async function batchOperations<T, R>(
       })
     );
     
-    results.push(...batchResults);
+    // Fix type incompatibility with a safe casting or null check
+    if (batchResults) {
+      // Type-safe way to add results
+      for (const item of batchResults) {
+        if (item !== undefined) {
+          results.push(item as R);
+        }
+      }
+    }
   }
   
   return results;

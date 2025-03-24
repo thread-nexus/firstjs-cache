@@ -98,7 +98,8 @@ export class CacheManager {
   async has(key: string): Promise<boolean> {
     try {
       for (const provider of this.providers.values()) {
-        if (await provider.has(key)) {
+        // Safely check if provider.has exists before calling
+        if (provider && typeof provider.has === 'function' && await provider.has(key)) {
           return true;
         }
       }
@@ -257,7 +258,12 @@ export class CacheManager {
    */
   async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
     try {
-      const mergedOptions = mergeCacheOptions(options, this.config.defaultOptions);
+      // Fix defaultOptions access
+      const ttl = this.config.defaultTtl;
+      const mergedOptions: CacheOptions = {
+        ...options,
+        ttl: options?.ttl ?? ttl // Use nullish coalescing to only apply default if undefined
+      };
       
       // Try to use batch set if available on first provider
       const firstProvider = [...this.providers.values()][0];

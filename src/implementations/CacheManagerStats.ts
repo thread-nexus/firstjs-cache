@@ -1,16 +1,49 @@
 /**
- * CacheManagerStats.ts
- * 
- * Implementation of cache statistics and monitoring functionality
+ * @fileoverview Cache manager statistics implementation
  */
-import { CacheStats } from '../interfaces/ICacheConfig';
-import { emitCacheEvent } from '../events/cacheEvents';
-import { CacheManagerAdvanced } from './CacheManagerAdvanced';
+
+import { CacheStats } from '../types/common';
+import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+import { CacheManager } from './cache-manager';
 
 /**
  * Extension of CacheManager with statistics functionality
  */
-export class CacheManagerStats extends CacheManagerAdvanced {
+export class CacheManagerStats extends CacheManager {
+  // Change from private to protected to avoid inheritance conflict
+  protected statsConfig: { 
+    throwOnErrors?: boolean;
+    defaultTtl: number;
+    maxSize: number;
+    maxItems: number;
+    compressionThreshold: number;
+    compressionLevel: number;
+    refreshThreshold: number;
+    backgroundRefresh: boolean;
+    statsInterval: number;
+    providers: string[];
+    defaultProvider: string;
+  } = {
+    throwOnErrors: false,
+    defaultTtl: 3600, // Add reasonable defaults
+    maxSize: 10485760, // 10MB
+    maxItems: 1000,
+    compressionThreshold: 1024,
+    compressionLevel: 6,
+    refreshThreshold: 0.75,
+    backgroundRefresh: true,
+    statsInterval: 60000,
+    providers: ['memory'],
+    defaultProvider: 'memory'
+  };
+
+  protected providerMap: Map<string, any>; // Define providerMap property
+
+  constructor() {
+    super();
+    this.providerMap = new Map();
+  }
+
   /**
    * Get cache statistics from all layers
    * 
@@ -20,12 +53,13 @@ export class CacheManagerStats extends CacheManagerAdvanced {
     try {
       const stats: Record<string, CacheStats> = {};
       
-      // Gather stats from each provider concurrently
-      const statsPromises = Array.from(this.providers.entries()).map(
-        async ([layerName, provider]): Promise<[string, CacheStats]> => {
+      // Gather stats from each provider
+      const providers = Array.from(this.providerMap.entries());
+      const statsPromises = providers.map(
+        async ([layerName, provider]) => {
           try {
             // Check if the provider implements a getStats method
-            if (typeof provider.getStats === 'function') {
+            if (provider && typeof provider.getStats === 'function') {
               const providerStats = await provider.getStats();
               return [layerName, providerStats];
             } else {
@@ -36,7 +70,7 @@ export class CacheManagerStats extends CacheManagerAdvanced {
                 misses: 0,
                 keyCount: 0,
                 memoryUsage: 0,
-                lastUpdated: new Date()
+                lastUpdated: Date.now()
               }];
             }
           } catch (error) {
@@ -48,8 +82,8 @@ export class CacheManagerStats extends CacheManagerAdvanced {
               misses: 0,
               keyCount: 0,
               memoryUsage: 0,
-              lastUpdated: new Date(),
-              error: error.message
+              lastUpdated: Date.now(),
+              error: error instanceof Error ? error.message : String(error)
             }];
           }
         }
@@ -59,19 +93,25 @@ export class CacheManagerStats extends CacheManagerAdvanced {
       const results = await Promise.all(statsPromises);
       
       // Build the stats object from results
-      for (const [layerName, layerStats] of results) {
+      for (const result of results) {
+        const [layerName, layerStats] = result;
         stats[layerName] = layerStats;
       }
       
       // Add aggregate statistics
       stats['aggregate'] = this.calculateAggregateStats(stats);
       
-      emitCacheEvent('stats', { stats });
+      // Add required properties to event payload
+      emitCacheEvent(CacheEventType.STATS_UPDATE, { 
+        stats,
+        type: CacheEventType.STATS_UPDATE.toString(),
+        timestamp: Date.now()
+      });
       return stats;
     } catch (error) {
       this.logError('Error collecting cache statistics', error);
       
-      if (this.config.throwOnErrors) {
+      if (this.statsConfig.throwOnErrors) {
         throw error;
       }
       
@@ -95,18 +135,52 @@ export class CacheManagerStats extends CacheManagerAdvanced {
       hits: 0,
       misses: 0,
       keyCount: 0,
+      entries: 0, // Add this
+      avgTtl: 0,  // Add this
+      maxTtl: 0,  // Add this
       memoryUsage: 0,
-      lastUpdated: new Date()
+      lastUpdated: Date.now()
     };
     
+    // Handle potential undefined memoryUsage safely
     for (const [layerName, stats] of Object.entries(layerStats)) {
       aggregate.size += stats.size || 0;
       aggregate.hits += stats.hits || 0;
       aggregate.misses += stats.misses || 0;
       aggregate.keyCount += stats.keyCount || 0;
-      aggregate.memoryUsage += stats.memoryUsage || 0;
+      
+      // Check if memoryUsage exists before adding
+      if (stats.memoryUsage !== undefined) {
+        aggregate.memoryUsage += stats.memoryUsage;
+      }
     }
     
-    return aggregate;
+    // Calculate hit ratio instead of hitRate
+    const totalOperations = aggregate.hits + aggregate.misses;
+    
+    // Use hitRatio property instead of hitRate
+    return {
+      ...aggregate,
+      hitRatio: totalOperations > 0 ? aggregate.hits / totalOperations : 0
+    };
+  }
+
+  /**
+   * Log an error message
+   * 
+   * @param message - Error message
+   * @param error - Error object
+   * @private
+   */
+  private logError(message: string, error: unknown): void {
+    console.error(message, error);
+    
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.ERROR, {
+      message,
+      error: error instanceof Error ? error : new Error(String(error)),
+      type: CacheEventType.ERROR.toString(),
+      timestamp: Date.now()
+    });
   }
 }

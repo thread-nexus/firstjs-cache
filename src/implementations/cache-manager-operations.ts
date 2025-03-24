@@ -46,8 +46,8 @@ export class CacheManagerOperations {
       
       // If current value is not an object, fail
       if (typeof current !== 'object' || Array.isArray(current)) {
-      return false;
-    }
+        return false;
+      }
       
       // Update fields
       const updated = { ...current, ...fields };
@@ -105,14 +105,14 @@ export class CacheManagerOperations {
         // Store back to cache
         await this.provider.set(key, truncated, options);
         
-      emitCacheEvent(CacheEventType.SET, { 
-        key, 
+        emitCacheEvent(CacheEventType.SET, { 
+          key, 
           operation: 'arrayAppend',
           itemsAppended: items.length,
           truncated: true,
           maxLength
-      });
-      
+        });
+        
         return truncated;
       }
       
@@ -156,7 +156,7 @@ export class CacheManagerOperations {
       // If key doesn't exist or not an array, return empty array
       if (!Array.isArray(current)) {
         return [];
-}
+      }
 
       // Filter out items
       const originalLength = current.length;
@@ -400,9 +400,9 @@ export class CacheManagerOperations {
    */
   async batchGet<T>(keys: string[]): Promise<Record<string, T | null>> {
     try {
-      // Use provider's getMany if available
-      if (typeof (this.provider as any).getMany === 'function') {
-        return await (this.provider as any).getMany<T>(keys);
+      // Safely check and call getMany
+      if (this.provider && typeof this.provider.getMany === 'function') {
+        return await this.provider.getMany<T>(keys) as Record<string, T | null>;
       }
       
       // Fall back to individual gets
@@ -415,8 +415,8 @@ export class CacheManagerOperations {
       return result;
     } catch (error) {
       handleCacheError(error, { 
-        operation: 'batchGet', 
-        keys 
+        operation: 'getMany',
+        key: keys.join(',')
       });
       throw error;
     }
@@ -430,9 +430,9 @@ export class CacheManagerOperations {
    */
   async batchSet<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
     try {
-      // Use provider's setMany if available
-      if (typeof (this.provider as any).setMany === 'function') {
-        await (this.provider as any).setMany<T>(entries, options);
+      // Safely check and call setMany
+      if (this.provider && typeof this.provider.setMany === 'function') {
+        await this.provider.setMany(entries, options);
         return;
       }
       
@@ -442,11 +442,42 @@ export class CacheManagerOperations {
       }
     } catch (error) {
       handleCacheError(error, { 
-        operation: 'batchSet', 
-        keys: Object.keys(entries) 
+        operation: 'setMany',
+        key: Object.keys(entries).join(',')
       });
       throw error;
     }
+  }
+
+  /**
+   * Get multiple values from cache
+   */
+  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
+    if (!this.provider || typeof this.provider.getMany !== 'function') {
+      // Fallback implementation using get
+      const result: Record<string, T | null> = {};
+      for (const key of keys) {
+        result[key] = await this.provider.get<T>(key);
+      }
+      return result;
+    }
+    
+    return await this.provider.getMany<T>(keys);
+  }
+
+  /**
+   * Set multiple values in cache
+   */
+  async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
+    if (!this.provider || typeof this.provider.setMany !== 'function') {
+      // Fallback implementation using set
+      for (const [key, value] of Object.entries(entries)) {
+        await this.provider.set(key, value, options);
+      }
+      return;
+    }
+    
+    await this.provider.setMany(entries, options);
   }
 
   /**

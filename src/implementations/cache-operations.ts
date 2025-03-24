@@ -22,7 +22,7 @@ const inFlightOps = new Map<string, Promise<any>>();
 export class BatchOperationHandler {
   private batch: Map<string, any> = new Map();
   private timer: NodeJS.Timeout | null = null;
-  private maxBatchSize = CACHE_CONSTANTS.DEFAULT_BATCH_SIZE;
+  private maxBatchSize = CACHE_CONSTANTS.MAX_BATCH_SIZE;
   private maxWaitTime = 50; // ms
 
   /**
@@ -116,9 +116,13 @@ export async function setCacheValue(
 
   try {
     // Compress if needed
-    const { value: processedValue, compressed } = await compressIfNeeded(
+    const { data: processedValue, compressed } = await compressIfNeeded(
       JSON.stringify(value),
-      options
+      {
+        threshold: options?.compressionThreshold,
+        algorithm: options?.compression ? 'gzip' : undefined,
+        enabled: options?.compression
+      }
     );
 
     // Add to batch if supported
@@ -186,7 +190,7 @@ export async function getCacheValue<T = any>(
         // Decompress if needed
         const metadata = await provider.getMetadata?.(key);
         const decompressed = metadata?.compressed
-          ? await decompressIfNeeded(value, true)
+          ? await decompressIfNeeded(value, metadata.algorithm || 'gzip')
           : value;
 
         const duration = performance.now() - startTime;

@@ -25,7 +25,7 @@ function deepMerge(target, source) {
         if (Array.isArray(source))
             return [...source];
         if (typeof source === 'object')
-            return Object.assign({}, source);
+            return { ...source };
         return source;
     }
     // Handle arrays - always replace with source array
@@ -37,7 +37,7 @@ function deepMerge(target, source) {
     if (typeof target !== 'object')
         target = {};
     // Create a copy of target to avoid mutation
-    const result = Object.assign({}, target);
+    const result = { ...target };
     // Handle object merging
     for (const key in source) {
         // Skip undefined values
@@ -106,3 +106,4 @@ function safeJsonStringify(value, fallback = '{}') {
         return fallback;
     }
 }
+//# sourceMappingURL=cache-utils.js.map

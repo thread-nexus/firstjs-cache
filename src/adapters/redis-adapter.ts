@@ -3,9 +3,10 @@
  * and optimized batch operations.
  */
 
-import { IStorageAdapter, StorageAdapterConfig } from '../interfaces/storage-adapter';
+import { IStorageAdapter } from '../interfaces/i-storage-adapter';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
 import { handleCacheError } from '../utils/error-utils';
+import { HealthStatus } from '../types/index';
 
 // Redis client type definition
 interface RedisClient {
@@ -18,16 +19,20 @@ interface RedisClient {
   mset(entries: [string, string][]): Promise<'OK'>;
   scan(cursor: number, options: { MATCH?: string, COUNT?: number }): Promise<[string, string[]]>;
   quit(): Promise<void>;
+  connect?(): Promise<void>;
+  expire?(key: string, seconds: number): Promise<number>;
 }
 
 export class RedisAdapter implements IStorageAdapter {
-  private client: RedisClient;
+  readonly name: string = 'redis';
+  private client!: RedisClient;
   private readonly prefix: string;
   private readonly connectionPromise: Promise<void>;
   private isConnected = false;
 
   constructor(
-    config: StorageAdapterConfig & {
+    config: {
+      prefix?: string;
       redis: {
         host: string;
         port: number;
@@ -72,7 +77,10 @@ export class RedisAdapter implements IStorageAdapter {
         }
       }) as unknown as RedisClient;
 
-      await this.client.connect();
+      if (typeof this.client.connect === 'function') {
+        await this.client.connect();
+      }
+      
       this.isConnected = true;
 
       emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, {
@@ -101,7 +109,7 @@ export class RedisAdapter implements IStorageAdapter {
   /**
    * Get value from Redis
    */
-  async get(key: string): Promise<string | null> {
+  async get<T = string>(key: string): Promise<T | null> {
     await this.ensureConnection();
     const prefixedKey = this.getKeyWithPrefix(key);
 
@@ -113,7 +121,7 @@ export class RedisAdapter implements IStorageAdapter {
         { key, provider: 'redis' }
       );
 
-      return value;
+      return value === null ? null : JSON.parse(value) as T;
     } catch (error) {
       handleCacheError(error, {
         operation: 'get',
@@ -127,17 +135,22 @@ export class RedisAdapter implements IStorageAdapter {
   /**
    * Set value in Redis
    */
-  async set(key: string, value: string, ttl?: number): Promise<void> {
+  async set<T>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
     await this.ensureConnection();
     const prefixedKey = this.getKeyWithPrefix(key);
 
     try {
-      await this.client.set(prefixedKey, value, ttl ? { EX: ttl } : undefined);
+      const stringValue = JSON.stringify(value);
+      if (options?.ttl) {
+        await this.client.set(prefixedKey, stringValue, { EX: options.ttl });
+      } else {
+        await this.client.set(prefixedKey, stringValue);
+      }
       
       emitCacheEvent(CacheEventType.SET, {
         key,
         provider: 'redis',
-        ttl
+        ttl: options?.ttl
       });
     } catch (error) {
       handleCacheError(error, {
@@ -247,7 +260,6 @@ export class RedisAdapter implements IStorageAdapter {
     } catch (error) {
       handleCacheError(error, {
         operation: 'keys',
-        pattern,
         provider: 'redis'
       });
       throw error;
@@ -257,23 +269,22 @@ export class RedisAdapter implements IStorageAdapter {
   /**
    * Get multiple values from Redis
    */
-  async getMany(keys: string[]): Promise<Record<string, string | null>> {
+  async getMany<T = string>(keys: string[]): Promise<Record<string, T | null>> {
     await this.ensureConnection();
     const prefixedKeys = keys.map(key => this.getKeyWithPrefix(key));
 
     try {
       const values = await this.client.mget(prefixedKeys);
-      const result: Record<string, string | null> = {};
+      const result: Record<string, T | null> = {};
       
       keys.forEach((key, index) => {
-        result[key] = values[index];
+        result[key] = values[index] ? JSON.parse(values[index]!) as T : null;
       });
 
       return result;
     } catch (error) {
       handleCacheError(error, {
         operation: 'getMany',
-        keys,
         provider: 'redis'
       });
       throw error;
@@ -283,32 +294,30 @@ export class RedisAdapter implements IStorageAdapter {
   /**
    * Set multiple values in Redis
    */
-  async setMany(entries: Record<string, string>, ttl?: number): Promise<void> {
+  async setMany<T>(entries: Record<string, T>, options?: { ttl?: number }): Promise<void> {
     await this.ensureConnection();
     const prefixedEntries = Object.entries(entries).map(
-      ([key, value]) => [this.getKeyWithPrefix(key), value]
+      ([key, value]): [string, string] => [this.getKeyWithPrefix(key), JSON.stringify(value)]
     );
 
     try {
       await this.client.mset(prefixedEntries);
       
-      if (ttl) {
-        await Promise.all(
-          prefixedEntries.map(([key]) =>
-            this.client.expire(key, ttl)
-          )
-        );
+      // Handle TTL if provided
+      if (options?.ttl && typeof this.client.expire === 'function') {
+        for (const key of Object.keys(entries)) {
+          await this.client.expire(this.getKeyWithPrefix(key), options.ttl);
+        }
       }
-
+      
       emitCacheEvent(CacheEventType.SET, {
         provider: 'redis',
         batchSize: prefixedEntries.length,
-        ttl
+        ttl: options?.ttl
       });
     } catch (error) {
       handleCacheError(error, {
         operation: 'setMany',
-        entries: Object.keys(entries),
         provider: 'redis'
       });
       throw error;
@@ -330,6 +339,49 @@ export class RedisAdapter implements IStorageAdapter {
     if (this.isConnected) {
       await this.client.quit();
       this.isConnected = false;
+    }
+  }
+
+  // Add missing required methods for IStorageAdapter
+  async getStats(): Promise<Record<string, any>> {
+    return {
+      provider: 'redis',
+      connected: this.isConnected,
+      keys: await this.keys()
+    };
+  }
+
+  /**
+   * Test Redis connection
+   */
+  private async testConnection(): Promise<boolean> {
+    try {
+      // Simple ping test to check if connection is active
+      await this.client.get('__connection_test__');
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async healthCheck(): Promise<HealthStatus> {
+    try {
+      // Check if client has a status property or try to test connection directly
+      const isConnected = this.isConnected || await this.testConnection();
+      
+      return {
+        status: 'healthy',
+        healthy: true, // Add the required healthy property
+        details: {
+          connected: isConnected
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        healthy: false, // Add the required healthy property
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 }

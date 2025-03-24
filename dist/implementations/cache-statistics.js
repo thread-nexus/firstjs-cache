@@ -1,208 +1,166 @@
 "use strict";
 /**
- * @fileoverview Advanced cache statistics tracking and performance monitoring
- * with real-time metrics and historical data.
+ * @fileoverview Cache statistics tracking implementation
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheStatistics = void 0;
-const cache_events_1 = require("../events/cache-events");
-const cache_manager_utils_1 = require("./cache-manager-utils");
+/**
+* Cache statistics implementation
+ */
 class CacheStatistics {
     constructor() {
-        this.stats = {
-            hits: 0,
-            misses: 0,
-            size: 0,
-            keyCount: 0,
-            memoryUsage: 0,
-            lastUpdated: new Date(),
-            keys: []
-        };
-        // Detailed operation metrics
-        this.operations = {
-            get: { count: 0, totalTime: 0, minTime: Infinity, maxTime: 0, lastTime: 0 },
-            set: { count: 0, totalTime: 0, minTime: Infinity, maxTime: 0, lastTime: 0 },
-            delete: { count: 0, totalTime: 0, minTime: Infinity, maxTime: 0, lastTime: 0 },
-            compute: { count: 0, totalTime: 0, minTime: Infinity, maxTime: 0, lastTime: 0 }
-        };
-        // Time series data for trending
-        this.timeSeriesData = {
-            hitRate: [],
-            size: [],
-            operations: []
-        };
-        // Configuration
-        this.maxTimeSeriesPoints = 1000;
-        this.timeSeriesInterval = 60000; // 1 minute
-        this.timeSeriesTimer = null;
-        this.startTimeSeriesCollection();
+        this.hits = 0;
+        this.misses = 0;
+        this.sets = 0;
+        this.deletes = 0;
+        this.size = 0;
+        this.operationMetrics = new Map();
+        this.lastUpdated = new Date();
     }
     /**
      * Record a cache hit
+     *
+     * @param time - Operation time in ms
      */
-    recordHit(duration) {
-        this.stats.hits++;
-        this.updateOperationMetrics('get', duration);
-        this.emitStatsUpdate();
+    recordHit(time) {
+        this.hits++;
+        this.recordOperation('hit', time);
+        this.lastUpdated = new Date();
     }
     /**
      * Record a cache miss
+     *
+     * @param time - Operation time in ms
      */
-    recordMiss(duration) {
-        this.stats.misses++;
-        this.updateOperationMetrics('get', duration);
-        this.emitStatsUpdate();
+    recordMiss(time) {
+        this.misses++;
+        this.recordOperation('miss', time);
+        this.lastUpdated = new Date();
     }
     /**
-     * Record a set operation
+     * Record a cache set operation
+     *
+     * @param size - Size of the value in bytes
+     * @param time - Operation time in ms
      */
-    recordSet(size, duration) {
-        this.stats.size += size;
-        this.stats.keyCount++;
-        this.updateOperationMetrics('set', duration);
-        this.emitStatsUpdate();
+    recordSet(size, time) {
+        this.sets++;
+        this.size += size;
+        this.recordOperation('set', time);
+        this.lastUpdated = new Date();
     }
     /**
-     * Record a delete operation
+     * Record a cache delete operation
+     *
+     * @param size - Size of the deleted value in bytes
+     * @param time - Operation time in ms
      */
-    recordDelete(size, duration) {
-        this.stats.size -= size;
-        this.stats.keyCount--;
-        this.updateOperationMetrics('delete', duration);
-        this.emitStatsUpdate();
+    recordDelete(size, time) {
+        this.deletes++;
+        this.size -= size;
+        if (this.size < 0)
+            this.size = 0;
+        this.recordOperation('delete', time);
+        this.lastUpdated = new Date();
     }
     /**
-     * Record a compute operation
+     * Record an operation
+     *
+     * @param operation - Operation name
+     * @param time - Operation time in ms
      */
-    recordCompute(duration) {
-        this.updateOperationMetrics('compute', duration);
-        this.emitStatsUpdate();
-    }
-    /**
-     * Update operation metrics
-     */
-    updateOperationMetrics(operation, duration) {
-        const metrics = this.operations[operation];
-        if (!metrics)
-            return;
-        metrics.count++;
-        metrics.totalTime += duration;
-        metrics.minTime = Math.min(metrics.minTime, duration);
-        metrics.maxTime = Math.max(metrics.maxTime, duration);
-        metrics.lastTime = duration;
-    }
-    /**
-     * Get current cache statistics
-     */
-    getStats() {
-        const totalOperations = this.stats.hits + this.stats.misses;
-        const hitRate = totalOperations > 0 ? this.stats.hits / totalOperations : 0;
-        const missRate = totalOperations > 0 ? this.stats.misses / totalOperations : 0;
-        const averageOperationTime = {};
-        Object.entries(this.operations).forEach(([op, metrics]) => {
-            averageOperationTime[op] = metrics.count > 0
-                ? metrics.totalTime / metrics.count
-                : 0;
-        });
-        return Object.assign(Object.assign({}, this.stats), { hitRate,
-            missRate,
-            averageOperationTime, trends: this.timeSeriesData });
-    }
-    /**
-     * Get detailed operation metrics
-     */
-    getOperationMetrics() {
-        const metrics = {};
-        Object.entries(this.operations).forEach(([op, data]) => {
-            metrics[op] = {
-                count: data.count,
-                averageTime: data.count > 0 ? data.totalTime / data.count : 0,
-                minTime: data.minTime === Infinity ? 0 : data.minTime,
-                maxTime: data.maxTime,
-                lastTime: data.lastTime
+    recordOperation(operation, time) {
+        let metrics = this.operationMetrics.get(operation);
+        if (!metrics) {
+            metrics = {
+                count: 0,
+                totalTime: 0,
+                minTime: Infinity,
+                maxTime: 0,
+                lastTime: 0
             };
-        });
-        return metrics;
-    }
-    /**
-     * Start collecting time series data
-     */
-    startTimeSeriesCollection() {
-        this.timeSeriesTimer = setInterval(() => {
-            const now = Date.now();
-            const totalOps = this.stats.hits + this.stats.misses;
-            const hitRate = totalOps > 0 ? this.stats.hits / totalOps : 0;
-            // Add new data points
-            this.addTimeSeriesPoint('hitRate', now, hitRate);
-            this.addTimeSeriesPoint('size', now, this.stats.size);
-            this.addTimeSeriesPoint('operations', now, totalOps);
-        }, this.timeSeriesInterval);
-        // Prevent the timer from keeping the process alive
-        if (this.timeSeriesTimer.unref) {
-            this.timeSeriesTimer.unref();
+            this.operationMetrics.set(operation, metrics);
         }
+        metrics.count++;
+        metrics.totalTime += time;
+        metrics.minTime = Math.min(metrics.minTime, time);
+        metrics.maxTime = Math.max(metrics.maxTime, time);
+        metrics.lastTime = time;
+        this.lastUpdated = new Date();
     }
     /**
-     * Add a time series data point
+     * Get operation metrics
+     *
+     * @param operation - Operation name
+     * @returns Operation metrics or undefined if not found
      */
-    addTimeSeriesPoint(series, timestamp, value) {
-        this.timeSeriesData[series].push({ timestamp, value });
-        // Maintain fixed size
-        if (this.timeSeriesData[series].length > this.maxTimeSeriesPoints) {
-            this.timeSeriesData[series].shift();
+    getOperationMetrics(operation) {
+        return this.operationMetrics.get(operation);
+    }
+    /**
+     * Get average operation time
+     *
+     * @param operation - Operation name
+     * @returns Average time in ms or 0 if no operations recorded
+     */
+    getAverageOperationTime(operation) {
+        const metrics = this.operationMetrics.get(operation);
+        if (!metrics || metrics.count === 0) {
+            return 0;
         }
+        return metrics.totalTime / metrics.count;
     }
     /**
-     * Emit stats update event
+     * Get cache hit ratio
+     *
+     * @returns Hit ratio between 0 and 1
      */
-    emitStatsUpdate() {
-        this.stats.lastUpdated = new Date();
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.STATS_UPDATE, {
-            stats: this.getStats(),
-            formatted: {
-                size: (0, cache_manager_utils_1.formatCacheSize)(this.stats.size),
-                hitRate: `${(this.getStats().hitRate * 100).toFixed(2)}%`
-            }
-        });
+    getHitRatio() {
+        const total = this.hits + this.misses;
+        if (total === 0) {
+            return 0;
+        }
+        return this.hits / total;
     }
     /**
      * Reset statistics
      */
     reset() {
-        this.stats = {
-            hits: 0,
-            misses: 0,
-            size: 0,
-            keyCount: 0,
-            memoryUsage: 0,
-            lastUpdated: new Date(),
-            keys: []
-        };
-        Object.values(this.operations).forEach(metrics => {
-            metrics.count = 0;
-            metrics.totalTime = 0;
-            metrics.minTime = Infinity;
-            metrics.maxTime = 0;
-            metrics.lastTime = 0;
-        });
-        this.timeSeriesData = {
-            hitRate: [],
-            size: [],
-            operations: []
-        };
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.STATS_UPDATE, {
-            stats: this.getStats(),
-            message: 'Statistics reset'
-        });
+        this.hits = 0;
+        this.misses = 0;
+        this.sets = 0;
+        this.deletes = 0;
+        this.size = 0;
+        this.operationMetrics.clear();
+        this.lastUpdated = new Date();
     }
     /**
-     * Clean up resources
+     * Get all statistics
+     *
+     * @returns Cache statistics
      */
-    dispose() {
-        if (this.timeSeriesTimer) {
-            clearInterval(this.timeSeriesTimer);
-            this.timeSeriesTimer = null;
+    getStats() {
+        const operations = {};
+        for (const [op, metrics] of this.operationMetrics.entries()) {
+            operations[op] = {
+                count: metrics.count,
+                avgTime: metrics.count > 0 ? metrics.totalTime / metrics.count : 0,
+                minTime: metrics.minTime === Infinity ? 0 : metrics.minTime,
+                maxTime: metrics.maxTime,
+                lastTime: metrics.lastTime
+            };
         }
+        return {
+            hits: this.hits,
+            misses: this.misses,
+            sets: this.sets,
+            deletes: this.deletes,
+            size: this.size,
+            hitRatio: this.getHitRatio(),
+            operations,
+            lastUpdated: this.lastUpdated
+        };
     }
 }
 exports.CacheStatistics = CacheStatistics;
+//# sourceMappingURL=cache-statistics.js.map

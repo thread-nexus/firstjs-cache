@@ -72,6 +72,8 @@ export const enum DocCategory {
   SERIALIZATION = 'Serialization',
   COMPRESSION = 'Compression',
   MONITORING = 'Monitoring',
+  RESOURCE_USAGE = 'Resource Usage', // Add this category
+  HEALTH_METRICS = 'Health Metrics', // Add this category
   BACKGROUND = 'Background Tasks'
 }
 
@@ -83,6 +85,20 @@ export const enum DocPriority {
   HIGH = 2,
   MEDIUM = 3,
   LOW = 4
+}
+
+/**
+ * Resource impact levels
+ */
+export const enum ResourceImpact {
+  /** Minimal resource usage */
+  MINIMAL = 'minimal',
+  /** Moderate resource usage */
+  MODERATE = 'moderate',
+  /** High resource usage */
+  HIGH = 'high',
+  /** Critical resource usage that could affect system stability */
+  CRITICAL = 'critical'
 }
 
 /**
@@ -114,6 +130,22 @@ export const enum PerformanceImpact {
 }
 
 /**
+ * Resource usage information for documentation
+ */
+export interface ResourceUsageInfo {
+  /** Memory impact */
+  memory: ResourceImpact;
+  /** CPU impact */
+  cpu: ResourceImpact;
+  /** Network impact */
+  network?: ResourceImpact;
+  /** Storage impact */
+  storage?: ResourceImpact;
+  /** Notes about resource usage */
+  notes?: string;
+}
+
+/**
  * Cache operation complexity information
  */
 export interface OperationComplexity {
@@ -125,6 +157,8 @@ export interface OperationComplexity {
   impact: PerformanceImpact;
   /** Additional notes about performance */
   notes?: string;
+  /** Resource usage information */
+  resourceUsage?: ResourceUsageInfo;
 }
 
 /**

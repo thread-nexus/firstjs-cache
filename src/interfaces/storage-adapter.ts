@@ -2,8 +2,7 @@
  * @fileoverview Interface for storage adapters
  */
 
-import { CacheOptions } from '../types/common';
-import { StorageAdapterConfig } from '../types/cache-types';
+import { CacheOptions, HealthStatus, EntryMetadata } from '../types/common';
 
 /**
  * Interface for storage adapters
@@ -53,7 +52,7 @@ export interface IStorageAdapter {
    * @param keys - Storage keys
    * @returns Object mapping keys to values
    */
-  getMany?<T = any>(keys: string[]): Promise<Record<string, T | null>>;
+  getMany<T = any>(keys: string[]): Promise<Record<string, T | null>>;
   
   /**
    * Set multiple values in storage
@@ -61,28 +60,50 @@ export interface IStorageAdapter {
    * @param entries - Object mapping keys to values
    * @param options - Storage options
    */
-  setMany?<T = any>(entries: Record<string, T>, options?: CacheOptions): Promise<void>;
+  setMany<T = any>(entries: Record<string, T>, options?: CacheOptions): Promise<void>;
   
   /**
    * Get keys matching a pattern
    * 
-   * @param pattern - Pattern to match
    * @returns Array of matching keys
    */
-  keys?(pattern?: string): Promise<string[]>;
+  keys(): Promise<string[]>;
   
   /**
    * Get storage statistics
    * 
    * @returns Storage statistics
    */
-  getStats?(): Promise<Record<string, any>>;
+  getStats(): Promise<Record<string, any>>;
+
+  /**
+   * Perform a health check on the storage
+   * 
+   * @returns Health status
+   */
+  healthCheck(): Promise<HealthStatus>;
+
+  /**
+   * Get metadata for a key
+   * 
+   * @param key - Storage key
+   * @returns Metadata for the key
+   */
+  getMetadata?(key: string): Promise<EntryMetadata | undefined>;
+
+  /**
+   * Set metadata for a key
+   * 
+   * @param key - Storage key
+   * @param metadata - Metadata to set
+   */
+  setMetadata?(key: string, metadata: Partial<EntryMetadata>): Promise<void>;
 }
 
 /**
  * Base storage adapter configuration
  */
-export interface StorageAdapterOptions extends StorageAdapterConfig {
+export interface StorageAdapterConfig {
   /**
    * Adapter name
    */
@@ -111,5 +132,12 @@ export interface StorageAdapterOptions extends StorageAdapterConfig {
   /**
    * Size threshold for compression in bytes
    */
+  compressionThreshold?: number;
+}
+
+export interface StorageOptions {
+  ttl?: number;
+  tags?: string[];
+  compression?: boolean;
   compressionThreshold?: number;
 }

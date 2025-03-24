@@ -4,8 +4,8 @@
  * React hook for data fetching with cache support
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useCache } from './useCache';
-import { CacheOptions } from '../../interfaces/ICacheManager';
+import { useCache } from './use-cache'; // Correct path
+import { CacheOptions } from '../types/common'; // Import from common
 
 interface UseCachedQueryOptions extends CacheOptions {
   /**
@@ -27,6 +27,16 @@ interface UseCachedQueryOptions extends CacheOptions {
    * Whether to disable caching for this query
    */
   disableCache?: boolean;
+
+  /**
+   * Whether to enable stale-while-revalidate caching strategy
+   */
+  staleWhileRevalidate?: boolean;
+
+  /**
+   * Time-to-live for cache entries in milliseconds
+   */
+  cacheTime?: number;
 }
 
 interface UseCachedQueryResult<T> {
@@ -64,8 +74,8 @@ export function useCachedQuery<T>(
   fetchFn: () => Promise<T>,
   options: UseCachedQueryOptions = {}
 ): UseCachedQueryResult<T> {
-  const cache = useCache();
   const cacheKey = Array.isArray(key) ? key.join(':') : key;
+  const cache = useCache(cacheKey);
   
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -78,7 +88,7 @@ export function useCachedQuery<T>(
     try {
       // Check cache first unless disabled
       if (!options.disableCache) {
-        const cachedData = await cache.get(cacheKey);
+        const cachedData = cache.data;
         
         if (cachedData !== null) {
           setData(cachedData);
@@ -97,10 +107,13 @@ export function useCachedQuery<T>(
       
       // Cache the result unless disabled
       if (!options.disableCache) {
-        await cache.set(cacheKey, result, {
-          ttl: options.ttl,
-          tags: options.tags
-        });
+        const cacheOptions: CacheOptions = {
+          // Only include properties from CacheOptions
+          ttl: options.cacheTime, // Map to appropriate property
+          backgroundRefresh: options.staleWhileRevalidate
+          // Don't include tags if it's not part of the type
+        };
+        await cache.setValue(result);
       }
       
       setData(result);

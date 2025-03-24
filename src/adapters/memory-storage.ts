@@ -4,6 +4,8 @@
 
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
 import { compressData, decompressData } from '../utils/compression-utils';
+import { CompressionAlgorithm, CompressionResult } from '../types/index';
+
 /**
  * Configuration options for the memory storage adapter
  */
@@ -24,6 +26,7 @@ interface CacheEntryMetadata {
   size: number;
   compressed?: boolean;
   lastAccessed: number;
+  accessCount: number;
 }
 
 /**
@@ -80,12 +83,13 @@ export class MemoryStorageAdapter {
       // Update last accessed time
       if (this.updateAgeOnGet && meta) {
         meta.lastAccessed = Date.now();
+        meta.accessCount = (meta.accessCount || 0) + 1;
       }
       
       // Handle decompression if needed
       if (meta?.compressed && Buffer.isBuffer(value)) {
         try {
-          const decompressed = await decompressData(value, 'utf8');
+          const decompressed = await decompressData(value, 'gzip');
           if (typeof decompressed === 'string') {
             try {
               return JSON.parse(decompressed) as T;
@@ -123,7 +127,7 @@ export class MemoryStorageAdapter {
       // Ensure we have space - evict if needed
       this.ensureCapacity();
       
-      let processedValue = value;
+      let processedValue: any = value;
       let size: number;
       let compressed = false;
       
@@ -137,10 +141,10 @@ export class MemoryStorageAdapter {
             const serialized = typeof value === 'string' ? value : JSON.stringify(value);
             
             if (Buffer.byteLength(serialized, 'utf8') > threshold) {
-              const compressedData = await compressData(serialized);
-              processedValue = compressedData;
+              const compressedData = await compressData(Buffer.from(serialized));
+              processedValue = compressedData.data;
               compressed = true;
-              size = compressedData.length;
+              size = compressedData.data.length;
             } else {
               size = Buffer.byteLength(serialized, 'utf8');
             }
@@ -171,7 +175,8 @@ export class MemoryStorageAdapter {
         expiresAt: ttl > 0 ? Date.now() + (ttl * 1000) : undefined,
         size,
         compressed,
-        lastAccessed: Date.now()
+        lastAccessed: Date.now(),
+        accessCount: 0
       });
       
       this.stats.sets++;

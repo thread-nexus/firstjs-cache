@@ -10,6 +10,8 @@ exports.setMetadata = setMetadata;
 exports.recordAccess = recordAccess;
 exports.getAllKeys = getAllKeys;
 exports.getMetadataSize = getMetadataSize;
+exports.createMetadata = createMetadata;
+exports.updateMetadata = updateMetadata;
 const metadataStore = new Map();
 /**
  * Clear all metadata entries
@@ -61,7 +63,7 @@ function findKeysByPattern(pattern) {
         });
         return matchingKeys;
     }
-    catch (_a) {
+    catch {
         // If pattern is not a valid regex, treat as literal prefix
         return findKeysByPrefix(pattern);
     }
@@ -77,12 +79,25 @@ function getMetadata(key) {
  */
 function setMetadata(key, data) {
     const existing = metadataStore.get(key);
-    const now = new Date();
+    const now = Date.now();
     if (existing) {
-        metadataStore.set(key, Object.assign(Object.assign(Object.assign({}, existing), data), { updatedAt: now }));
+        metadataStore.set(key, {
+            ...existing,
+            ...data,
+            updatedAt: now
+        });
     }
     else {
-        metadataStore.set(key, Object.assign({ createdAt: now, updatedAt: now, accessCount: 0, tags: [] }, data));
+        metadataStore.set(key, {
+            tags: [],
+            createdAt: now,
+            lastAccessed: now,
+            size: 0,
+            compressed: false,
+            accessCount: 0,
+            ...data,
+            updatedAt: now
+        });
     }
 }
 /**
@@ -91,8 +106,9 @@ function setMetadata(key, data) {
 function recordAccess(key) {
     const metadata = metadataStore.get(key);
     if (metadata) {
-        metadata.accessCount++;
-        metadata.updatedAt = new Date();
+        metadata.accessCount = (metadata.accessCount || 0) + 1;
+        metadata.lastAccessed = Date.now();
+        metadata.updatedAt = Date.now();
     }
 }
 /**
@@ -107,3 +123,24 @@ function getAllKeys() {
 function getMetadataSize() {
     return metadataStore.size;
 }
+function createMetadata(options) {
+    const now = Date.now();
+    return {
+        tags: options?.tags || [],
+        createdAt: now,
+        lastAccessed: now,
+        size: options?.size || 0,
+        compressed: options?.compressed || false,
+        accessCount: 0
+    };
+}
+function updateMetadata(metadata) {
+    const now = Date.now();
+    return {
+        ...metadata,
+        lastAccessed: now,
+        accessCount: (metadata.accessCount || 0) + 1,
+        updatedAt: now
+    };
+}
+//# sourceMappingURL=cache-metadata-utils.js.map

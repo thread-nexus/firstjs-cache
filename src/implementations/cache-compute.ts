@@ -1,7 +1,3 @@
-/**
- * @fileoverview Cache compute implementation for handling cache misses and background refresh
- */
-
 import { ICacheProvider } from '../interfaces/i-cache-provider';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
 import { handleCacheError } from '../utils/error-utils';
@@ -16,6 +12,7 @@ interface ComputeOptions extends CacheOptions {
   timeout?: number;
   staleIfError?: boolean;
 }
+
 /**
  * Result of a compute operation
  */
@@ -24,6 +21,46 @@ interface ComputeResult<T> {
   computeTime: number;
   stale: boolean;
 }
+
+// Create a new extended options type that includes metadata
+interface ExtendedCacheOptions extends CacheOptions {
+  metadata?: {
+    computeTime?: number;
+    source?: string;
+    version?: string;
+    [key: string]: any;
+  };
+}
+
+// Create a proper interface for internal use that extends the public interface
+interface InternalCacheOptions {
+  ttl?: number;
+  tags?: string[];
+  // Standard properties from CacheOptions
+  compression?: boolean;
+  compressionThreshold?: number;
+  background?: boolean;
+  maxSize?: number;
+  maxItems?: number;
+  compressionLevel?: number;
+  refreshThreshold?: number;
+  statsInterval?: number;
+  providers?: string[];
+  defaultProvider?: string;
+  backgroundRefresh?: boolean;
+  operation?: string;
+  computeTime?: number;
+  maxRetries?: number;
+  compressed?: boolean;
+  // Additional internal properties for metadata
+  _metadata?: {
+    computeTime?: number;
+    source?: string;
+    timestamp?: number;
+    [key: string]: any;
+  };
+}
+
 /**
  * Cache compute implementation
  */
@@ -32,9 +69,10 @@ export class CacheCompute {
   private readonly backgroundRefresh: boolean;
   private readonly refreshThreshold: number;
   private refreshPromises: Map<string, Promise<any>> = new Map();
+
   /**
    * Create a new cache compute instance
-   * 
+   *
    * @param provider - Cache provider
    * @param options - Compute options
    */
@@ -50,9 +88,10 @@ export class CacheCompute {
     this.backgroundRefresh = options.backgroundRefresh !== false;
     this.refreshThreshold = options.refreshThreshold || 0.75;
   }
+
   /**
    * Get a value from cache or compute it if not found
-   * 
+   *
    * @param key - Cache key
    * @param fetcher - Function to compute the value
    * @param options - Cache options
@@ -66,24 +105,24 @@ export class CacheCompute {
     try {
       // Try to get from cache
       const cachedValue = await this.provider.get<T>(key);
-      
+
       // If found, check if refresh needed
       if (cachedValue !== null) {
         const metadata = await this.provider.getMetadata?.(key);
         const isStale = this.isValueStale(metadata?.refreshedAt, options);
-        
+
         // Schedule background refresh if needed
         if (isStale && this.shouldBackgroundRefresh(options)) {
           await this.scheduleBackgroundRefresh(key, fetcher, options);
         }
 
-    return {
+        return {
           value: cachedValue,
           computeTime: metadata?.computeTime || 0,
           stale: isStale
-    };
-  }
-      
+        };
+      }
+
       // Compute new value
       return await this.computeAndCache(key, fetcher, options);
     } catch (error) {
@@ -92,9 +131,9 @@ export class CacheCompute {
         key
       });
       throw error;
-}
+    }
   }
-  
+
   /**
    * Compute value and cache it
    */
@@ -104,24 +143,33 @@ export class CacheCompute {
     options?: ComputeOptions
   ): Promise<ComputeResult<T>> {
     const startTime = performance.now();
-    
+
     try {
       emitCacheEvent(CacheEventType.COMPUTE_START, { key });
       const value = await this.executeWithRetry(() => fetcher(), options);
       const computeTime = performance.now() - startTime;
-      
-      // Cache the computed value
-      await this.provider.set(key, value, {
+
+      // Create internal options with metadata
+      const internalOptions: InternalCacheOptions = {
         ...options,
-        computeTime,
-        refreshedAt: new Date()
-      });
-      
+        ttl: options?.ttl || this.defaultTtl,
+        computeTime: computeTime,
+        // Store metadata in our internal property
+        _metadata: {
+          computeTime: computeTime,
+          source: 'compute',
+          timestamp: Date.now()
+        }
+      };
+
+      // Cache the computed value
+      await this.provider.set(key, value, internalOptions as CacheOptions);
+
       emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
         key,
         duration: computeTime
       });
-      
+
       return {
         value,
         computeTime,
@@ -130,12 +178,12 @@ export class CacheCompute {
     } catch (error) {
       emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
         key,
-        error
+        error: error instanceof Error ? error : new Error(String(error))
       });
       throw error;
     }
   }
-  
+
   /**
    * Execute with retry logic
    */
@@ -145,7 +193,7 @@ export class CacheCompute {
   ): Promise<T> {
     const maxRetries = options?.maxRetries || 3;
     const retryDelay = options?.retryDelay || 1000;
-    
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
@@ -153,15 +201,15 @@ export class CacheCompute {
         if (attempt >= maxRetries) {
           throw error;
         }
-        
+
         const delay = retryDelay * Math.pow(2, attempt - 1);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
-    
+
     throw new Error('Exceeded maximum number of retries');
   }
-  
+
   /**
    * Check if a value is stale
    */
@@ -170,21 +218,21 @@ export class CacheCompute {
     options?: CacheOptions
   ): boolean {
     if (!refreshedAt) return true;
-    
+
     const ttl = options?.ttl || this.defaultTtl;
     const threshold = options?.refreshThreshold || this.refreshThreshold;
-    
+
     const age = Date.now() - refreshedAt.getTime();
     return age > ttl * threshold * 1000;
   }
-  
+
   /**
    * Check if background refresh should be used
    */
   private shouldBackgroundRefresh(options?: CacheOptions): boolean {
     return options?.backgroundRefresh ?? this.backgroundRefresh;
   }
-  
+
   /**
    * Schedule a background refresh
    */
@@ -197,29 +245,29 @@ export class CacheCompute {
     if (this.refreshPromises.has(key)) {
       return;
     }
-    
+
     const refreshPromise = (async () => {
       try {
         emitCacheEvent(CacheEventType.REFRESH_START, { key });
         await this.computeAndCache(key, fetcher, options);
         emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
       } catch (error) {
-        emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error });
+        emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : new Error(String(error)) });
       } finally {
         this.refreshPromises.delete(key);
       }
     })();
-    
+
     this.refreshPromises.set(key, refreshPromise);
-    
+
     // Prevent refresh spam
     await new Promise(resolve => setTimeout(resolve, 60000));
     this.refreshPromises.delete(key);
   }
-  
+
   /**
    * Schedule a refresh operation for a key
-   * 
+   *
    * @param key - Cache key to refresh
    * @param fetcher - Function to compute the new value
    * @param options - Cache options
@@ -235,22 +283,35 @@ export class CacheCompute {
       await this.computeAndCache(key, fetcher, options);
       emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
     } catch (error) {
-      emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error });
+      emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error: error instanceof Error ? error : new Error(String(error)) });
       throw error;
     }
   }
-  
+
   /**
    * Cancel background refresh for a key
    */
   cancelRefresh(key: string): void {
     this.refreshPromises.delete(key);
   }
-  
+
   /**
    * Get status of compute operations
    */
   getRefreshStatus(): {
+    activeComputes: number;
+    activeRefreshes: number;
+  } {
+    return {
+      activeComputes: 0,
+      activeRefreshes: this.refreshPromises.size
+    };
+  }
+
+  /**
+   * Get status of compute operations
+   */
+  getComputeStatus(): {
     activeComputes: number;
     activeRefreshes: number;
   } {

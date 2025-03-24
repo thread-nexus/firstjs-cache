@@ -3,10 +3,10 @@ import { CacheManager } from './implementations/cache-manager';
 import { CacheManagerCore } from './implementations/cache-manager-core';
 
 // Import event system
-import { CacheEventType, emitCacheEvent, onCacheEvent, offCacheEvent } from './events/cache-events';
+import { CacheEventType, emitCacheEvent, onCacheEvent, offCacheEvent, subscribeToCacheEvents } from './events/cache-events';
 
 // Import error utilities
-import { CacheError, CacheErrorCode, createCacheError, handleCacheError } from './utils/error-utils';
+import { CacheError, CacheErrorCode, createCacheError, handleCacheError, ensureError } from './utils/error-utils';
 
 // Import adapters
 import { MemoryAdapter } from './adapters/memory-adapter';
@@ -39,13 +39,13 @@ export {
   CacheManager,
   CacheManagerCore,
   CacheEventType,
-  CacheErrorCode,
   CacheError,
   
   // Event system
   emitCacheEvent,
   onCacheEvent,
   offCacheEvent,
+  subscribeToCacheEvents, // Include the explicit import
   
   // Adapters
   MemoryAdapter,
@@ -53,6 +53,8 @@ export {
   // Utilities
   createCacheError,
   handleCacheError,
+  ensureError, // Include the renamed export
+  CacheErrorCode,
   
   // Types
   CacheOptions,

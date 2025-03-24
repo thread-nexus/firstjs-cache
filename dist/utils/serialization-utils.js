@@ -1,255 +1,183 @@
 "use strict";
 /**
- * @fileoverview High-performance serialization utilities for cache operations
- * with optimizations for common data types and structures.
+ * @fileoverview Enhanced serialization utilities with compression and validation
+ * @author harborgrid-justin
+ * @lastModified 2025-03-24
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.metadata = void 0;
-exports.serializeData = serializeData;
-exports.deserializeData = deserializeData;
-exports.createSerializer = createSerializer;
-const cache_events_1 = require("../events/cache-events");
-// Optimization: Pre-compile type checks
-const toString = Object.prototype.toString;
-const isArray = Array.isArray;
-const isBuffer = typeof Buffer !== 'undefined'
-    ? (obj) => Buffer.isBuffer(obj)
-    : () => false;
+exports.Serializer = void 0;
+exports.serialize = serialize;
+exports.deserialize = deserialize;
+const crypto_1 = require("crypto");
+const compression_utils_1 = require("./compression-utils");
+const error_utils_1 = require("./error-utils");
 /**
- * Type-specific serializers for optimal performance
- * @internal
+ * Enhanced serializer class
  */
-const TYPE_SERIALIZERS = new Map([
-    ['[object Date]', (v) => ['__date__', v.toISOString()]],
-    ['[object RegExp]', (v) => ['__regexp__', v.toString()]],
-    ['[object Error]', (v) => ['__error__', { message: v.message, stack: v.stack }]],
-    ['[object Set]', (v) => ['__set__', Array.from(v)]],
-    ['[object Map]', (v) => ['__map__', Array.from(v)]],
-    ['[object ArrayBuffer]', (v) => ['__arraybuffer__', Array.from(new Uint8Array(v))]]
-]);
-/**
- * Type-specific deserializers for optimal performance
- * @internal
- */
-const TYPE_DESERIALIZERS = new Map([
-    ['__date__', (v) => new Date(v)],
-    ['__regexp__', (v) => {
-            const match = /^\/(.+)\/([gimuy]*)$/.exec(v);
-            return match ? new RegExp(match[1], match[2] || '') : new RegExp(v || '');
-        }],
-    ['__error__', (v) => {
-            const err = new Error(v.message);
-            err.stack = v.stack;
-            return err;
-        }],
-    ['__set__', (v) => new Set(v)],
-    ['__map__', (v) => new Map(v)],
-    ['__arraybuffer__', (v) => new Uint8Array(v).buffer]
-]);
-/**
- * Serialize data with type preservation and optimization
- *
- * @param data - Data to serialize
- * @returns Serialized string
- *
- * @complexity Time: O(n) where n is the size of the data structure
- * @category Serialization
- * @priority Critical
- *
- * @example
- * ```typescript
- * const serialized = serializeData({
- *   date: new Date(),
- *   set: new Set([1, 2, 3])
- * });
- * ```
- */
-function serializeData(data) {
-    const startTime = performance.now();
-    try {
-        const serialized = JSON.stringify(data, (key, value) => {
-            if (value === undefined)
-                return '__undefined__';
-            if (value === Infinity)
-                return '__infinity__';
-            if (Number.isNaN(value))
-                return '__nan__';
-            if (value !== null && typeof value === 'object') {
-                const type = toString.call(value);
-                const serializer = TYPE_SERIALIZERS.get(type);
-                if (serializer) {
-                    return serializer(value);
+class Serializer {
+    constructor(options = {}) {
+        this.options = {
+            compression: {
+                enabled: true,
+                threshold: 1024,
+                algorithm: 'gzip'
+            },
+            validation: {
+                checksum: true
+            },
+            ...options
+        };
+        this.typeHandlers = this.getDefaultTypeHandlers();
+        if (options.typeHandlers) {
+            for (const [key, handler] of options.typeHandlers) {
+                this.typeHandlers.set(key, handler);
+            }
+        }
+    }
+    /**
+     * Serialize data with enhanced features
+     */
+    async serialize(data) {
+        try {
+            const serialized = this.serializeWithTypes(data);
+            const checksum = this.options.validation?.checksum
+                ? this.calculateChecksum(serialized)
+                : undefined;
+            let finalData = serialized;
+            let isCompressed = false;
+            if (this.shouldCompress(serialized)) {
+                const compressedBuffer = await (0, compression_utils_1.compress)(serialized, this.options.compression?.algorithm || 'gzip');
+                finalData = compressedBuffer.toString('base64');
+                isCompressed = true;
+            }
+            if (this.options.encryption?.enabled) {
+                finalData = this.encrypt(finalData);
+            }
+            return {
+                data: finalData,
+                metadata: {
+                    checksum,
+                    isCompressed,
+                    timestamp: new Date().toISOString(),
+                    size: Buffer.byteLength(finalData),
+                    originalSize: Buffer.byteLength(serialized)
+                }
+            };
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new error_utils_1.CacheError(error_utils_1.CacheErrorCode.SERIALIZATION_ERROR, `Serialization failed: ${errorMessage}`);
+        }
+    }
+    /**
+     * Deserialize data with validation
+     */
+    async deserialize(serializedData) {
+        try {
+            let { data, metadata } = serializedData;
+            if (metadata.checksum) {
+                this.validateChecksum(data, metadata.checksum);
+            }
+            if (this.options.encryption?.enabled) {
+                data = this.decrypt(data);
+            }
+            let decodedData = data;
+            if (metadata.isCompressed && this.options.compression?.algorithm) {
+                const decompressedBuffer = await (0, compression_utils_1.decompress)(Buffer.from(data, 'base64'), this.options.compression.algorithm);
+                decodedData = decompressedBuffer.toString();
+            }
+            return this.deserializeWithTypes(decodedData);
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new error_utils_1.CacheError(error_utils_1.CacheErrorCode.DESERIALIZATION_ERROR, `Deserialization failed: ${errorMessage}`);
+        }
+    }
+    serializeWithTypes(data) {
+        return JSON.stringify(data, (key, value) => {
+            const type = this.getValueType(value);
+            if (type && this.typeHandlers.has(type)) {
+                const handler = this.typeHandlers.get(type);
+                if (handler) {
+                    return {
+                        __type: type,
+                        value: handler.serialize(value)
+                    };
                 }
             }
             return value;
         });
-        const duration = performance.now() - startTime;
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
-            message: 'Serialization complete',
-            duration,
-            size: serialized.length
-        });
-        return serialized;
     }
-    catch (error) {
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-            error,
-            message: 'Serialization failed'
-        });
-        throw error;
-    }
-}
-/**
- * Deserialize data with type restoration and validation
- *
- * @param str - Serialized string to deserialize
- * @returns Deserialized data
- *
- * @complexity Time: O(n) where n is the size of the serialized string
- * @category Serialization
- * @priority Critical
- *
- * @example
- * ```typescript
- * const data = deserializeData<{ date: Date; set: Set<number> }>(serialized);
- * console.log(data.date instanceof Date); // true
- * ```
- */
-function deserializeData(str) {
-    const startTime = performance.now();
-    try {
-        const deserialized = JSON.parse(str, (key, value) => {
-            if (value === '__undefined__')
-                return undefined;
-            if (value === '__infinity__')
-                return Infinity;
-            if (value === '__nan__')
-                return NaN;
-            if (value !== null && typeof value === 'object') {
-                const type = Object.keys(value)[0];
-                if (type) {
-                    const deserializer = TYPE_DESERIALIZERS.get(type);
-                    if (deserializer) {
-                        return deserializer(value[type]);
-                    }
+    deserializeWithTypes(data) {
+        return JSON.parse(data, (key, value) => {
+            if (value && typeof value === 'object' && value.__type) {
+                const handler = this.typeHandlers.get(value.__type);
+                if (handler) {
+                    return handler.deserialize(value.value);
                 }
             }
             return value;
         });
-        const duration = performance.now() - startTime;
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.GET, {
-            message: 'Deserialization complete',
-            duration
+    }
+    getDefaultTypeHandlers() {
+        const handlers = new Map();
+        handlers.set('Map', {
+            serialize: (v) => JSON.stringify([...v.entries()]),
+            deserialize: (v) => new Map(JSON.parse(v))
         });
-        return deserialized;
-    }
-    catch (error) {
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-            error,
-            message: 'Deserialization failed'
+        handlers.set('Set', {
+            serialize: (v) => JSON.stringify([...v]),
+            deserialize: (v) => new Set(JSON.parse(v))
         });
-        throw error;
+        return handlers;
     }
-}
-/**
- * Create a custom serializer with specific type handlers
- *
- * @param options - Serializer configuration options
- * @returns Custom serializer object
- *
- * @example
- * ```typescript
- * const serializer = createSerializer({
- *   typeHandlers: {
- *     BigInt: {
- *       serialize: (v) => v.toString(),
- *       deserialize: (v) => BigInt(v)
- *     }
- *   }
- * });
- * ```
- */
-function createSerializer(options) {
-    const customSerializers = new Map(TYPE_SERIALIZERS);
-    const customDeserializers = new Map(TYPE_DESERIALIZERS);
-    if (options.typeHandlers) {
-        for (const [type, handler] of Object.entries(options.typeHandlers)) {
-            const typeKey = `__${type.toLowerCase()}__`;
-            customSerializers.set(type, (v) => [typeKey, handler.serialize(v)]);
-            customDeserializers.set(typeKey, handler.deserialize);
+    shouldCompress(data) {
+        return !!this.options.compression?.enabled &&
+            Buffer.byteLength(data) >= (this.options.compression?.threshold || 1024);
+    }
+    calculateChecksum(data) {
+        return (0, crypto_1.createHash)('sha256').update(data).digest('hex');
+    }
+    validateChecksum(data, expectedChecksum) {
+        const actualChecksum = this.calculateChecksum(data);
+        if (actualChecksum !== expectedChecksum) {
+            throw new error_utils_1.CacheError(error_utils_1.CacheErrorCode.DATA_INTEGRITY_ERROR, 'Data integrity check failed');
         }
     }
-    return {
-        serialize: (data) => serializeWithCustomHandlers(data, customSerializers),
-        deserialize: (str) => deserializeWithCustomHandlers(str, customDeserializers)
-    };
+    encrypt(data) {
+        // Implement encryption logic here
+        return data;
+    }
+    decrypt(data) {
+        // Implement decryption logic here
+        return data;
+    }
+    getValueType(value) {
+        if (value instanceof Date)
+            return 'Date';
+        if (typeof value === 'bigint')
+            return 'BigInt';
+        if (value instanceof Map)
+            return 'Map';
+        if (value instanceof Set)
+            return 'Set';
+        return null;
+    }
 }
-/**
- * Internal helper for custom serialization
- * @internal
- */
-function serializeWithCustomHandlers(data, handlers) {
-    return JSON.stringify(data, (key, value) => {
-        if (value === undefined)
-            return '__undefined__';
-        if (value === Infinity)
-            return '__infinity__';
-        if (Number.isNaN(value))
-            return '__nan__';
-        if (value !== null && typeof value === 'object') {
-            const type = toString.call(value);
-            const handler = handlers.get(type);
-            if (handler) {
-                return handler(value);
-            }
-        }
-        return value;
-    });
+exports.Serializer = Serializer;
+async function serialize(data, options) {
+    const stringData = typeof data === 'string' ? data : JSON.stringify(data);
+    if (!options?.algorithm)
+        return stringData;
+    const compressed = await (0, compression_utils_1.compress)(Buffer.from(stringData), options.algorithm);
+    return compressed.toString('base64');
 }
-/**
- * Internal helper for custom deserialization
- * @internal
- */
-function deserializeWithCustomHandlers(str, handlers) {
-    return JSON.parse(str, (key, value) => {
-        if (value === '__undefined__')
-            return undefined;
-        if (value === '__infinity__')
-            return Infinity;
-        if (value === '__nan__')
-            return NaN;
-        if (value !== null && typeof value === 'object') {
-            const type = Object.keys(value)[0];
-            const handler = handlers.get(type);
-            if (handler) {
-                return handler(value[type]);
-            }
-        }
-        return value;
-    });
+async function deserialize(data, options) {
+    if (!options?.algorithm) {
+        return JSON.parse(data);
+    }
+    const buffer = Buffer.from(data, 'base64');
+    const decompressed = await (0, compression_utils_1.decompress)(buffer, options.algorithm);
+    return JSON.parse(decompressed.toString());
 }
-// Documentation metadata
-exports.metadata = {
-    category: "Serialization" /* DocCategory.SERIALIZATION */,
-    priority: 1 /* DocPriority.CRITICAL */,
-    complexity: {
-        time: 'O(n) for both serialization and deserialization',
-        space: 'O(n) for temporary storage during conversion',
-        impact: "high" /* PerformanceImpact.HIGH */,
-        notes: 'Optimized for common data types and structures'
-    },
-    examples: [{
-            title: 'Basic Serialization',
-            code: `
-      const data = {
-        date: new Date(),
-        set: new Set([1, 2, 3]),
-        map: new Map([['key', 'value']])
-      };
-      const serialized = serializeData(data);
-      const deserialized = deserializeData(serialized);
-    `,
-            description: 'Serialize and deserialize complex data structures'
-        }],
-    since: '1.0.0'
-};
+//# sourceMappingURL=serialization-utils.js.map

@@ -36,15 +36,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.metadata = void 0;
 exports.executeQuery = executeQuery;
@@ -54,6 +45,7 @@ exports.invalidateQueries = invalidateQueries;
 const key_utils_1 = require("./key-utils");
 const cache_events_1 = require("../events/cache-events");
 const cacheCore = __importStar(require("../implementations/cache-manager-core"));
+const delete_cache_value_1 = require("../implementations/delete-cache-value");
 // Performance optimization: Query deduplication cache
 const inFlightQueries = new Map();
 /**
@@ -79,86 +71,101 @@ const inFlightQueries = new Map();
  * );
  * ```
  */
-function executeQuery(queryName, queryFn, params, options) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const key = (0, key_utils_1.generateQueryKey)(queryName, params);
-        const startTime = performance.now();
-        // Check for in-flight queries
-        const inFlight = inFlightQueries.get(key);
-        if (inFlight) {
-            return inFlight;
-        }
-        try {
-            // Create promise for this query
-            const queryPromise = (() => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_START, { key });
-                    // Try cache first
-                    const cached = yield cacheCore.getCacheValue(key);
-                    if (cached !== null) {
-                        const duration = performance.now() - startTime;
-                        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.GET_HIT, {
-                            key,
-                            duration,
-                            size: JSON.stringify(cached).length
-                        });
-                        return {
-                            data: cached,
-                            error: null,
-                            isStale: false,
-                            timestamp: Date.now(),
-                            metrics: {
-                                duration,
-                                cacheHit: true,
-                                size: JSON.stringify(cached).length
-                            }
-                        };
-                    }
-                    // Execute query
-                    const result = yield queryFn();
+async function executeQuery(queryName, queryFn, params, options) {
+    const key = (0, key_utils_1.generateQueryKey)(queryName, params);
+    const startTime = performance.now();
+    // Check for in-flight queries
+    const inFlight = inFlightQueries.get(key);
+    if (inFlight) {
+        return inFlight;
+    }
+    try {
+        // Create promise for this query
+        const queryPromise = (async () => {
+            try {
+                // Add required properties to event payload
+                (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_START, {
+                    key,
+                    type: cache_events_1.CacheEventType.COMPUTE_START.toString(),
+                    timestamp: Date.now()
+                });
+                // Try cache first
+                const cached = cacheCore.getCacheValue(key);
+                if (cached !== null) {
                     const duration = performance.now() - startTime;
-                    // Cache result
-                    yield cacheCore.setCacheValue(key, result, options);
-                    (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
+                    // Add required properties to event payload
+                    (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.GET_HIT, {
                         key,
                         duration,
-                        size: JSON.stringify(result).length
+                        size: JSON.stringify(cached).length,
+                        type: cache_events_1.CacheEventType.GET_HIT.toString(),
+                        timestamp: Date.now()
                     });
                     return {
-                        data: result,
+                        data: cached,
                         error: null,
                         isStale: false,
                         timestamp: Date.now(),
                         metrics: {
                             duration,
-                            cacheHit: false,
-                            size: JSON.stringify(result).length
+                            cacheHit: true,
+                            size: JSON.stringify(cached).length
                         }
                     };
                 }
-                finally {
-                    // Clean up in-flight query
-                    inFlightQueries.delete(key);
-                }
-            }))();
-            // Store promise
-            inFlightQueries.set(key, queryPromise);
-            return queryPromise;
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, { key, error: error instanceof Error ? error : undefined });
-            return {
-                data: null,
-                error: error instanceof Error ? error : new Error('Unknown error occurred'),
-                isStale: false,
-                timestamp: Date.now(),
-                metrics: {
-                    duration: performance.now() - startTime,
-                    cacheHit: false
-                }
-            };
-        }
-    });
+                // Execute query
+                const result = await queryFn();
+                const duration = performance.now() - startTime;
+                // Cache result
+                await cacheCore.setCacheValue(key, result, options);
+                // Add required properties to event payload
+                (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
+                    key,
+                    duration,
+                    size: JSON.stringify(result).length,
+                    type: cache_events_1.CacheEventType.COMPUTE_SUCCESS.toString(),
+                    timestamp: Date.now()
+                });
+                return {
+                    data: result,
+                    error: null,
+                    isStale: false,
+                    timestamp: Date.now(),
+                    metrics: {
+                        duration,
+                        cacheHit: false,
+                        size: JSON.stringify(result).length
+                    }
+                };
+            }
+            finally {
+                // Clean up in-flight query
+                inFlightQueries.delete(key);
+            }
+        })();
+        // Store promise
+        inFlightQueries.set(key, queryPromise);
+        return queryPromise;
+    }
+    catch (error) {
+        // Add required properties to event payload and fix error type
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
+            key,
+            error: error instanceof Error ? error : new Error('Unknown error'),
+            type: cache_events_1.CacheEventType.COMPUTE_ERROR.toString(),
+            timestamp: Date.now()
+        });
+        return {
+            data: null,
+            error: error instanceof Error ? error : new Error('Unknown error occurred'),
+            isStale: false,
+            timestamp: Date.now(),
+            metrics: {
+                duration: performance.now() - startTime,
+                cacheHit: false
+            }
+        };
+    }
 }
 /**
  * Batch multiple queries for efficient execution
@@ -186,29 +193,33 @@ function executeQuery(queryName, queryFn, params, options) {
  * ]);
  * ```
  */
-function batchQueries(queries) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const startTime = performance.now();
-        const results = {};
-        try {
-            yield Promise.all(queries.map((_a) => __awaiter(this, [_a], void 0, function* ({ name, fn, params, options }) {
-                results[name] = yield executeQuery(name, fn, params, options);
-            })));
-            const duration = performance.now() - startTime;
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
-                message: 'Batch queries completed',
-                duration,
-                queryCount: queries.length
-            });
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
-                error: error instanceof Error ? error : undefined,
-                message: 'Batch queries failed'
-            });
-        }
-        return results;
-    });
+async function batchQueries(queries) {
+    const startTime = performance.now();
+    const results = {};
+    try {
+        await Promise.all(queries.map(async ({ name, fn, params, options }) => {
+            results[name] = await executeQuery(name, fn, params, options);
+        }));
+        const duration = performance.now() - startTime;
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
+            message: 'Batch queries completed',
+            duration,
+            queryCount: queries.length,
+            type: cache_events_1.CacheEventType.COMPUTE_SUCCESS.toString(),
+            timestamp: Date.now()
+        });
+    }
+    catch (error) {
+        // Fix error type in event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
+            error: error instanceof Error ? error : new Error('Unknown error'),
+            message: 'Batch queries failed',
+            type: cache_events_1.CacheEventType.COMPUTE_ERROR.toString(),
+            timestamp: Date.now()
+        });
+    }
+    return results;
 }
 /**
  * Prefetch queries for improved performance
@@ -219,25 +230,30 @@ function batchQueries(queries) {
  * @category Optimization
  * @priority Medium
  */
-function prefetchQueries(queries) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const startTime = performance.now();
-        try {
-            yield Promise.all(queries.map(({ name, fn, params, options }) => executeQuery(name, fn, params, Object.assign(Object.assign({}, options), { background: true }))));
-            const duration = performance.now() - startTime;
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
-                message: 'Prefetch completed',
-                duration,
-                queryCount: queries.length
-            });
-        }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
-                error,
-                message: 'Prefetch failed'
-            });
-        }
-    });
+async function prefetchQueries(queries) {
+    const startTime = performance.now();
+    try {
+        await Promise.all(queries.map(({ name, fn, params, options }) => executeQuery(name, fn, params, {
+            ...options,
+            background: true
+        })));
+        const duration = performance.now() - startTime;
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, {
+            message: 'Prefetch completed',
+            duration,
+            queryCount: queries.length
+        });
+    }
+    catch (error) {
+        // Fix error type
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
+            error: error instanceof Error ? error : new Error('Unknown error'),
+            message: 'Prefetch failed',
+            type: cache_events_1.CacheEventType.COMPUTE_ERROR.toString(),
+            timestamp: Date.now()
+        });
+    }
 }
 /**
  * Invalidate queries matching a pattern
@@ -248,28 +264,34 @@ function prefetchQueries(queries) {
  * @category Core
  * @priority High
  */
-function invalidateQueries(pattern) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const startTime = performance.now();
-        try {
-            const keys = yield cacheCore.findKeysByPattern(`query:${pattern}`);
-            yield Promise.all(keys.map(key => cacheCore.deleteCacheValue(key)));
-            const duration = performance.now() - startTime;
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.INVALIDATE, {
-                pattern,
-                duration,
-                keysInvalidated: keys.length
-            });
+async function invalidateQueries(pattern) {
+    const startTime = performance.now();
+    try {
+        const keys = await cacheCore.findKeysByPattern(`query:${pattern}`);
+        if (keys && keys.length > 0) {
+            await Promise.all(keys.map(key => (0, delete_cache_value_1.deleteCacheValue)(key)));
         }
-        catch (error) {
-            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-                error,
-                message: 'Query invalidation failed',
-                pattern
-            });
-            throw error;
-        }
-    });
+        const duration = performance.now() - startTime;
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.INVALIDATE, {
+            pattern,
+            duration,
+            keysInvalidated: keys ? keys.length : 0,
+            type: cache_events_1.CacheEventType.INVALIDATE.toString(),
+            timestamp: Date.now()
+        });
+    }
+    catch (error) {
+        // Fix error type
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
+            error: error instanceof Error ? error : new Error(String(error)),
+            message: 'Query invalidation failed',
+            pattern,
+            type: cache_events_1.CacheEventType.ERROR.toString(),
+            timestamp: Date.now()
+        });
+        throw error instanceof Error ? error : new Error(String(error));
+    }
 }
 // Documentation metadata
 exports.metadata = {
@@ -301,3 +323,4 @@ exports.metadata = {
         }],
     since: '1.0.0'
 };
+//# sourceMappingURL=query-utils.js.map

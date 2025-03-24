@@ -4,6 +4,54 @@
 
 import { CacheOptions } from '../types/common';
 import { CacheError, CacheErrorCode } from './error-utils';
+
+/**
+ * Cache operation context
+ */
+export interface CacheOperationContext {
+  /** Operation name */
+  operation?: string;
+  
+  /** Cache key */
+  key?: string;
+  
+  /** List of cache keys */
+  keys?: string[];
+  
+  /** Cache provider name */
+  provider?: string;
+  
+  /** Additional context data */
+  context?: Record<string, any>;
+  
+  /** Optional error cause */
+  cause?: Error;
+  
+  /** Cache tag */
+  tag?: string;
+  
+  /** Cache key prefix */
+  prefix?: string;
+  
+  /** Entries for batch operations */
+  entries?: Record<string, any> | string[];
+  
+  /** Operation error count */
+  errorCount?: number;
+  
+  /** Whether the data is compressed */
+  compressed?: boolean;
+  
+  /** Operation start time */
+  startTime?: number;
+  
+  /** Operation options */
+  options?: any;
+  
+  /** Custom properties for specific operations */
+  [key: string]: any;
+}
+
 /**
  * Maximum allowed key length
  */
@@ -19,7 +67,7 @@ export function validateCacheKey(key: string): void {
     throw new CacheError(
       CacheErrorCode.INVALID_KEY,
       'Cache key cannot be empty',
-      'validate'
+      { operation: 'validate' }
     );
   }
   
@@ -27,16 +75,15 @@ export function validateCacheKey(key: string): void {
     throw new CacheError(
       CacheErrorCode.INVALID_KEY,
       `Cache key must be a string, got ${typeof key}`,
-      'validate'
+      { operation: 'validate' }
     );
   }
-  
+
   if (key.length > MAX_KEY_LENGTH) {
     throw new CacheError(
       CacheErrorCode.KEY_TOO_LONG,
       `Cache key exceeds maximum length of ${MAX_KEY_LENGTH} characters`,
-      'validate',
-      key
+      { operation: 'validate', key }
     );
   }
 }
@@ -56,23 +103,23 @@ export function validateCacheOptions(options?: CacheOptions): void {
     throw new CacheError(
       CacheErrorCode.INVALID_ARGUMENT,
       `Cache options must be an object, got ${typeof options}`,
-      'validate'
+      { operation: 'validate' }
     );
   }
-  
+
   if (options.ttl !== undefined && (typeof options.ttl !== 'number' || options.ttl < 0)) {
     throw new CacheError(
       CacheErrorCode.INVALID_ARGUMENT,
       `TTL must be a non-negative number, got ${options.ttl}`,
-      'validate'
+      { operation: 'validate' }
     );
-}
+  }
 
   if (options.tags !== undefined && !Array.isArray(options.tags)) {
     throw new CacheError(
       CacheErrorCode.INVALID_ARGUMENT,
       `Tags must be an array, got ${typeof options.tags}`,
-      'validate'
+      { operation: 'validate' }
     );
   }
 }
@@ -88,7 +135,7 @@ export function validateCacheValue(value: any): void {
     throw new CacheError(
       CacheErrorCode.INVALID_ARGUMENT,
       'Cannot cache undefined value',
-      'validate'
+      { operation: 'validate' }
     );
   }
 
@@ -99,7 +146,7 @@ export function validateCacheValue(value: any): void {
     throw new CacheError(
       CacheErrorCode.SERIALIZATION_ERROR,
       'Value cannot be serialized to JSON',
-      'validate'
+      { operation: 'validate' }
     );
   }
 }

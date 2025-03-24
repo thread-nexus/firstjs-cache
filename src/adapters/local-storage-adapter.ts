@@ -2,9 +2,10 @@
  * @fileoverview Browser localStorage adapter with size management and expiration
  */
 
-import { IStorageAdapter, StorageAdapterConfig } from '../interfaces/storage-adapter';
+import { IStorageAdapter } from '../interfaces/i-storage-adapter';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
 import { handleCacheError } from '../utils/error-utils';
+import { HealthStatus } from '../types/index';
 
 interface StorageEntry {
   value: string;
@@ -14,11 +15,12 @@ interface StorageEntry {
 }
 
 export class LocalStorageAdapter implements IStorageAdapter {
+  readonly name: string = 'localStorage';
   private readonly prefix: string;
   private readonly maxSize: number;
   private currentSize: number = 0;
 
-  constructor(config: StorageAdapterConfig & { maxSize?: number } = {}) {
+  constructor(config: { prefix?: string; maxSize?: number } = {}) {
     this.prefix = config.prefix || 'cache';
     this.maxSize = config.maxSize || 5 * 1024 * 1024; // 5MB default
     this.initializeSize();
@@ -51,12 +53,12 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Get value from localStorage
    */
-  async get(key: string): Promise<string | null> {
+  async get<T = any>(key: string): Promise<T | null> {
     try {
       const entry = this.getEntry(this.getKeyWithPrefix(key));
       
       if (!entry) {
-        new emitCacheEvent(CacheEventType.GET_MISS, {
+        emitCacheEvent(CacheEventType.GET_MISS, {
           key,
           provider: 'localStorage'
         });
@@ -69,13 +71,22 @@ export class LocalStorageAdapter implements IStorageAdapter {
         return null;
       }
 
-      new emitCacheEvent(CacheEventType.GET_HIT, {
+      emitCacheEvent(CacheEventType.GET_HIT, {
         key,
         provider: 'localStorage',
         age: Date.now() - entry.createdAt
       });
 
-      return entry.value;
+      // For non-string values, try to parse JSON
+      if (typeof entry.value === 'string') {
+        try {
+          return JSON.parse(entry.value) as T;
+        } catch {
+          return entry.value as unknown as T;
+        }
+      }
+      
+      return entry.value as unknown as T;
     } catch (error) {
       handleCacheError(error, {
         operation: 'get',
@@ -89,9 +100,11 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Set value in localStorage
    */
-  async set(key: string, value: string, ttl?: number): Promise<void> {
+  async set<T = any>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
     try {
-      const size = this.getSize(value);
+      // Convert value to string if needed
+      const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+      const size = this.getSize(stringValue);
       
       // Ensure space is available
       if (size > this.maxSize) {
@@ -102,10 +115,10 @@ export class LocalStorageAdapter implements IStorageAdapter {
       await this.ensureSpace(size);
 
       const entry: StorageEntry = {
-        value,
+        value: stringValue,
         size,
         createdAt: Date.now(),
-        expiresAt: ttl ? Date.now() + (ttl * 1000) : undefined
+        expiresAt: options?.ttl ? Date.now() + (options.ttl * 1000) : undefined
       };
 
       const prefixedKey = this.getKeyWithPrefix(key);
@@ -235,7 +248,6 @@ export class LocalStorageAdapter implements IStorageAdapter {
     } catch (error) {
       handleCacheError(error, {
         operation: 'keys',
-        pattern,
         provider: 'localStorage'
       });
       throw error;
@@ -245,11 +257,11 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Get multiple values
    */
-  async getMany(keys: string[]): Promise<Record<string, string | null>> {
-    const result: Record<string, string | null> = {};
+  async getMany<T = any>(keys: string[]): Promise<Record<string, T | null>> {
+    const result: Record<string, T | null> = {};
     
     for (const key of keys) {
-      result[key] = await this.get(key);
+      result[key] = await this.get<T>(key);
     }
     
     return result;
@@ -258,9 +270,43 @@ export class LocalStorageAdapter implements IStorageAdapter {
   /**
    * Set multiple values
    */
-  async setMany(entries: Record<string, string>, ttl?: number): Promise<void> {
+  async setMany<T = any>(entries: Record<string, T>, options?: { ttl?: number }): Promise<void> {
     for (const [key, value] of Object.entries(entries)) {
-      await this.set(key, value, ttl);
+      await this.set(key, value, options);
+    }
+  }
+
+  /**
+   * Get storage statistics
+   */
+  async getStats(): Promise<Record<string, any>> {
+    return {
+      provider: 'localStorage',
+      size: this.currentSize,
+      maxSize: this.maxSize,
+      itemCount: (await this.keys()).length
+    };
+  }
+
+  /**
+   * Health check
+   */
+  async healthCheck(): Promise<HealthStatus> {
+    try {
+      // Perform actual health check
+      return {
+        status: 'healthy',
+        healthy: true,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      // Since HealthStatus now supports the error property:
+      return {
+        status: 'unhealthy',
+        healthy: false,
+        timestamp: Date.now(),
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 

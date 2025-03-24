@@ -1,12 +1,28 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CacheMetadata = void 0;
-/**
- * Cache metadata manager
- */
-class CacheMetadata {
+exports.CacheMetadataManager = void 0;
+class CacheMetadataManager {
     constructor() {
         this.metadata = new Map();
+    }
+    set(key, data) {
+        const now = Date.now();
+        const existing = this.metadata.get(key);
+        const entry = {
+            tags: data.tags || existing?.tags || [],
+            createdAt: existing?.createdAt || now,
+            lastAccessed: now,
+            updatedAt: now,
+            accessCount: existing?.accessCount || 0,
+            size: data.size || existing?.size || 0,
+            compressed: data.compressed || existing?.compressed,
+            computeTime: data.computeTime,
+            expiresAt: data.expiresAt,
+        };
+        this.metadata.set(key, entry);
+    }
+    get(key) {
+        return this.metadata.get(key);
     }
     /**
      * Clear all metadata
@@ -76,30 +92,6 @@ class CacheMetadata {
         }
     }
     /**
-     * Get metadata for a cache key
-     *
-     * @param key - The cache key
-     * @returns Metadata for the key or undefined if not found
-     */
-    get(key) {
-        return this.metadata.get(key);
-    }
-    /**
-     * Set metadata for a cache key
-     *
-     * @param key - The cache key
-     * @param data - Metadata to store
-     */
-    set(key, data) {
-        const existing = this.metadata.get(key);
-        if (existing) {
-            this.metadata.set(key, Object.assign(Object.assign(Object.assign({}, existing), data), { updatedAt: new Date() }));
-        }
-        else {
-            this.metadata.set(key, Object.assign({ createdAt: new Date(), updatedAt: new Date(), accessCount: 0, tags: [] }, data));
-        }
-    }
-    /**
      * Update access count for a key
      *
      * @param key - The cache key
@@ -108,7 +100,7 @@ class CacheMetadata {
         const metadata = this.metadata.get(key);
         if (metadata) {
             metadata.accessCount += 1;
-            metadata.updatedAt = new Date();
+            metadata.updatedAt = Date.now();
         }
     }
     /**
@@ -128,4 +120,5 @@ class CacheMetadata {
         return this.metadata.size;
     }
 }
-exports.CacheMetadata = CacheMetadata;
+exports.CacheMetadataManager = CacheMetadataManager;
+//# sourceMappingURL=cache-metadata.js.map

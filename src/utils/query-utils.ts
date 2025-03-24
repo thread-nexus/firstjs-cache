@@ -3,7 +3,7 @@
  * with batching, deduplication, and background refresh capabilities.
  */
 
-import {CacheOptions} from '../types/cache-types';
+import {CacheOptions} from '../types/common';
 import {DocCategory, DocPriority, PerformanceImpact} from '../docs/types';
 import {generateQueryKey} from './key-utils';
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
@@ -11,7 +11,7 @@ import * as cacheCore from '../implementations/cache-manager-core';
 import {deleteCacheValue} from "../implementations/delete-cache-value";
 
 // Performance optimization: Query deduplication cache
-const inFlightQueries = new Map<string, Promise<any>>();
+const inFlightQueries = new Map<string, Promise<QueryResult<any>>>();
 
 /**
  * Query result interface with metadata
@@ -71,23 +71,31 @@ export async function executeQuery<T>(
   // Check for in-flight queries
   const inFlight = inFlightQueries.get(key);
   if (inFlight) {
-    return inFlight;
+    return inFlight as Promise<QueryResult<T>>;
   }
 
   try {
     // Create promise for this query
-    const queryPromise = await (async () => {
+    const queryPromise = (async () => {
       try {
-        emitCacheEvent(CacheEventType.COMPUTE_START, {key});
+        // Add required properties to event payload
+        emitCacheEvent(CacheEventType.COMPUTE_START, {
+          key,
+          type: CacheEventType.COMPUTE_START.toString(),
+          timestamp: Date.now()
+        });
 
         // Try cache first
         const cached = cacheCore.getCacheValue<T>(key);
         if (cached !== null) {
           const duration = performance.now() - startTime;
+          // Add required properties to event payload
           emitCacheEvent(CacheEventType.GET_HIT, {
             key,
             duration,
-            size: JSON.stringify(cached).length
+            size: JSON.stringify(cached).length,
+            type: CacheEventType.GET_HIT.toString(),
+            timestamp: Date.now()
           });
 
           return {
@@ -110,10 +118,13 @@ export async function executeQuery<T>(
         // Cache result
         await cacheCore.setCacheValue(key, result, options);
 
+        // Add required properties to event payload
         emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
           key,
           duration,
-          size: JSON.stringify(result).length
+          size: JSON.stringify(result).length,
+          type: CacheEventType.COMPUTE_SUCCESS.toString(),
+          timestamp: Date.now()
         });
 
         return {
@@ -138,7 +149,13 @@ export async function executeQuery<T>(
     return queryPromise;
 
   } catch (error) {
-    emitCacheEvent(CacheEventType.COMPUTE_ERROR, { key, error: error instanceof Error ? error : undefined });
+    // Add required properties to event payload and fix error type
+    emitCacheEvent(CacheEventType.COMPUTE_ERROR, { 
+      key, 
+      error: error instanceof Error ? error : new Error('Unknown error'),
+      type: CacheEventType.COMPUTE_ERROR.toString(),
+      timestamp: Date.now()
+    });
     
     return {
       data: null,
@@ -198,16 +215,22 @@ export async function batchQueries<T>(
     );
 
     const duration = performance.now() - startTime;
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
       message: 'Batch queries completed',
       duration,
-      queryCount: queries.length
+      queryCount: queries.length,
+      type: CacheEventType.COMPUTE_SUCCESS.toString(),
+      timestamp: Date.now()
     });
 
   } catch (error) {
+    // Fix error type in event payload
     emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
-      error: error instanceof Error ? error : undefined,
-      message: 'Batch queries failed'
+      error: error instanceof Error ? error : new Error('Unknown error'),
+      message: 'Batch queries failed',
+      type: CacheEventType.COMPUTE_ERROR.toString(),
+      timestamp: Date.now()
     });
   }
 
@@ -244,6 +267,7 @@ export async function prefetchQueries(
     );
 
     const duration = performance.now() - startTime;
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
       message: 'Prefetch completed',
       duration,
@@ -251,9 +275,12 @@ export async function prefetchQueries(
     });
 
   } catch (error) {
+    // Fix error type
     emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
-      error,
-      message: 'Prefetch failed'
+      error: error instanceof Error ? error : new Error('Unknown error'),
+      message: 'Prefetch failed',
+      type: CacheEventType.COMPUTE_ERROR.toString(),
+      timestamp: Date.now()
     });
   }
 }
@@ -274,22 +301,30 @@ export async function invalidateQueries(
 
   try {
     const keys = await cacheCore.findKeysByPattern(`query:${pattern}`);
-    await Promise.all(keys.map(key => deleteCacheValue(key)));
+    if (keys && keys.length > 0) {
+      await Promise.all(keys.map(key => deleteCacheValue(key)));
+    }
 
     const duration = performance.now() - startTime;
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.INVALIDATE, {
       pattern,
       duration,
-      keysInvalidated: keys.length
+      keysInvalidated: keys ? keys.length : 0,
+      type: CacheEventType.INVALIDATE.toString(),
+      timestamp: Date.now()
     });
 
   } catch (error) {
+    // Fix error type
     emitCacheEvent(CacheEventType.ERROR, {
-      error,
+      error: error instanceof Error ? error : new Error(String(error)),
       message: 'Query invalidation failed',
-      pattern
+      pattern,
+      type: CacheEventType.ERROR.toString(),
+      timestamp: Date.now()
     });
-    throw error;
+    throw error instanceof Error ? error : new Error(String(error));
   }
 }
 

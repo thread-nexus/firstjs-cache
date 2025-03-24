@@ -1,23 +1,28 @@
+import { HealthStatus } from '../types/index';
+
 /**
  * Interface for low-level storage adapters
  */
 export interface IStorageAdapter {
+  /** Adapter name */
+  readonly name: string;
+  
   /**
    * Get raw data by key
    * 
    * @param key The storage key
-   * @returns The stored value as string or null if not found
+   * @returns The stored value or null if not found
    */
-  get(key: string): Promise<string | null>;
+  get<T = any>(key: string): Promise<T | null>;
   
   /**
    * Set raw data with key
    * 
    * @param key The storage key
-   * @param value The value to store as string
-   * @param ttl Optional TTL in seconds
+   * @param value The value to store
+   * @param options Optional storage options with TTL
    */
-  set(key: string, value: string, ttl?: number): Promise<void>;
+  set<T = any>(key: string, value: T, options?: { ttl?: number }): Promise<void>;
   
   /**
    * Check if key exists
@@ -54,15 +59,31 @@ export interface IStorageAdapter {
    * @param keys Array of keys to retrieve
    * @returns Record of key-value pairs
    */
-  getMany(keys: string[]): Promise<Record<string, string | null>>;
+  getMany<T = any>(keys: string[]): Promise<Record<string, T | null>>;
   
   /**
    * Set multiple items at once
    * 
    * @param entries Record of key-value pairs to store
-   * @param ttl Optional TTL in seconds
+   * @param options Optional storage options with TTL
    */
-  setMany(entries: Record<string, string>, ttl?: number): Promise<void>;
+  setMany<T = any>(entries: Record<string, T>, options?: { ttl?: number }): Promise<void>;
+  
+  /**
+   * Get adapter stats
+   */
+  getStats(): Promise<Record<string, any>>;
+  
+  /**
+   * Perform health check
+   */
+  healthCheck(): Promise<HealthStatus>;
+  
+  /** Set metadata for a key */
+  setMetadata?(key: string, metadata: any): Promise<void>;
+  
+  /** Get metadata for a key */
+  getMetadata?(key: string): Promise<any>;
 }
 
 /**

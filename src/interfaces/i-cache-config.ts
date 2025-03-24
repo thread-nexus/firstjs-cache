@@ -1,17 +1,25 @@
+/**
+ * @fileoverview Enhanced configuration interface for the cache system
+ * @author harborgrid-justin
+ * @lastModified 2025-03-24
+ */
+
 import { ICacheProvider } from './i-cache-provider';
-import { CacheOptions } from '../types/common';
+import { CacheOptions, SecurityOptions, MonitoringConfig } from '../types/common';
 
 /**
- * Configuration for the cache system
+ * Enhanced configuration for the cache system
  */
 export interface ICacheConfig {
   /**
-   * List of cache providers
+   * List of cache providers with improved typing
    */
-  providers: IProviderConfig[];
+  providers: Array<IProviderConfig>;
   
   /**
    * Default TTL in seconds
+   * @minimum 0
+   * @default 3600
    */
   defaultTtl?: number;
   
@@ -21,62 +29,100 @@ export interface ICacheConfig {
   defaultOptions?: CacheOptions;
   
   /**
-   * Whether to deduplicate in-flight requests
+   * Request deduplication settings
    */
-  deduplicateRequests?: boolean;
+  deduplication?: {
+    enabled: boolean;
+    timeout: number;
+    maxPending: number;
+  };
   
   /**
-   * Whether to enable background refresh
+   * Background refresh configuration
    */
-  backgroundRefresh?: boolean;
+  backgroundRefresh?: {
+    enabled: boolean;
+    threshold: number;
+    maxConcurrent: number;
+    errorHandling: 'fail-silent' | 'retry' | 'fallback';
+  };
   
   /**
-   * Threshold for background refresh (0-1, percentage of TTL)
+   * Enhanced error handling configuration
    */
-  refreshThreshold?: number;
+  errorHandling?: {
+    throwOnErrors: boolean;
+    retryAttempts: number;
+    retryDelay: number;
+    fallbackValue?: any;
+  };
   
   /**
-   * Whether to throw errors or suppress them
+   * Improved logging configuration
    */
-  throwOnErrors?: boolean;
-  
+  logging?: {
+    enabled: boolean;
+    level: 'debug' | 'info' | 'warn' | 'error';
+    includeStackTraces: boolean;
+    format?: 'json' | 'text';
+    destination?: 'console' | 'file';
+    customLogger?: (entry: LogEntry) => void;
+  };
+
   /**
-   * Whether to enable logging
+   * Security settings
    */
-  logging?: boolean;
-  
+  security?: SecurityOptions;
+
   /**
-   * Whether to include stack traces in logs
+   * Monitoring configuration
    */
-  logStackTraces?: boolean;
-  
-  /**
-   * Custom logger function
-   */
-  logger?: (logEntry: any) => void;
+  monitoring?: MonitoringConfig;
 }
 
 /**
- * Configuration for a cache provider
+ * Enhanced provider configuration
  */
 export interface IProviderConfig {
   /**
-   * Unique name for this provider
+   * Unique provider identifier
    */
   name: string;
   
   /**
-   * The provider instance
+   * Provider instance
    */
   instance: ICacheProvider;
   
   /**
-   * Priority order (lower numbers are checked first)
+   * Priority (lower numbers checked first)
+   * @minimum 0
    */
   priority?: number;
+  
+  /**
+   * Connection configuration
+   */
+  connection?: {
+    timeout: number;
+    retries: number;
+    poolSize?: number;
+  };
   
   /**
    * Provider-specific options
    */
   options?: Record<string, any>;
+}
+
+/**
+ * Log entry interface
+ */
+export interface LogEntry {
+  timestamp: Date;
+  level: string;
+  message: string;
+  context?: Record<string, any>;
+  error?: Error;
+  stackTrace?: string;
 }

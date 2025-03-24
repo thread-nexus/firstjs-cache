@@ -1,200 +1,280 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheManager = void 0;
-const cache_metadata_1 = require("./cache-metadata");
+const CacheMetadata_1 = require("./CacheMetadata");
+const cache_events_1 = require("../events/cache-events");
+const error_utils_1 = require("../utils/error-utils");
+const default_config_1 = require("../config/default-config");
 /**
- * CacheManager implementation
+ * Main cache manager implementation
  */
 class CacheManager {
-    constructor() {
-        this.providers = new Map();
-        this.metadata = new cache_metadata_1.CacheMetadata();
-    }
     /**
-     * Register a cache provider
-     *
-     * @param name Unique name for the provider
-     * @param provider The cache provider instance
+     * Create a new cache manager
      */
-    registerProvider(name, provider) {
-        this.providers.set(name, provider);
+    constructor(config = {}) {
+        this.providers = new Map();
+        this.metadata = new CacheMetadata_1.CacheMetadata();
+        this.config = default_config_1.DEFAULT_CONFIG;
+        this.config = { ...default_config_1.DEFAULT_CONFIG, ...config };
     }
     /**
      * Get a value from cache
      */
-    get(key) {
-        return __awaiter(this, void 0, void 0, function* () {
+    async get(key) {
+        try {
             for (const provider of this.providers.values()) {
-                const value = yield provider.get(key);
+                const value = await provider.get(key);
                 if (value !== null) {
                     this.metadata.recordAccess(key);
                     return value;
                 }
             }
             return null;
-        });
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'get', key });
+            return null;
+        }
     }
     /**
-     * Store a value in cache
+     * Set a value in cache
      */
-    set(key, value, options) {
-        return __awaiter(this, void 0, void 0, function* () {
+    async set(key, value, options) {
+        try {
             for (const provider of this.providers.values()) {
-                yield provider.set(key, value, options);
+                await provider.set(key, value, options);
             }
-            this.metadata.set(key, { tags: (options === null || options === void 0 ? void 0 : options.tags) || [] });
-        });
+            this.metadata.set(key, { tags: options?.tags || [] });
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'set', key });
+            throw error;
+        }
     }
     /**
-     * Delete a value from all cache layers
+     * Delete a value from cache
      */
-    delete(key) {
-        return __awaiter(this, void 0, void 0, function* () {
+    async delete(key) {
+        try {
             let deleted = false;
             for (const provider of this.providers.values()) {
-                deleted = (yield provider.delete(key)) || deleted;
+                const result = await provider.delete(key);
+                deleted = deleted || result;
             }
-            this.metadata.delete(key);
+            if (deleted) {
+                this.metadata.delete(key);
+            }
             return deleted;
-        });
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'delete', key });
+            return false;
+        }
     }
     /**
-     * Clear all cache layers
+     * Clear all values from cache
      */
-    clear() {
-        return __awaiter(this, void 0, void 0, function* () {
+    async clear() {
+        try {
             for (const provider of this.providers.values()) {
-                yield provider.clear();
+                await provider.clear();
             }
             this.metadata.clear();
-        });
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'clear' });
+        }
     }
     /**
-     * Get cache statistics from all layers
+     * Check if a key exists in cache
      */
-    getStats() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const stats = {};
-            for (const [name, provider] of this.providers.entries()) {
-                stats[name] = yield provider.getStats();
+    async has(key) {
+        try {
+            for (const provider of this.providers.values()) {
+                // Safely check if provider.has exists before calling
+                if (provider && typeof provider.has === 'function' && await provider.has(key)) {
+                    return true;
+                }
             }
-            return stats;
-        });
+            return false;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'has', key });
+            return false;
+        }
     }
     /**
-     * Get or compute a value - returns from cache if available or computes and caches it
+     * Register a cache provider
      */
-    getOrCompute(key, fn, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const cachedValue = yield this.get(key);
+    registerProvider(name, provider) {
+        this.providers.set(name, provider);
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.PROVIDER_INITIALIZED, { provider: name });
+    }
+    /**
+     * Get or compute a value
+     */
+    async getOrCompute(key, fetcher, options) {
+        try {
+            // Check cache first
+            const cachedValue = await this.get(key);
             if (cachedValue !== null) {
                 return cachedValue;
             }
-            const computedValue = yield fn();
-            yield this.set(key, computedValue, options);
-            return computedValue;
-        });
+            // Compute value
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_START, { key });
+            const value = await fetcher();
+            // Store in cache
+            await this.set(key, value, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_SUCCESS, { key });
+            return value;
+        }
+        catch (error) {
+            const safeError = (0, error_utils_1.ensureError)(error);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.COMPUTE_ERROR, {
+                key,
+                error: safeError
+            });
+            throw safeError;
+        }
     }
     /**
-     * Wrap a function with caching
+     * Create a cached wrapper for a function
      */
     wrap(fn, keyGenerator, options) {
-        const wrappedFunction = (...args) => __awaiter(this, void 0, void 0, function* () {
-            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+        return (async (...args) => {
+            const key = keyGenerator(...args);
             return this.getOrCompute(key, () => fn(...args), options);
         });
-        wrappedFunction.invalidateCache = (...args) => __awaiter(this, void 0, void 0, function* () {
-            const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
-            yield this.delete(key);
-        });
-        return wrappedFunction;
     }
     /**
-     * Invalidate all entries with a given tag
+     * Invalidate cache entries by tag
      */
-    invalidateByTag(tag) {
-        return __awaiter(this, void 0, void 0, function* () {
+    async invalidateByTag(tag) {
+        try {
             const keys = this.metadata.findByTag(tag);
+            let count = 0;
             for (const key of keys) {
-                yield this.delete(key);
+                const deleted = await this.delete(key);
+                if (deleted)
+                    count++;
             }
-        });
-    }
-    /**
-     * Get a specific cache provider by layer name
-     */
-    getProvider(layer) {
-        return this.providers.get(layer) || null;
-    }
-    /**
-     * Get metadata for a cache key
-     */
-    getMetadata(key) {
-        return this.metadata.get(key);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.INVALIDATE, {
+                tag,
+                entriesRemoved: count
+            });
+            return count;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'invalidateByTag', tag });
+            return 0;
+        }
     }
     /**
      * Invalidate cache entries by prefix
      */
-    invalidateByPrefix(prefix) {
-        return __awaiter(this, void 0, void 0, function* () {
+    async invalidateByPrefix(prefix) {
+        try {
             const keys = this.metadata.findByPrefix(prefix);
+            let count = 0;
             for (const key of keys) {
-                yield this.delete(key);
+                const deleted = await this.delete(key);
+                if (deleted)
+                    count++;
             }
-        });
-    }
-    /**
-     * Delete cache entries matching a pattern
-     */
-    deleteByPattern(pattern) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const keys = this.metadata.findByPattern(pattern);
-            for (const key of keys) {
-                yield this.delete(key);
-            }
-        });
-    }
-    /**
-     * Get all keys matching a pattern
-     */
-    keys(pattern) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (!pattern) {
-                return this.metadata.keys();
-            }
-            return this.metadata.findByPattern(pattern);
-        });
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.INVALIDATE, {
+                prefix,
+                entriesRemoved: count
+            });
+            return count;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'invalidateByPrefix', prefix });
+            return 0;
+        }
     }
     /**
      * Get multiple values from cache
      */
-    getMany(keys) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const result = {};
+    async getMany(keys) {
+        const result = {};
+        try {
+            // Try to use batch get if available on first provider
+            const firstProvider = [...this.providers.values()][0];
+            if (firstProvider && typeof firstProvider.getMany === 'function') {
+                return await firstProvider.getMany(keys);
+            }
+            // Fall back to individual gets
             for (const key of keys) {
-                result[key] = yield this.get(key);
+                result[key] = await this.get(key);
             }
             return result;
-        });
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'getMany', keys });
+            // Ensure we return something for each key
+            for (const key of keys) {
+                if (!(key in result)) {
+                    result[key] = null;
+                }
+            }
+            return result;
+        }
     }
     /**
      * Set multiple values in cache
      */
-    setMany(entries, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const [key, value] of Object.entries(entries)) {
-                yield this.set(key, value, options);
+    async setMany(entries, options) {
+        try {
+            // Fix defaultOptions access
+            const ttl = this.config.defaultTtl;
+            const mergedOptions = {
+                ...options,
+                ttl: options?.ttl ?? ttl // Use nullish coalescing to only apply default if undefined
+            };
+            // Try to use batch set if available on first provider
+            const firstProvider = [...this.providers.values()][0];
+            if (firstProvider && typeof firstProvider.setMany === 'function') {
+                await firstProvider.setMany(entries, mergedOptions);
+                // Update metadata
+                for (const key of Object.keys(entries)) {
+                    this.metadata.set(key, { tags: mergedOptions.tags || [] });
+                }
+                return;
             }
-        });
+            // Fall back to individual sets
+            for (const [key, value] of Object.entries(entries)) {
+                await this.set(key, value, mergedOptions);
+            }
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'setMany', entries: Object.keys(entries) });
+            throw error;
+        }
+    }
+    /**
+     * Get cache statistics
+     */
+    async getStats() {
+        try {
+            const stats = {
+                providers: {},
+                metadata: this.metadata.getStats()
+            };
+            // Collect stats from providers
+            for (const [name, provider] of this.providers.entries()) {
+                if (typeof provider.getStats === 'function') {
+                    stats.providers[name] = await provider.getStats();
+                }
+            }
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.STATS_UPDATE, { stats });
+            return stats;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, { operation: 'getStats' });
+            return {};
+        }
     }
 }
 exports.CacheManager = CacheManager;
+//# sourceMappingURL=cache-manager.js.map

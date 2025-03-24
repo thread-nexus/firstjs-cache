@@ -4,6 +4,8 @@
 
 import { CacheEventType, emitCacheEvent } from '../../events/cache-events';
 import { compressData, decompressData } from '../../utils/compression-utils';
+import { IStorageAdapter } from '../../interfaces/i-storage-adapter';
+import { HealthStatus } from '../../types/common';
 
 /**
  * Configuration options for the memory storage adapter
@@ -31,7 +33,8 @@ interface CacheEntryMetadata {
 /**
  * In-memory storage adapter using LRU cache
  */
-export class MemoryStorageAdapter {
+export class MemoryStorageAdapter implements IStorageAdapter {
+  public name = 'memory';
   private store = new Map<string, any>();
   private metadata: Map<string, CacheEntryMetadata> = new Map();
   private stats = {
@@ -87,7 +90,7 @@ export class MemoryStorageAdapter {
       // Handle decompression if needed
       if (meta?.compressed && Buffer.isBuffer(value)) {
         try {
-          const decompressed = await decompressData(value, 'utf8');
+          const decompressed = await decompressData(value, 'gzip');
           if (typeof decompressed === 'string') {
             try {
               return JSON.parse(decompressed) as T;
@@ -125,7 +128,8 @@ export class MemoryStorageAdapter {
       // Ensure we have space - evict if needed
       this.ensureCapacity();
       
-      let processedValue = value;
+      let processedValue: any;
+      processedValue = null;
       let size: number;
       let compressed = false;
       
@@ -139,10 +143,14 @@ export class MemoryStorageAdapter {
             const serialized = typeof value === 'string' ? value : JSON.stringify(value);
             
             if (Buffer.byteLength(serialized, 'utf8') > threshold) {
-              const compressedData = await compressData(serialized);
-              processedValue = compressedData;
+              const compressedData = await compressData(Buffer.from(serialized));
+              processedValue = {
+                data: compressedData.data,
+                algorithm: compressedData.algorithm,
+                compressed: true
+              };
               compressed = true;
-              size = compressedData.length;
+              size = compressedData.data.length;
             } else {
               size = Buffer.byteLength(serialized, 'utf8');
     }
@@ -392,5 +400,37 @@ export class MemoryStorageAdapter {
         reason: 'lru'
       });
     }
+  }
+
+  /**
+   * Get all keys in the cache
+   * 
+   * @param pattern Optional pattern to match keys against
+   * @returns Array of keys
+   */
+  async keys(pattern?: string): Promise<string[]> {
+    if (!pattern) {
+      return Array.from(this.store.keys());
+    }
+    
+    // Basic pattern matching using string includes
+    return Array.from(this.store.keys()).filter(key => key.includes(pattern));
+  }
+
+  /**
+   * Perform health check
+   * 
+   * @returns Health status
+   */
+  async healthCheck(): Promise<HealthStatus> {
+    return {
+      status: 'healthy',
+      healthy: true,
+      timestamp: Date.now(),
+      details: {
+        size: this.stats.size,
+        itemCount: this.store.size
+      }
+    };
   }
 }

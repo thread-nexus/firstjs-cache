@@ -32,15 +32,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.useCache = useCache;
 exports.useCachedQuery = useCachedQuery;
@@ -48,6 +39,7 @@ exports.useCacheList = useCacheList;
 const react_1 = require("react");
 const cacheCore = __importStar(require("../implementations/cache-manager-core"));
 const cache_events_1 = require("../events/cache-events");
+const delete_cache_value_1 = require("../implementations/delete-cache-value");
 /**
  * React hook for cache operations
  */
@@ -55,22 +47,32 @@ function useCache(key, fetcher, options = {}) {
     const [data, setData] = (0, react_1.useState)(null);
     const [error, setError] = (0, react_1.useState)(null);
     const [isLoading, setIsLoading] = (0, react_1.useState)(false);
-    const fetchData = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
+    const [isStale, setIsStale] = (0, react_1.useState)(false);
+    const fetchData = (0, react_1.useCallback)(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const value = fetcher
-                ? yield cacheCore.getOrComputeValue(key, fetcher, options)
-                : yield cacheCore.getCacheValue(key);
+            let value;
+            if (fetcher) {
+                // Implement our own getOrCompute logic
+                value = await cacheCore.getCacheValue(key);
+                if (value === null) {
+                    value = await fetcher();
+                    await cacheCore.setCacheValue(key, value, options);
+                }
+            }
+            else {
+                value = await cacheCore.getCacheValue(key);
+            }
             setData(value);
         }
         catch (err) {
-            setError(err);
+            setError(err instanceof Error ? err : new Error(String(err)));
         }
         finally {
             setIsLoading(false);
         }
-    }), [key, fetcher, options]);
+    }, [key, fetcher, options]);
     // Initial fetch
     (0, react_1.useEffect)(() => {
         fetchData().then(r => { });
@@ -85,22 +87,22 @@ function useCache(key, fetcher, options = {}) {
     }, [fetchData, options.revalidate, options.revalidateInterval]);
     // Subscribe to cache events
     (0, react_1.useEffect)(() => {
-        return new cache_events_1.subscribeToCacheEvents(cache_events_1.CacheEventType.INVALIDATE, (payload) => {
+        const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)('all', (payload) => {
             if (payload.key === key) {
-                fetchData().then(r => {
-                });
+                setIsStale(true);
             }
         });
+        return unsubscribe;
     }, [key, fetchData]);
     // Cache operations
-    const setValue = (0, react_1.useCallback)((value) => __awaiter(this, void 0, void 0, function* () {
-        yield cacheCore.setCacheValue(key, value, options);
+    const setValue = (0, react_1.useCallback)(async (value) => {
+        await cacheCore.setCacheValue(key, value, options);
         setData(value);
-    }), [key, options]);
-    const invalidate = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
-        yield cacheCore.deleteCacheValue(key);
-        yield fetchData();
-    }), [key, fetchData]);
+    }, [key, options]);
+    const invalidate = (0, react_1.useCallback)(async () => {
+        await (0, delete_cache_value_1.deleteCacheValue)(key);
+        await fetchData();
+    }, [key, fetchData]);
     return {
         data,
         error,
@@ -127,27 +129,38 @@ function useCacheList(keys, options = {}) {
     const [data, setData] = (0, react_1.useState)({});
     const [error, setError] = (0, react_1.useState)(null);
     const [isLoading, setIsLoading] = (0, react_1.useState)(false);
-    const fetchAll = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
+    const fetchAll = (0, react_1.useCallback)(async () => {
         setIsLoading(true);
         setError(null);
         try {
-            const values = yield cacheCore.getMany(keys);
-            setData(values);
+            // Implement batch fetching manually
+            const results = {};
+            for (const key of keys) {
+                results[key] = await cacheCore.getCacheValue(key);
+            }
+            setData(results);
         }
         catch (err) {
-            setError(err);
+            setError(err instanceof Error ? err : new Error(String(err)));
         }
         finally {
             setIsLoading(false);
         }
-    }), [keys]);
+    }, [keys]);
     (0, react_1.useEffect)(() => {
         fetchAll().then(r => { });
     }, [fetchAll]);
-    const setValues = (0, react_1.useCallback)((values) => __awaiter(this, void 0, void 0, function* () {
-        yield cacheCore.setMany(values, options);
-        setData(prev => (Object.assign(Object.assign({}, prev), values)));
-    }), [options]);
+    const setValues = (0, react_1.useCallback)(async (values) => {
+        try {
+            for (const [key, value] of Object.entries(values)) {
+                await cacheCore.setCacheValue(key, value, options);
+            }
+            setData(prev => ({ ...prev, ...values }));
+        }
+        catch (error) {
+            console.error('Error setting cache values:', error);
+        }
+    }, [options]);
     return {
         data,
         error,
@@ -156,3 +169,4 @@ function useCacheList(keys, options = {}) {
         refresh: fetchAll
     };
 }
+//# sourceMappingURL=use-cache.js.map

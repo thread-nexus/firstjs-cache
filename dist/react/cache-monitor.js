@@ -45,17 +45,17 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
     const [stats, setStats] = (0, react_1.useState)({});
     const [events, setEvents] = (0, react_1.useState)([]);
     const [selectedProvider, setSelectedProvider] = (0, react_1.useState)();
-    // Subscribe to cache events
+    // Subscribe to cache events with correct parameter
     (0, react_1.useEffect)(() => {
         if (!showEvents)
             return;
-        const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)('*', (event) => {
-            if (eventFilter && !eventFilter(event))
+        const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)('all', (event) => {
+            if (eventFilter && !eventFilter({ type: event.type }))
                 return;
             setEvents(prev => [
                 {
                     type: event.type,
-                    timestamp: Date.now(),
+                    timestamp: event.timestamp || Date.now(),
                     key: event.key,
                     duration: event.duration,
                     size: event.size,
@@ -90,15 +90,15 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
             aggregatedStats && (react_1.default.createElement("div", { className: "cache-monitor-stats" },
                 react_1.default.createElement("div", { className: "stat-item" },
                     react_1.default.createElement("label", null, "Hit Rate"),
-                    react_1.default.createElement("value", null,
+                    react_1.default.createElement("div", { className: "stat-value" },
                         hitRate.toFixed(2),
                         "%")),
                 react_1.default.createElement("div", { className: "stat-item" },
                     react_1.default.createElement("label", null, "Total Size"),
-                    react_1.default.createElement("value", null, (0, cache_manager_utils_1.formatCacheSize)(aggregatedStats.size))),
+                    react_1.default.createElement("div", { className: "stat-value" }, (0, cache_manager_utils_1.formatCacheSize)(aggregatedStats.size))),
                 react_1.default.createElement("div", { className: "stat-item" },
                     react_1.default.createElement("label", null, "Keys"),
-                    react_1.default.createElement("value", null, aggregatedStats.keyCount.toLocaleString()))))),
+                    react_1.default.createElement("span", { className: "stat-value" }, aggregatedStats.keyCount.toLocaleString()))))),
         showDetails && (react_1.default.createElement("div", { className: "cache-monitor-providers" },
             react_1.default.createElement("h4", null, "Cache Providers"),
             react_1.default.createElement("div", { className: "provider-list" }, Object.entries(stats).map(([name, providerStats]) => (react_1.default.createElement("div", { key: name, className: `provider-item ${selectedProvider === name ? 'selected' : ''}`, onClick: () => setSelectedProvider(name) },
@@ -110,16 +110,16 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
                 selectedProvider === name && (react_1.default.createElement("div", { className: "provider-details" },
                     react_1.default.createElement("div", { className: "stat-row" },
                         react_1.default.createElement("label", null, "Hits"),
-                        react_1.default.createElement("value", null, providerStats.hits.toLocaleString())),
+                        react_1.default.createElement("span", { className: "stat-value" }, providerStats.hits.toLocaleString())),
                     react_1.default.createElement("div", { className: "stat-row" },
                         react_1.default.createElement("label", null, "Misses"),
-                        react_1.default.createElement("value", null, providerStats.misses.toLocaleString())),
+                        react_1.default.createElement("span", { className: "stat-value" }, providerStats.misses.toLocaleString())),
                     react_1.default.createElement("div", { className: "stat-row" },
                         react_1.default.createElement("label", null, "Size"),
-                        react_1.default.createElement("value", null, (0, cache_manager_utils_1.formatCacheSize)(providerStats.size))),
+                        react_1.default.createElement("span", { className: "stat-value" }, (0, cache_manager_utils_1.formatCacheSize)(providerStats.size))),
                     react_1.default.createElement("div", { className: "stat-row" },
                         react_1.default.createElement("label", null, "Keys"),
-                        react_1.default.createElement("value", null, providerStats.keyCount.toLocaleString())))))))))),
+                        react_1.default.createElement("span", { className: "stat-value" }, providerStats.keyCount.toLocaleString())))))))))),
         showEvents && events.length > 0 && (react_1.default.createElement("div", { className: "cache-monitor-events" },
             react_1.default.createElement("h4", null, "Recent Events"),
             react_1.default.createElement("div", { className: "event-list" }, events.map((event, index) => (react_1.default.createElement("div", { key: index, className: `event-item ${event.error ? 'error' : ''}` },
@@ -131,7 +131,7 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
                     "ms")),
                 event.size && (react_1.default.createElement("span", { className: "event-size" }, (0, cache_manager_utils_1.formatCacheSize)(event.size))),
                 event.error && (react_1.default.createElement("span", { className: "event-error", title: event.error.message }, event.error.message)))))))),
-        react_1.default.createElement("style", { jsx: true }, `
+        react_1.default.createElement("style", null, `
         .cache-monitor {
           background: #f8f9fa;
           border-radius: 8px;
@@ -166,7 +166,7 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
           margin-bottom: 4px;
         }
 
-        .stat-item value {
+        .stat-value {
           display: block;
           color: #2d3748;
           font-size: 1.25rem;
@@ -227,7 +227,7 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
           color: #718096;
         }
 
-        .stat-row value {
+        .stat-value {
           color: #2d3748;
           font-weight: 500;
         }
@@ -287,3 +287,4 @@ function CacheMonitor({ refreshInterval = 5000, showDetails = false, showEvents 
         }
       `)));
 }
+//# sourceMappingURL=cache-monitor.js.map

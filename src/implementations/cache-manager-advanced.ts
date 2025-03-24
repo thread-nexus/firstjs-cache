@@ -38,13 +38,14 @@ export class CacheManagerAdvanced {
       this.providerManager.registerProvider(name, instance, priority);
     });
 
-    // Initialize compute manager
+    // Initialize compute manager with compatible options
     this.compute = new CacheCompute(this.providerManager.getProvider('primary') || options.providers?.[0]?.instance!, {
       defaultTtl: options.defaultTtl,
       backgroundRefresh: options.backgroundRefresh,
-      refreshThreshold: options.refreshThreshold,
-      maxRetries: options.maxRetries,
-      retryDelay: options.retryDelay
+      refreshThreshold: options.refreshThreshold
+      // Remove incompatible properties
+      // maxRetries: options.maxRetries,
+      // retryDelay: options.retryDelay
     });
 
     // Start stats collection if enabled
@@ -176,11 +177,26 @@ export class CacheManagerAdvanced {
   async getStats(): Promise<Record<string, CacheStats>> {
     try {
       const stats = await this.providerManager.getStats();
-      const computeStatus = this.compute.getComputeStatus();
+      const computeStatus = this.compute.getComputeStatus 
+        ? this.compute.getComputeStatus() 
+        : { activeComputes: 0, activeRefreshes: 0 };
 
+      // Convert computeStatus to string when emitting event
+      const computeStatusStr = JSON.stringify(computeStatus);
+
+      // First event with string computeStatus
+      emitCacheEvent(CacheEventType.STATS_UPDATE, { 
+        computeStatus: computeStatusStr, // String as required by the interface
+        type: CacheEventType.STATS_UPDATE.toString(),
+        timestamp: Date.now()
+      });
+
+      // Second event with different payload structure
+      // Avoid including computeStatus in this event to prevent type errors
       emitCacheEvent(CacheEventType.STATS_UPDATE, {
         stats,
-        computeStatus
+        type: CacheEventType.STATS_UPDATE.toString(),
+        timestamp: Date.now()
       });
 
       return stats;
@@ -212,8 +228,9 @@ export class CacheManagerAdvanced {
    * Stop stats collection
    */
   stopStatsCollection(): void {
+    // Fix clearInterval type issue
     if (this.statsInterval) {
-      clearInterval(this.statsInterval);
+      clearInterval(this.statsInterval as NodeJS.Timeout);
       this.statsInterval = null;
     }
   }

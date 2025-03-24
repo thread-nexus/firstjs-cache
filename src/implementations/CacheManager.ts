@@ -1,6 +1,6 @@
 import { ICacheManager } from '../interfaces/i-cache-manager';
 import { ICacheProvider } from '../interfaces/i-cache-provider';
-import { CacheOptions, CacheStats, EntryMetadata } from '../types/common';
+import { CacheOptions, CacheStats, EntryMetadata, CacheFunctionWrapper, CacheKeyGenerator } from '../types/common';
 import { CacheMetadata } from './CacheMetadata';
 
 /**
@@ -71,9 +71,27 @@ export class CacheManager implements ICacheManager {
    */
   async getStats(): Promise<Record<string, CacheStats>> {
     const stats: Record<string, CacheStats> = {};
+    
     for (const [name, provider] of this.providers.entries()) {
-      stats[name] = await provider.getStats();
+      // Check if getStats exists before calling it
+      if (typeof provider.getStats === 'function') {
+        stats[name] = await provider.getStats();
+      } else {
+        // Provide default stats if getStats is not available
+        stats[name] = {
+          hits: 0,
+          misses: 0,
+          size: 0,
+          memoryUsage: 0,
+          lastUpdated: Date.now(),
+          keyCount: 0,
+          entries: 0,
+          avgTtl: 0,
+          maxTtl: 0
+        };
+      }
     }
+    
     return stats;
   }
 
@@ -100,20 +118,20 @@ export class CacheManager implements ICacheManager {
    */
   wrap<T extends (...args: any[]) => Promise<any>>(
     fn: T,
-    keyGenerator?: (...args: ((P & ((...args: P) => any)) | never[])[]) => string,
+    keyGenerator: CacheKeyGenerator<Parameters<T>>,
     options?: CacheOptions
-  ): T & { invalidateCache: (...args: ((P & ((...args: P) => any)) | never[])[]) => Promise<void> } {
-    const wrappedFunction = async (...args: ((P & ((...args: P) => any)) | never[])[]): Promise<ReturnType<T>> => {
-      const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+  ): CacheFunctionWrapper<T> {
+    const wrappedFn = async (...args: Parameters<T>) => {
+      const key = keyGenerator(...args);
       return this.getOrCompute(key, () => fn(...args), options);
     };
 
-    wrappedFunction.invalidateCache = async (...args: ((P & ((...args: P) => any)) | never[])[]): Promise<void> => {
-      const key = keyGenerator ? keyGenerator(...args) : JSON.stringify(args);
+    wrappedFn.invalidateCache = async (...args: Parameters<T>) => {
+      const key = keyGenerator(...args);
       await this.delete(key);
     };
 
-    return wrappedFunction as T & { invalidateCache: (...args: ((P & ((...args: P) => any)) | never[])[]) => Promise<void> };
+    return wrappedFn as CacheFunctionWrapper<T>;
   }
 
   /**

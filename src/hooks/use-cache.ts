@@ -21,19 +21,28 @@ export function useCache<T = any>(
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStale, setIsStale] = useState(false);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const value = fetcher 
-        ? await cacheCore.getOrComputeValue(key, fetcher, options)
-        : cacheCore.getCacheValue(key);
+      let value;
+      if (fetcher) {
+        // Implement our own getOrCompute logic
+        value = await cacheCore.getCacheValue(key);
+        if (value === null) {
+          value = await fetcher();
+          await cacheCore.setCacheValue(key, value, options);
+        }
+      } else {
+        value = await cacheCore.getCacheValue(key);
+      }
       
       setData(value);
     } catch (err) {
-      setError(err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -56,13 +65,12 @@ export function useCache<T = any>(
 
   // Subscribe to cache events
   useEffect(() => {
-    return new subscribeToCacheEvents(CacheEventType.INVALIDATE,
-        (payload: { key: string; }) => {
-          if (payload.key === key) {
-            fetchData().then(r => {
-            });
-          }
-        });
+    const unsubscribe = subscribeToCacheEvents('all', (payload) => {
+      if (payload.key === key) {
+        setIsStale(true);
+      }
+    });
+    return unsubscribe;
   }, [key, fetchData]);
 
   // Cache operations
@@ -116,10 +124,14 @@ export function useCacheList<T = any>(
     setError(null);
 
     try {
-      const values = await cacheCore.getMany(keys);
-      setData(values);
+      // Implement batch fetching manually
+      const results: Record<string, T | null> = {};
+      for (const key of keys) {
+        results[key] = await cacheCore.getCacheValue<T>(key);
+      }
+      setData(results);
     } catch (err) {
-      setError(err);
+      setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
@@ -130,8 +142,14 @@ export function useCacheList<T = any>(
   }, [fetchAll]);
 
   const setValues = useCallback(async (values: Record<string, T>) => {
-    await cacheCore.setMany(values, options);
-    setData(prev => ({ ...prev, ...values }));
+    try {
+      for (const [key, value] of Object.entries(values)) {
+        await cacheCore.setCacheValue(key, value, options);
+      }
+      setData(prev => ({ ...prev, ...values }));
+    } catch (error) {
+      console.error('Error setting cache values:', error);
+    }
   }, [options]);
 
   return {

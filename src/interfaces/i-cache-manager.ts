@@ -66,9 +66,9 @@ export interface ICacheManager {
    */
   wrap<T extends (...args: any[]) => Promise<any>>(
     fn: T,
-    keyGenerator?: (...args: ((P & ((...args: P) => any)) | never[])[]) => string,
+    keyGenerator?: (...args: Parameters<T>) => string,
     options?: CacheOptions
-  ): T & { invalidateCache: (...args: ((P & ((...args: P) => any)) | never[])[]) => Promise<void> };
+  ): T & { invalidateCache: (...args: Parameters<T>) => Promise<void> };
   
   /**
    * Invalidate all entries with a given tag

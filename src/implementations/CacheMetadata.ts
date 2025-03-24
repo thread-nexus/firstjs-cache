@@ -3,9 +3,10 @@
  */
 
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+import { EntryMetadata } from '../types/common';
 
 /**
- * Metadata for a cache entry
+ * Metadata for a cache entry - compatible with EntryMetadata
  */
 export interface CacheEntryMetadata {
   /**
@@ -14,7 +15,7 @@ export interface CacheEntryMetadata {
   tags: string[];
   
   /**
-   * When the entry was created
+   * When the entry was created - stored as Date but convertible to timestamp
    */
   createdAt: Date;
   
@@ -37,10 +38,16 @@ export interface CacheEntryMetadata {
    * Time to live in seconds
    */
   ttl?: number;
-/**
+  
+  /**
    * Access history
- */
+   */
   accessHistory?: Date[];
+  
+  /**
+   * Size of the entry in bytes (required by EntryMetadata)
+   */
+  size: number;
   
   /**
    * Additional custom metadata
@@ -61,13 +68,18 @@ export interface CacheMetadataOptions {
    */
   ttl?: number;
   /**
+   * Size of the entry in bytes
+   */
+  size?: number;
+  /**
    * Additional custom metadata
    */
   [key: string]: any;
 }
-  /**
+
+/**
  * Cache metadata manager
-   */
+ */
 export class CacheMetadata {
   private metadata = new Map<string, CacheEntryMetadata>();
   /**
@@ -81,7 +93,7 @@ export class CacheMetadata {
   create(key: string, tags: string[] = [], options: CacheMetadataOptions = {}): CacheEntryMetadata {
     if (!key || typeof key !== 'string' || key.trim() === '') {
       throw new Error('Invalid cache key');
-  }
+    }
 
     const now = new Date();
     const entry: CacheEntryMetadata = {
@@ -90,14 +102,18 @@ export class CacheMetadata {
       updatedAt: new Date(now.getTime() + 1), // Ensure updatedAt is greater than createdAt
       accessCount: 0,
       accessHistory: [],
+      size: options.size || 0, // Ensure size property is set
       ...options
     };
 
     this.metadata.set(key, entry);
     
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.METADATA_UPDATE, {
       key,
-      metadata: entry
+      metadata: entry,
+      type: CacheEventType.METADATA_UPDATE.toString(),
+      timestamp: Date.now()
     });
 
     return entry;
@@ -114,7 +130,7 @@ export class CacheMetadata {
     
     for (const [key, { tags, options }] of Object.entries(entries)) {
       result[key] = this.create(key, tags, options);
-}
+    }
     
     return result;
   }
@@ -166,9 +182,12 @@ export class CacheMetadata {
     
     this.metadata.set(key, updatedEntry);
     
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.METADATA_UPDATE, {
       key,
-      metadata: updatedEntry
+      metadata: updatedEntry,
+      type: CacheEventType.METADATA_UPDATE.toString(),
+      timestamp: Date.now()
     });
     
     return updatedEntry;
@@ -179,9 +198,23 @@ export class CacheMetadata {
    * 
    * @param key - Cache key
    * @returns Metadata or undefined if not found
+   * Convert CacheEntryMetadata to EntryMetadata for compatibility
    */
-  get(key: string): CacheEntryMetadata | undefined {
-    return this.metadata.get(key);
+  get(key: string): EntryMetadata | undefined {
+    const metadata = this.metadata.get(key);
+    if (!metadata) return undefined;
+    
+    // Convert CacheEntryMetadata to EntryMetadata
+    return {
+      tags: metadata.tags,
+      createdAt: metadata.createdAt.getTime(), // Convert Date to number
+      lastAccessed: metadata.lastAccessed ? metadata.lastAccessed.getTime() : metadata.createdAt.getTime(),
+      size: metadata.size,
+      accessCount: metadata.accessCount,
+      expiresAt: metadata.ttl ? metadata.createdAt.getTime() + (metadata.ttl * 1000) : undefined,
+      compressed: metadata.compressed || false,
+      // Include any other required properties
+    };
   }
 
   /**
@@ -194,7 +227,12 @@ export class CacheMetadata {
     const deleted = this.metadata.delete(key);
     
     if (deleted) {
-      emitCacheEvent(CacheEventType.METADATA_DELETE, { key });
+      // Add required properties to event payload
+      emitCacheEvent(CacheEventType.METADATA_DELETE, { 
+        key,
+        type: CacheEventType.METADATA_DELETE.toString(),
+        timestamp: Date.now() 
+      });
     }
     
     return deleted;
@@ -207,7 +245,12 @@ export class CacheMetadata {
     const count = this.metadata.size;
     this.metadata.clear();
     
-    emitCacheEvent(CacheEventType.METADATA_CLEAR, { count });
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.METADATA_CLEAR, { 
+      count,
+      type: CacheEventType.METADATA_CLEAR.toString(),
+      timestamp: Date.now()
+    });
   }
 
   /**
@@ -367,19 +410,41 @@ export class CacheMetadata {
     for (const meta of this.metadata.values()) {
       totalAccesses += meta.accessCount;
       
-      for (const tag of meta.tags) {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      // Count tag occurrences
+      if (meta.tags) {
+        for (const tag of meta.tags) {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        }
+      }
+    }
+    
+    // Calculate average TTL and age
+    let totalTtl = 0;
+    let ttlCount = 0;
+    let totalAge = 0;
+    const now = Date.now();
+    
+    for (const meta of this.metadata.values()) {
+      if (meta.ttl) {
+        totalTtl += meta.ttl;
+        ttlCount++;
+      }
+      
+      if (meta.createdAt) {
+        totalAge += now - meta.createdAt.getTime();
       }
     }
     
     return {
-      count: this.metadata.size,
+      entryCount: this.metadata.size,
       totalAccesses,
-      tagCounts,
-      topTags: Object.entries(tagCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([tag, count]) => ({ tag, count }))
+      avgAccessesPerKey: this.metadata.size ? totalAccesses / this.metadata.size : 0,
+      avgTtl: ttlCount ? totalTtl / ttlCount : 0,
+      avgAge: this.metadata.size ? totalAge / this.metadata.size : 0,
+      tagStats: {
+        uniqueTags: Object.keys(tagCounts).length,
+        tagCounts
+      }
     };
   }
 }

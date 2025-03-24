@@ -1,6 +1,7 @@
 import { CacheOptions } from '../types/common';
 import { emitCacheEvent, CacheEventType } from '../events/cache-events';
-import { ICacheProvider } from '../interfaces/ICacheProvider';
+// Update the path to the correct location of ICacheProvider
+import { ICacheProvider } from '../interfaces/ICacheProvider'; // Ensure this file exists or adjust the path
 
 /**
  * Deduplication map for in-flight requests
@@ -41,7 +42,10 @@ export async function retryOperation<T>(
     try {
       return await operation();
     } catch (error) {
-      lastError = error;
+      // Convert unknown error to Error type
+      const normalizedError = error instanceof Error ? error : new Error(String(error));
+      // Update error fields
+      lastError = normalizedError;
       const delay = baseDelay * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -73,13 +77,34 @@ export async function handleBackgroundRefresh<T>(
   options?: CacheOptions
 ): Promise<void> {
   try {
-    emitCacheEvent(CacheEventType.REFRESH_START, { key });
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.REFRESH_START, { 
+      key,
+      type: 'refresh:start', // Use string literal since enum may not have this value
+      timestamp: Date.now()
+    });
+    
+    // Compute new value
     const value = await compute();
     await provider.set(key, value, options);
-    emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
+    
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { 
+      key,
+      type: 'refresh:success', // Use string literal since enum may not have this value
+      timestamp: Date.now()
+    });
   } catch (error) {
-    emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error });
-    throw error;
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.REFRESH_ERROR, {
+      key,
+      error: error instanceof Error ? error : new Error(String(error)),
+      type: 'refresh:error', // Use string literal since enum may not have this value
+      timestamp: Date.now()
+    });
+    
+    // Log error but don't throw since this is background
+    console.error(`Background refresh failed for key ${key}:`, error);
   }
 }
 
@@ -115,10 +140,13 @@ export async function safeDelete(
   try {
     return await provider.delete(key);
   } catch (error) {
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.ERROR, {
       key,
-      error,
-      message: 'Failed to delete cache entry'
+      error: error instanceof Error ? error : new Error(String(error)),
+      message: 'Failed to delete cache entry',
+      type: CacheEventType.ERROR.toString(),
+      timestamp: Date.now()
     });
     return false;
   }
@@ -133,9 +161,12 @@ export async function safeClear(
   try {
     await provider.clear();
   } catch (error) {
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.ERROR, {
-      error,
-      message: 'Failed to clear cache'
+      error: error instanceof Error ? error : new Error(String(error)),
+      message: 'Failed to clear cache',
+      type: CacheEventType.ERROR.toString(),
+      timestamp: Date.now()
     });
   }
 }

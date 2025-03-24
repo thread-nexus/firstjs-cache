@@ -4,6 +4,8 @@
 
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
 import { compressData, decompressData } from '../utils/compression-utils';
+import { IStorageAdapter } from '../interfaces/i-storage-adapter';
+import { HealthStatus, CompressionResult } from '../types/index';
 
 /**
  * Configuration options for the memory storage adapter
@@ -15,6 +17,7 @@ export interface MemoryStorageOptions {
   updateAgeOnGet?: boolean; // Whether to update item age on get
   allowStale?: boolean;   // Whether to return stale items
 }
+
 /**
  * Cache entry metadata
  */
@@ -25,313 +28,91 @@ interface CacheEntryMetadata {
   size: number;
   compressed?: boolean;
   lastAccessed: number;
+  accessCount: number;
 }
+
 /**
  * In-memory storage adapter using LRU cache
  */
-export class MemoryStorageAdapter {
-  private store = new Map<string, any>();
-  private metadata: Map<string, CacheEntryMetadata> = new Map();
-  private stats = {
-    hits: 0,
-    misses: 0,
-    sets: 0,
-    deletes: 0,
-    size: 0
-  };
-  private readonly maxSize: number;
-  private readonly maxItems: number;
-  private readonly defaultTtl: number;
-  private readonly updateAgeOnGet: boolean;
+export class MemoryStorageAdapter implements IStorageAdapter {
+  private storage: Map<string, any>;
+  private metadata: Map<string, CacheEntryMetadata>;
+  private config: any;
+  public readonly name: string = 'memory';
   
-  /**
-   * Create a new memory storage adapter
-   */
-  constructor(options: MemoryStorageOptions = {}) {
-    this.maxSize = options.maxSize || 100 * 1024 * 1024; // 100MB default
-    this.maxItems = options.maxItems || 10000;
-    this.defaultTtl = options.defaultTtl || 3600; // 1 hour default
-    this.updateAgeOnGet = options.updateAgeOnGet !== false;
+  constructor(config?: any) {
+    this.storage = new Map();
+    this.metadata = new Map();
+    this.config = config || {};
   }
-  
-  /**
-   * Get a value from the cache
-   */
-  async get<T = any>(key: string): Promise<T | null> {
-    try {
-      const value = this.store.get(key);
-      const meta = this.metadata.get(key);
-      
-      if (value === undefined) {
-        this.stats.misses++;
-        return null;
-      }
-  
-      // Check expiration
-      if (meta?.expiresAt && Date.now() > meta.expiresAt) {
-        this.store.delete(key);
-        this.metadata.delete(key);
-        this.stats.misses++;
-        return null;
+
+  private emit(event: CacheEventType, payload: any) {
+    emitCacheEvent(event, {
+      provider: 'memory',
+      ...payload
+    });
   }
-  
-      this.stats.hits++;
-      
-      // Update last accessed time
-      if (this.updateAgeOnGet && meta) {
-        meta.lastAccessed = Date.now();
-      }
-      
-      // Handle decompression if needed
-      if (meta?.compressed && Buffer.isBuffer(value)) {
-        try {
-          const decompressed = await decompressData(value, 'utf8');
-          if (typeof decompressed === 'string') {
-            try {
-              return JSON.parse(decompressed) as T;
-            } catch (e) {
-              // If parsing fails, return the string value
-              return decompressed as unknown as T;
-            }
-          }
-          return decompressed as unknown as T;
-        } catch (e) {
-          // If decompression fails, return the raw value
-          return value as T;
-        }
-      }
-      
-      return value as T;
-    } catch (error) {
-      console.error(`Error getting cache key ${key}:`, error);
+
+  async get<T>(key: string): Promise<T | null> {
+    const value = this.storage.get(key);
+    if (!value) {
+      this.emit(CacheEventType.GET_MISS, { key });
       return null;
     }
-  }
-
-  /**
-   * Set a value in the cache
-   */
-  async set<T = any>(key: string, value: T, options?: {
-    ttl?: number;
-    tags?: string[];
-    compression?: boolean;
-    compressionThreshold?: number;
-  }): Promise<void> {
-    try {
-      const ttl = options?.ttl !== undefined ? options.ttl : this.defaultTtl;
-      
-      // Ensure we have space - evict if needed
-      this.ensureCapacity();
-      
-      let processedValue = value;
-      let size: number;
-      let compressed = false;
-      
-      // Handle compression if enabled
-      if (options?.compression) {
-        const threshold = options.compressionThreshold || 1024;
-        
-        // Only compress string values or objects that can be stringified
-        if (typeof value === 'string' || (typeof value === 'object' && value !== null)) {
-          try {
-            const serialized = typeof value === 'string' ? value : JSON.stringify(value);
-            
-            if (Buffer.byteLength(serialized, 'utf8') > threshold) {
-              const compressedData = await compressData(serialized);
-              processedValue = compressedData;
-              compressed = true;
-              size = compressedData.length;
-            } else {
-              size = Buffer.byteLength(serialized, 'utf8');
-  }
-          } catch (e) {
-            console.error('Compression error:', e);
-            // Fallback to uncompressed
-            size = this.calculateSize(value);
-          }
-        } else {
-          size = this.calculateSize(value);
-        }
-      } else {
-        size = this.calculateSize(value);
-      }
-  
-      // Check if value exceeds maximum size
-      if (size > this.maxSize) {
-        throw new Error(`Value for key "${key}" exceeds maximum size (${size} > ${this.maxSize})`);
-      }
-      
-      // Store value in cache
-      this.store.set(key, processedValue);
-      
-      // Update metadata
-      this.metadata.set(key, {
-        tags: options?.tags || [],
-        createdAt: Date.now(),
-        expiresAt: ttl > 0 ? Date.now() + (ttl * 1000) : undefined,
-        size,
-        compressed,
-        lastAccessed: Date.now()
-      });
-      
-      this.stats.sets++;
-      this.stats.size = this.calculateTotalSize();
-      
-      // Emit event
-      emitCacheEvent(CacheEventType.SET, {
-        key,
-        size,
-        ttl
-      });
-    } catch (error) {
-      console.error(`Error setting cache key ${key}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a value from the cache
-   */
-  async delete(key: string): Promise<boolean> {
-    try {
-      const existed = this.store.has(key);
-      
-      if (existed) {
-        this.store.delete(key);
-        this.metadata.delete(key);
-        this.stats.deletes++;
-        this.stats.size = this.calculateTotalSize();
-        
-        emitCacheEvent(CacheEventType.DELETE, { key });
-  }
-  
-      return existed;
-    } catch (error) {
-      console.error(`Error deleting cache key ${key}:`, error);
-      return false;
-    }
-  }
-
-  /**
-   * Check if a key exists in the cache
-   */
-  async has(key: string): Promise<boolean> {
-    const value = await this.get(key);
-    return value !== null;
-  }
-  /**
-   * Clear all values from the cache
-   */
-  async clear(): Promise<void> {
-    try {
-      const count = this.store.size;
-      this.store.clear();
-      this.metadata.clear();
-      
-      // Reset stats
-      this.stats.size = 0;
-      
-      emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: count });
-    } catch (error) {
-      console.error('Error clearing cache:', error);
-    }
-  }
-
-  /**
-   * Get multiple values from the cache
-   */
-  async getMany<T = any>(keys: string[]): Promise<Record<string, T | null>> {
-    const result: Record<string, T | null> = {};
     
-    for (const key of keys) {
-      result[key] = await this.get<T>(key);
-}
+    this.emit(CacheEventType.GET_HIT, { key });
     
-    return result;
-  }
-
-  /**
-   * Set multiple values in the cache
-   */
-  async setMany<T = any>(entries: Record<string, T>, options?: {
-    ttl?: number;
-    tags?: string[];
-    compression?: boolean;
-    compressionThreshold?: number;
-  }): Promise<void> {
-    for (const [key, value] of Object.entries(entries)) {
-      await this.set(key, value, options);
-    }
-  }
-
-  /**
-   * Invalidate cache entries by tag
-   */
-  async invalidateByTag(tag: string): Promise<number> {
-    let count = 0;
-    
-    // Find keys with the specified tag
-    const keysToInvalidate: string[] = [];
-    for (const [key, meta] of this.metadata.entries()) {
-      if (meta.tags.includes(tag)) {
-        keysToInvalidate.push(key);
+    if (value.compressed) {
+      try {
+        const decompressed = await decompressData(value.data, value.algorithm);
+        return decompressed as T;
+      } catch (e) {
+        return null;
       }
     }
-    
-    // Delete each key
-    for (const key of keysToInvalidate) {
-      const deleted = await this.delete(key);
-      if (deleted) count++;
-    }
-    
-    emitCacheEvent(CacheEventType.INVALIDATE, {
-      tag,
-      entriesRemoved: count
-    });
-    
-    return count;
+    return value as T;
   }
 
-  /**
-   * Get cache statistics
-   */
-  async getStats(): Promise<{
-    hits: number;
-    misses: number;
-    keyCount: number;
-    size: number;
-    maxSize: number;
-  }> {
-    return {
-      hits: this.stats.hits,
-      misses: this.stats.misses,
-      keyCount: this.store.size,
-      size: this.stats.size,
-      maxSize: this.maxSize
-    };
-  }
-
-  /**
-   * Get metadata for a key
-   */
-  async getMetadata(key: string): Promise<any | null> {
-    return this.metadata.get(key) || null;
-  }
-
-  /**
-   * Calculate the total size of all cache entries
-   */
-  private calculateTotalSize(): number {
+  async set<T>(key: string, value: T, options?: { ttl?: number }): Promise<void> {
+    let processedValue: any = value;
     let size = 0;
-    for (const meta of this.metadata.values()) {
-      size += meta.size;
+
+    if (this.config.compression) {
+      try {
+        const serialized = JSON.stringify(value);
+        const compressedData = await compressData(Buffer.from(serialized));
+        if (compressedData.compressed) {
+          size = compressedData.data.length;
+          processedValue = {
+            data: compressedData.data,
+            algorithm: compressedData.algorithm,
+            compressed: true
+          };
+        }
+      } catch (e) {
+        // If compression fails, use the original value
+        processedValue = value;
+      }
     }
-    return size;
+
+    const metadata: CacheEntryMetadata = {
+      tags: [],
+      createdAt: Date.now(),
+      size: size || this.calculateSize(value),
+      lastAccessed: Date.now(),
+      accessCount: 0,
+      compressed: !!this.config.compression
+    };
+
+    if (options?.ttl) {
+      metadata.expiresAt = Date.now() + (options.ttl * 1000);
+    }
+
+    this.storage.set(key, processedValue);
+    this.metadata.set(key, metadata);
+    this.emit(CacheEventType.SET, { key, size: metadata.size });
   }
 
-  /**
-   * Calculate size of a value
-   */
   private calculateSize(value: any): number {
     if (value === null || value === undefined) {
       return 8;
@@ -341,58 +122,114 @@ export class MemoryStorageAdapter {
       return Buffer.byteLength(value, 'utf8');
     }
     
-    if (typeof value === 'number' || typeof value === 'boolean') {
-      return 8;
-    }
-    
-    if (Buffer.isBuffer(value)) {
-      return value.length;
-    }
-    
     try {
       const serialized = JSON.stringify(value);
       return Buffer.byteLength(serialized, 'utf8');
     } catch (e) {
-      return 1024; // Default size if serialization fails
+      return 100; // Default size
     }
   }
 
-  /**
-   * Ensure the cache has capacity for new items
-   */
-  private ensureCapacity(): void {
-    // Check item count limit
-    if (this.store.size >= this.maxItems) {
-      this.evictLRU();
-    }
-    
-    // Check size limit
-    while (this.calculateTotalSize() >= this.maxSize && this.store.size > 0) {
-      this.evictLRU();
+  async getMetadata(key: string): Promise<CacheEntryMetadata | null> {
+    return this.metadata.get(key) || null;
+  }
+
+  async setMetadata(key: string, metadata: Partial<CacheEntryMetadata>): Promise<void> {
+    const existing = await this.getMetadata(key);
+    if (existing) {
+      this.metadata.set(key, { ...existing, ...metadata });
     }
   }
 
-  /**
-   * Evict least recently used item
-   */
-  private evictLRU(): void {
-    let oldestKey: string | null = null;
-    let oldestAccess = Infinity;
+  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
+    const result: Record<string, T | null> = {};
+    for (const key of keys) {
+      result[key] = await this.get<T>(key);
+    }
+    return result;
+  }
+
+  async setMany<T>(entries: Record<string, T>, options?: { ttl?: number }): Promise<void> {
+    for (const [key, value] of Object.entries(entries)) {
+      await this.set(key, value, options);
+    }
+  }
+
+  async delete(key: string): Promise<boolean> {
+    const exists = this.storage.has(key);
+    if (exists) {
+      this.storage.delete(key);
+      this.metadata.delete(key);
+      this.emit(CacheEventType.DELETE, { key });
+    }
+    return exists;
+  }
+
+  async clear(): Promise<void> {
+    this.storage.clear();
+    this.metadata.clear();
+    this.emit(CacheEventType.CLEAR, {});
+  }
+
+  async has(key: string): Promise<boolean> {
+    const meta = this.metadata.get(key);
+    const exists = this.storage.has(key);
     
-    for (const [key, meta] of this.metadata.entries()) {
-      if (meta.lastAccessed < oldestAccess) {
-        oldestAccess = meta.lastAccessed;
-        oldestKey = key;
-      }
+    // Check if expired
+    if (exists && meta?.expiresAt && Date.now() > meta.expiresAt) {
+      await this.delete(key);
+      return false;
     }
     
-    if (oldestKey) {
-      this.delete(oldestKey).then(r => {});
+    return exists;
+  }
+
+  async keys(pattern?: string): Promise<string[]> {
+    const allKeys = Array.from(this.storage.keys());
+    
+    if (!pattern) {
+      return allKeys;
+    }
+    
+    const regex = new RegExp(pattern.replace('*', '.*'));
+    return allKeys.filter(key => regex.test(key));
+  }
+
+  async getStats(): Promise<Record<string, any>> {
+    let totalSize = 0;
+    for (const meta of this.metadata.values()) {
+      totalSize += meta.size;
+    }
+    
+    return {
+      size: this.storage.size,
+      memoryUsage: process.memoryUsage().heapUsed,
+      keys: await this.keys(),
+      totalSize
+    };
+  }
+
+  async healthCheck(): Promise<HealthStatus> {
+    try {
+      // Get current stats for the health check
+      const statsData = await this.getStats();
       
-      emitCacheEvent(CacheEventType.EXPIRE, {
-        key: oldestKey,
-        reason: 'lru'
-      });
+      return {
+        status: 'healthy',
+        healthy: true, // Add the required healthy property
+        details: {
+          size: typeof statsData === 'object' ? statsData.size || 0 : 0,
+          memoryUsage: typeof statsData === 'object' ? statsData.memoryUsage || 0 : 0
+        }
+      };
+    } catch (error) {
+      return {
+        status: 'unhealthy',
+        healthy: false,
+        error: error instanceof Error ? error.message : String(error)
+      };
     }
   }
 }
+
+export const MemoryAdapter = MemoryStorageAdapter;

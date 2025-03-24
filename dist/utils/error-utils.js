@@ -1,227 +1,98 @@
 "use strict";
 /**
- * @fileoverview Error handling utilities for cache operations with detailed
- * error tracking, performance monitoring, and error recovery strategies.
+ * @fileoverview Error handling utilities
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.metadata = exports.CacheOperationError = exports.CacheProviderError = exports.CacheError = void 0;
+exports.CacheError = exports.CacheErrorCode = void 0;
+exports.createCacheError = createCacheError;
 exports.handleCacheError = handleCacheError;
-exports.resetErrorTracking = resetErrorTracking;
-exports.getErrorStats = getErrorStats;
-exports.wrapWithErrorHandling = wrapWithErrorHandling;
-const cache_events_1 = require("../events/cache-events");
-const default_config_1 = require("../config/default-config");
-// Error tracking for circuit breaker pattern
-const errorTracker = new Map();
+exports.ensureError = ensureError;
 /**
- * Base cache error class with detailed metadata
+ * Cache error codes
+ */
+var CacheErrorCode;
+(function (CacheErrorCode) {
+    // General error codes
+    CacheErrorCode["UNKNOWN"] = "UNKNOWN";
+    CacheErrorCode["NOT_FOUND"] = "NOT_FOUND";
+    CacheErrorCode["INVALID_ARGUMENT"] = "INVALID_ARGUMENT";
+    CacheErrorCode["KEY_TOO_LONG"] = "KEY_TOO_LONG";
+    CacheErrorCode["TIMEOUT"] = "TIMEOUT";
+    // Provider errors
+    CacheErrorCode["PROVIDER_ERROR"] = "PROVIDER_ERROR";
+    CacheErrorCode["NO_PROVIDER"] = "NO_PROVIDER";
+    CacheErrorCode["CIRCUIT_OPEN"] = "CIRCUIT_OPEN";
+    // Data processing errors
+    CacheErrorCode["SERIALIZATION_ERROR"] = "SERIALIZATION_ERROR";
+    CacheErrorCode["DESERIALIZATION_ERROR"] = "DESERIALIZATION_ERROR";
+    CacheErrorCode["COMPRESSION_ERROR"] = "COMPRESSION_ERROR";
+    CacheErrorCode["DATA_INTEGRITY_ERROR"] = "DATA_INTEGRITY_ERROR";
+    // Operation errors
+    CacheErrorCode["OPERATION_ERROR"] = "OPERATION_ERROR";
+    CacheErrorCode["BATCH_ERROR"] = "BATCH_ERROR";
+    CacheErrorCode["RATE_LIMIT_EXCEEDED"] = "RATE_LIMIT_EXCEEDED";
+    CacheErrorCode["NETWORK_ERROR"] = "NETWORK_ERROR";
+    CacheErrorCode["OPERATION_ABORTED"] = "OPERATION_ABORTED";
+    // Validation errors
+    CacheErrorCode["INVALID_KEY"] = "INVALID_KEY";
+    CacheErrorCode["INVALID_OPTIONS"] = "INVALID_OPTIONS";
+    CacheErrorCode["INVALID_TTL"] = "INVALID_TTL";
+    CacheErrorCode["INVALID_VALUE"] = "INVALID_VALUE";
+    CacheErrorCode["INVALID_STATE"] = "INVALID_STATE";
+})(CacheErrorCode || (exports.CacheErrorCode = CacheErrorCode = {}));
+/**
+ * Cache error class
  */
 class CacheError extends Error {
-    constructor(message, code, context, timestamp = new Date()) {
+    constructor(code = CacheErrorCode.UNKNOWN, message, operationContext) {
         super(message);
-        this.code = code;
-        this.context = context;
-        this.timestamp = timestamp;
         this.name = 'CacheError';
-    }
-    /**
-     * Convert error to JSON for logging
-     */
-    toJSON() {
-        return {
-            name: this.name,
-            message: this.message,
-            code: this.code,
-            context: this.context,
-            timestamp: this.timestamp,
-            stack: this.stack
-        };
+        this.code = code;
+        this.operation = operationContext?.operation;
+        this.key = operationContext?.key;
+        this.context = operationContext?.context;
+        // Ensures proper prototype chain for instanceof checks
+        Object.setPrototypeOf(this, CacheError.prototype);
     }
 }
 exports.CacheError = CacheError;
 /**
- * Provider-specific cache error
+ * Create a cache error with context
  */
-class CacheProviderError extends CacheError {
-    constructor(message, provider, context) {
-        super(message, 'PROVIDER_ERROR', Object.assign({ provider }, context));
-        this.provider = provider;
-        this.name = 'CacheProviderError';
-    }
+function createCacheError(code = CacheErrorCode.UNKNOWN, message, context) {
+    return new CacheError(code, message, context);
 }
-exports.CacheProviderError = CacheProviderError;
 /**
- * Operation-specific cache error
+ * Handles cache errors, logs them, and optionally emits events
  */
-class CacheOperationError extends CacheError {
-    constructor(message, operation, context) {
-        super(message, 'OPERATION_ERROR', Object.assign({ operation }, context));
-        this.operation = operation;
-        this.name = 'CacheOperationError';
-    }
-}
-exports.CacheOperationError = CacheOperationError;
-/**
- * Handle cache errors with circuit breaker pattern
- *
- * @param error - Error to handle
- * @param context - Error context
- * @param options - Error handling options
- * @throws {CacheError} If error threshold is exceeded
- *
- * @complexity Time: O(1)
- * @category Error Handling
- * @priority Critical
- */
-function handleCacheError(error, context = {}, options = {}) {
-    const { throwError = false, maxErrors = default_config_1.CACHE_CONSTANTS.MAX_ERRORS, errorWindow = default_config_1.CACHE_CONSTANTS.ERROR_WINDOW } = options;
-    const key = context['provider'] || 'default';
-    const now = new Date();
-    // Update error tracking
-    const tracking = errorTracker.get(key) || {
-        count: 0,
-        firstError: now,
-        lastError: now
-    };
-    // Reset if outside error window
-    if (now.getTime() - tracking.firstError.getTime() > errorWindow) {
-        tracking.count = 1;
-        tracking.firstError = now;
-    }
-    else {
-        tracking.count++;
-    }
-    tracking.lastError = now;
-    errorTracker.set(key, tracking);
-    // Emit error event
-    (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-        error,
-        context: Object.assign(Object.assign({}, context), { errorCount: tracking.count, errorWindow: errorWindow, maxErrors: maxErrors })
+function handleCacheError(error, context) {
+    // Convert unknown errors to CacheError
+    const cacheError = ensureError(error, context);
+    // Log error (could be extended to use a proper logger)
+    console.error(`Cache error [${cacheError.code}]: ${cacheError.message}`, {
+        operation: context?.operation,
+        key: context?.key,
+        provider: context?.provider
     });
-    // Check circuit breaker
-    if (tracking.count >= maxErrors) {
-        const circuitError = new CacheError('Error threshold exceeded', 'CIRCUIT_OPEN', {
-            provider: key,
-            errorCount: tracking.count,
-            errorWindow: errorWindow,
-            firstError: tracking.firstError,
-            lastError: tracking.lastError
-        });
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.ERROR, {
-            error: circuitError,
-            message: 'Circuit breaker opened'
-        });
-        throw circuitError;
-    }
-    // Throw original error if configured
-    if (throwError) {
-        throw error instanceof CacheError ? error : new CacheOperationError(error.message, context['operation'] || 'unknown', Object.assign({ originalError: error }, context));
-    }
+    return cacheError;
 }
 /**
- * Reset error tracking for a provider
- *
- * @param provider - Provider to reset
- *
- * @complexity Time: O(1)
- * @category Error Handling
- * @priority Medium
+ * Ensure the error is a CacheError
  */
-function resetErrorTracking(provider) {
-    if (provider) {
-        errorTracker.delete(provider);
+function ensureError(error, context) {
+    if (error instanceof CacheError) {
+        // If already a CacheError, just return it
+        return error;
     }
-    else {
-        errorTracker.clear();
+    // Convert Error objects
+    if (error instanceof Error) {
+        return new CacheError(CacheErrorCode.UNKNOWN, error.message, context);
     }
-}
-/**
- * Get error statistics for monitoring
- *
- * @returns Error statistics by provider
- *
- * @complexity Time: O(n) where n is number of providers
- * @category Monitoring
- * @priority Low
- */
-function getErrorStats() {
-    const stats = {};
-    for (const [provider, tracking] of errorTracker.entries()) {
-        stats[provider] = Object.assign({}, tracking);
+    // Convert string errors
+    if (typeof error === 'string') {
+        return new CacheError(CacheErrorCode.UNKNOWN, error, context);
     }
-    return stats;
+    // Handle all other types
+    return new CacheError(CacheErrorCode.UNKNOWN, `Unknown cache error: ${String(error)}`, context);
 }
-/**
- * Create a wrapped function with error handling
- *
- * @param fn - Function to wrap
- * @param context - Error context
- * @param options - Error handling options
- * @returns Wrapped function
- *
- * @complexity Time: O(1)
- * @category Error Handling
- * @priority High
- *
- * @example
- * ```typescript
- * const safeFn = wrapWithErrorHandling(
- *   async () => await riskyOperation(),
- *   { operation: 'riskyOperation' }
- * );
- *
- * try {
- *   await safeFn();
- * } catch (error) {
- *   // Error is properly handled and tracked
- * }
- * ```
- */
-function wrapWithErrorHandling(fn, context = {}, options = {}) {
-    return function wrapped(...args) {
-        return __awaiter(this, void 0, void 0, function* () {
-            try {
-                return yield fn.apply(this, args);
-            }
-            catch (error) {
-                handleCacheError(error, Object.assign(Object.assign({}, context), { arguments: args }), options);
-                throw error;
-            }
-        });
-    };
-}
-// Documentation metadata
-exports.metadata = {
-    category: types_1.DocCategory.ERROR_HANDLING,
-    priority: 1 /* DocPriority.CRITICAL */,
-    complexity: {
-        time: 'O(1) for error handling, O(n) for stats',
-        space: 'O(p) where p is number of providers',
-        impact: types_1.PerformanceImpact.LOW,
-        notes: 'Implements circuit breaker pattern for error protection'
-    },
-    examples: [{
-            title: 'Basic Error Handling',
-            code: `
-      try {
-        await cacheOperation();
-      } catch (error) {
-        handleCacheError(error, {
-          operation: 'cacheOperation',
-          provider: 'redis'
-        });
-      }
-    `,
-            description: 'Handle cache errors with tracking and circuit breaking'
-        }],
-    since: '1.0.0'
-};
+//# sourceMappingURL=error-utils.js.map

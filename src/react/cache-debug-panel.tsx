@@ -59,7 +59,9 @@ export function CacheDebugPanel({
       }
       setOperationResult(result);
     } catch (error) {
-      setOperationResult({ error: error.message });
+      setOperationResult({ 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   };
 
@@ -69,7 +71,9 @@ export function CacheDebugPanel({
       const result = await cacheManager.get(searchKey);
       setSearchResult(result);
     } catch (error) {
-      setSearchResult({ error: error.message });
+      setSearchResult({ 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   };
 
@@ -177,14 +181,15 @@ export function CacheDebugPanel({
             {activeTab === 'config' && (
               <div className="config-panel">
                 <h4>Cache Configuration</h4>
-                <pre>{JSON.stringify(cacheManager.config, null, 2)}</pre>
+                {/* Use getConfigInfo method instead of accessing private config property */}
+                <pre>{JSON.stringify(cacheManager.getConfigInfo ? cacheManager.getConfigInfo() : {}, null, 2)}</pre>
               </div>
             )}
           </div>
         </div>
       )}
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .cache-debug-panel {
           position: fixed;
           z-index: 9999;
@@ -311,7 +316,7 @@ export function CacheDebugPanel({
           display: grid;
           gap: 8px;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }

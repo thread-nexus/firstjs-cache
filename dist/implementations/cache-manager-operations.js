@@ -1,251 +1,461 @@
 "use strict";
 /**
- * @fileoverview Advanced cache operations implementation with support for
- * atomic operations, batching, and complex caching patterns.
+ * @fileoverview Advanced cache operations implementation
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheManagerOperations = void 0;
+const cache_events_1 = require("../events/cache-events");
 const error_utils_1 = require("../utils/error-utils");
-const cache_manager_utils_1 = require("./cache-manager-utils");
-const default_config_1 = require("../config/default-config");
+const validation_utils_1 = require("../utils/validation-utils");
 /**
- * Lock manager for atomic operations
+ * Advanced cache operations implementation
  */
-class LockManager {
-    constructor() {
-        this.locks = new Map();
-        this.lockTimeouts = new Map();
-    }
-    acquireLock(key_1) {
-        return __awaiter(this, arguments, void 0, function* (key, timeout = 5000) {
-            if (this.locks.has(key)) {
-                return false;
-            }
-            const release = new Promise(resolve => {
-                const timeoutId = setTimeout(() => {
-                    this.releaseLock(key);
-                    resolve();
-                }, timeout);
-                this.lockTimeouts.set(key, timeoutId);
-            });
-            this.locks.set(key, release);
-            return true;
-        });
-    }
-    releaseLock(key) {
-        const timeout = this.lockTimeouts.get(key);
-        if (timeout) {
-            clearTimeout(timeout);
-            this.lockTimeouts.delete(key);
-        }
-        this.locks.delete(key);
-    }
-}
 class CacheManagerOperations {
+    /**
+     * Create a new cache operations manager
+     *
+     * @param provider - Primary cache provider
+     */
     constructor(provider) {
         this.provider = provider;
-        this.lockManager = new LockManager();
     }
     /**
-     * Perform an atomic operation on a cache entry
+     * Update specific fields in a cached object
+     *
+     * @param key - Cache key
+     * @param fields - Fields to update
+     * @param options - Cache options
+     * @returns Updated object or false if operation failed
      */
-    atomic(key, operation, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const timeout = (options === null || options === void 0 ? void 0 : options.timeout) || 5000;
-            if (!(yield this.lockManager.acquireLock(key, timeout))) {
-                throw new Error('Failed to acquire lock');
+    async updateFields(key, fields, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const current = await this.provider.get(key);
+            // If key doesn't exist, create new object with fields
+            if (current === null) {
+                await this.provider.set(key, fields, options);
+                return fields;
             }
-            try {
-                const currentValue = yield this.provider.get(key);
-                const newValue = yield operation(currentValue);
-                yield this.provider.set(key, newValue, options);
-                return newValue;
+            // If current value is not an object, fail
+            if (typeof current !== 'object' || Array.isArray(current)) {
+                return false;
             }
-            finally {
-                this.lockManager.releaseLock(key);
-            }
-        });
-    }
-    /**
-     * Increment a numeric cache value
-     */
-    increment(key_1) {
-        return __awaiter(this, arguments, void 0, function* (key, amount = 1, options) {
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () { return (current || 0) + amount; }), options);
-        });
-    }
-    /**
-     * Decrement a numeric cache value
-     */
-    decrement(key_1) {
-        return __awaiter(this, arguments, void 0, function* (key, amount = 1, options) {
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () { return (current || 0) - amount; }), options);
-        });
-    }
-    /**
-     * Update specific fields in an object
-     */
-    updateFields(key, updates, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () {
-                return (Object.assign(Object.assign({}, (current || {})), updates));
-            }), options);
-        });
-    }
-    /**
-     * Append to an array in cache
-     */
-    arrayAppend(key, items, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const maxLength = (options === null || options === void 0 ? void 0 : options.maxLength) || Infinity;
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () {
-                const array = [...(current || []), ...items];
-                return array.slice(-maxLength);
-            }), options);
-        });
-    }
-    /**
-     * Remove items from an array in cache
-     */
-    arrayRemove(key, predicate, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () { return current ? current.filter(item => !predicate(item)) : []; }), options);
-        });
-    }
-    /**
-     * Perform set operations
-     */
-    setOperations(key, operation, items, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.atomic(key, (current) => __awaiter(this, void 0, void 0, function* () {
-                const currentSet = new Set(current || []);
-                const itemsSet = new Set(items);
-                switch (operation) {
-                    case 'union':
-                        return [...new Set([...currentSet, ...itemsSet])];
-                    case 'intersection':
-                        return [...new Set([...currentSet].filter(x => itemsSet.has(x)))];
-                    case 'difference':
-                        return [...new Set([...currentSet].filter(x => !itemsSet.has(x)))];
-                    default:
-                        throw new Error('Invalid set operation');
-                }
-            }), options);
-        });
-    }
-    /**
-     * Batch get operation with automatic retry
-     */
-    batchGet(keys, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const results = {};
-            const batchSize = (options === null || options === void 0 ? void 0 : options.batchSize) || default_config_1.CACHE_CONSTANTS.DEFAULT_BATCH_SIZE;
-            const retries = (options === null || options === void 0 ? void 0 : options.retries) || 3;
-            yield (0, cache_manager_utils_1.batchOperations)(keys, (key) => __awaiter(this, void 0, void 0, function* () {
-                for (let attempt = 0; attempt < retries; attempt++) {
-                    try {
-                        results[key] = yield this.provider.get(key);
-                        break;
-                    }
-                    catch (error) {
-                        if (attempt === retries - 1)
-                            throw error;
-                        yield new Promise(resolve => setTimeout(resolve, 2 ** attempt * 100));
-                    }
-                }
-            }), {
-                batchSize,
-                onProgress: options === null || options === void 0 ? void 0 : options.onProgress
+            // Update fields
+            const updated = { ...current, ...fields };
+            // Store back to cache
+            await this.provider.set(key, updated, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'updateFields',
+                fieldsUpdated: Object.keys(fields)
             });
-            return results;
-        });
-    }
-    /**
-     * Batch set operation with automatic retry
-     */
-    batchSet(entries, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const keys = Object.keys(entries);
-            const batchSize = (options === null || options === void 0 ? void 0 : options.batchSize) || default_config_1.CACHE_CONSTANTS.DEFAULT_BATCH_SIZE;
-            const retries = (options === null || options === void 0 ? void 0 : options.retries) || 3;
-            yield (0, cache_manager_utils_1.batchOperations)(keys, (key) => __awaiter(this, void 0, void 0, function* () {
-                for (let attempt = 0; attempt < retries; attempt++) {
-                    try {
-                        yield this.provider.set(key, entries[key], options);
-                        break;
-                    }
-                    catch (error) {
-                        if (attempt === retries - 1)
-                            throw error;
-                        yield new Promise(resolve => setTimeout(resolve, 2 ** attempt * 100));
-                    }
-                }
-            }), {
-                batchSize,
-                onProgress: options === null || options === void 0 ? void 0 : options.onProgress
+            return updated;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'updateFields',
+                key
             });
-        });
+            return false;
+        }
     }
     /**
-     * Execute a transaction-like sequence of operations
+     * Append items to an array in the cache
+     *
+     * @param key - Cache key
+     * @param items - Items to append
+     * @param options - Cache options
+     * @returns Updated array or true if operation succeeded
      */
-    transaction(operations, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (options === null || options === void 0 ? void 0 : options.atomic) {
-                const keys = operations.map(op => op.key);
-                const lockPromises = keys.map(key => this.lockManager.acquireLock(key));
-                const acquired = yield Promise.all(lockPromises);
-                if (!acquired.every(Boolean)) {
-                    throw new Error('Failed to acquire all locks');
-                }
-                try {
-                    return yield this.executeOperations(operations);
-                }
-                finally {
-                    keys.forEach(key => this.lockManager.releaseLock(key));
-                }
+    async arrayAppend(key, items, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const current = await this.provider.get(key);
+            // Initialize if not exists or not an array
+            const currentArray = Array.isArray(current) ? current : [];
+            // Append items
+            const updated = [...currentArray, ...items];
+            // Apply max length if specified
+            const maxLength = options?.maxLength;
+            if (maxLength && maxLength > 0 && updated.length > maxLength) {
+                const startIndex = updated.length - maxLength;
+                const truncated = updated.slice(startIndex);
+                // Store back to cache
+                await this.provider.set(key, truncated, options);
+                (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                    key,
+                    operation: 'arrayAppend',
+                    itemsAppended: items.length,
+                    truncated: true,
+                    maxLength
+                });
+                return truncated;
             }
-            else {
-                return this.executeOperations(operations);
-            }
-        });
+            // Store back to cache
+            await this.provider.set(key, updated, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'arrayAppend',
+                itemsAppended: items.length
+            });
+            return updated;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'arrayAppend',
+                key
+            });
+            return false;
+        }
     }
-    executeOperations(operations) {
-        return __awaiter(this, void 0, void 0, function* () {
+    /**
+     * Remove items from an array in the cache
+     *
+     * @param key - Cache key
+     * @param predicate - Function to determine which items to remove
+     * @param options - Cache options
+     * @returns Updated array or -1 if operation failed
+     */
+    async arrayRemove(key, predicate, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const current = await this.provider.get(key);
+            // If key doesn't exist or not an array, return empty array
+            if (!Array.isArray(current)) {
+                return [];
+            }
+            // Filter out items
+            const originalLength = current.length;
+            const updated = current.filter(item => !predicate(item));
+            const removedCount = originalLength - updated.length;
+            // Store back to cache
+            await this.provider.set(key, updated, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'arrayRemove',
+                itemsRemoved: removedCount
+            });
+            return updated;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'arrayRemove',
+                key
+            });
+            return -1;
+        }
+    }
+    /**
+     * Increment a numeric value in the cache
+     *
+     * @param key - Cache key
+     * @param increment - Amount to increment (default: 1)
+     * @param options - Cache options
+     * @returns New value after increment, or null if operation failed
+     */
+    async increment(key, increment = 1, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const current = await this.provider.get(key);
+            // Calculate new value
+            const newValue = typeof current === 'number' ? current + increment : increment;
+            // Store back to cache
+            await this.provider.set(key, newValue, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'increment',
+                increment,
+                newValue
+            });
+            return newValue;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'increment',
+                key
+            });
+            return null;
+        }
+    }
+    /**
+     * Decrement a numeric value in the cache
+     *
+     * @param key - Cache key
+     * @param decrement - Amount to decrement (default: 1)
+     * @param options - Cache options
+     * @returns New value after decrement, or null if operation failed
+     */
+    async decrement(key, decrement = 1, options) {
+        return this.increment(key, -decrement, options);
+    }
+    /**
+     * Get and set a value atomically
+     *
+     * @param key - Cache key
+     * @param value - New value to set
+     * @param options - Cache options
+     * @returns Previous value, or null if not found
+     */
+    async getAndSet(key, value, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const previous = await this.provider.get(key);
+            // Set the new value
+            await this.provider.set(key, value, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'getAndSet'
+            });
+            return previous;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'getAndSet',
+                key
+            });
+            return null;
+        }
+    }
+    /**
+     * Set a value only if the key doesn't exist
+     *
+     * @param key - Cache key
+     * @param value - Value to set
+     * @param options - Cache options
+     * @returns Whether the value was set
+     */
+    async setIfNotExists(key, value, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Check if key exists
+            const exists = await this.provider.get(key) !== null;
+            if (!exists) {
+                // Set the value
+                await this.provider.set(key, value, options);
+                (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                    key,
+                    operation: 'setIfNotExists',
+                    set: true
+                });
+                return true;
+            }
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: 'setIfNotExists',
+                set: false
+            });
+            return false;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'setIfNotExists',
+                key
+            });
+            return false;
+        }
+    }
+    /**
+     * Perform set operations on arrays
+     *
+     * @param key - Cache key
+     * @param operation - Set operation (union, intersection, difference)
+     * @param items - Items for the operation
+     * @param options - Cache options
+     * @returns Result of the set operation
+     */
+    async setOperations(key, operation, items, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get the current value
+            const current = await this.provider.get(key);
+            const currentArray = Array.isArray(current) ? current : [];
+            let result;
+            switch (operation) {
+                case 'union':
+                    // Combine arrays and remove duplicates
+                    result = [...new Set([...currentArray, ...items])];
+                    break;
+                case 'intersection':
+                    // Keep only items that are in both arrays
+                    result = currentArray.filter(item => items.some(i => JSON.stringify(i) === JSON.stringify(item)));
+                    break;
+                case 'difference':
+                    // Keep only items that are in current but not in items
+                    result = currentArray.filter(item => !items.some(i => JSON.stringify(i) === JSON.stringify(item)));
+                    break;
+                default:
+                    throw new Error('Unknown set operation');
+            }
+            // Store back to cache
+            await this.provider.set(key, result, options);
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.SET, {
+                key,
+                operation: `setOperation:${operation}`,
+                resultSize: result.length
+            });
+            return result;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: `setOperation:${operation}`,
+                key
+            });
+            throw error;
+        }
+    }
+    /**
+     * Batch get multiple keys
+     *
+     * @param keys - Keys to get
+     * @returns Object with values keyed by cache key
+     */
+    async batchGet(keys) {
+        try {
+            // Safely check and call getMany
+            if (this.provider && typeof this.provider.getMany === 'function') {
+                return await this.provider.getMany(keys);
+            }
+            // Fall back to individual gets
+            const result = {};
+            for (const key of keys) {
+                result[key] = await this.provider.get(key);
+            }
+            return result;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'getMany',
+                key: keys.join(',')
+            });
+            throw error;
+        }
+    }
+    /**
+     * Batch set multiple key-value pairs
+     *
+     * @param entries - Key-value pairs to set
+     * @param options - Cache options
+     */
+    async batchSet(entries, options) {
+        try {
+            // Safely check and call setMany
+            if (this.provider && typeof this.provider.setMany === 'function') {
+                await this.provider.setMany(entries, options);
+                return;
+            }
+            // Fall back to individual sets
+            for (const [key, value] of Object.entries(entries)) {
+                await this.provider.set(key, value, options);
+            }
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'setMany',
+                key: Object.keys(entries).join(',')
+            });
+            throw error;
+        }
+    }
+    /**
+     * Get multiple values from cache
+     */
+    async getMany(keys) {
+        if (!this.provider || typeof this.provider.getMany !== 'function') {
+            // Fallback implementation using get
+            const result = {};
+            for (const key of keys) {
+                result[key] = await this.provider.get(key);
+            }
+            return result;
+        }
+        return await this.provider.getMany(keys);
+    }
+    /**
+     * Set multiple values in cache
+     */
+    async setMany(entries, options) {
+        if (!this.provider || typeof this.provider.setMany !== 'function') {
+            // Fallback implementation using set
+            for (const [key, value] of Object.entries(entries)) {
+                await this.provider.set(key, value, options);
+            }
+            return;
+        }
+        await this.provider.setMany(entries, options);
+    }
+    /**
+     * Execute a transaction of operations
+     *
+     * @param operations - Operations to execute
+     * @param options - Transaction options
+     * @returns Results of operations that return values
+     */
+    async transaction(operations, options) {
+        try {
             const results = [];
             for (const op of operations) {
-                try {
-                    switch (op.type) {
-                        case 'get':
-                            results.push(yield this.provider.get(op.key));
-                            break;
-                        case 'set':
-                            yield this.provider.set(op.key, op.value, op.options);
-                            break;
-                        case 'delete':
-                            yield this.provider.delete(op.key);
-                            break;
-                    }
-                }
-                catch (error) {
-                    (0, error_utils_1.handleCacheError)(error, {
-                        operation: op.type,
-                        key: op.key
-                    });
-                    throw error;
+                switch (op.type) {
+                    case 'get':
+                        results.push(await this.provider.get(op.key));
+                        break;
+                    case 'set':
+                        await this.provider.set(op.key, op.value, op.options);
+                        results.push(undefined);
+                        break;
+                    case 'delete':
+                        results.push(await this.provider.delete(op.key));
+                        break;
+                    case 'has':
+                        results.push(await this.provider.get(op.key) !== null);
+                        break;
+                    default:
+                        throw new Error('Unknown operation type');
                 }
             }
-            return results;
-        });
+            // Filter out undefined results (from set operations)
+            return results.filter(r => r !== undefined);
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'transaction'
+            });
+            throw error;
+        }
+    }
+    /**
+     * Execute an atomic operation on a cache value
+     *
+     * @param key - Cache key
+     * @param operation - Operation to execute
+     * @param options - Cache options
+     * @returns Result of the operation
+     */
+    async atomic(key, operation, options) {
+        (0, validation_utils_1.validateCacheKey)(key);
+        try {
+            // Get current value
+            const current = await this.provider.get(key);
+            // Execute operation
+            const result = await operation(current);
+            // If result is not undefined, store it back
+            if (result !== undefined) {
+                await this.provider.set(key, result, options);
+            }
+            return result;
+        }
+        catch (error) {
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'atomic',
+                key
+            });
+            throw error;
+        }
     }
 }
 exports.CacheManagerOperations = CacheManagerOperations;
+//# sourceMappingURL=cache-manager-operations.js.map

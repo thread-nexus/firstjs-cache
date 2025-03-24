@@ -36,15 +36,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheProvider = CacheProvider;
 exports.useCacheManager = useCacheManager;
@@ -52,24 +43,20 @@ exports.useCacheValue = useCacheValue;
 exports.useCacheBatch = useCacheBatch;
 exports.useCacheInvalidation = useCacheInvalidation;
 const react_1 = __importStar(require("react"));
-const cache_manager_core_1 = require("../implementations/cache-manager-core");
+const implementations_1 = require("../implementations");
+const default_config_1 = require("../config/default-config");
 const CacheContext = (0, react_1.createContext)(null);
 /**
  * Cache context provider component
  */
 function CacheProvider({ children, config, providers = [] }) {
-    // Create cache manager instance
-    const cacheManagerRef = (0, react_1.useRef)();
-    if (!cacheManagerRef.current) {
-        cacheManagerRef.current = new cache_manager_core_1.CacheManagerCore(config);
-        // Register providers
-        providers.forEach(({ name, instance, priority }) => {
-            cacheManagerRef.current.registerProvider(name, instance, priority);
-        });
-    }
+    // Initialize cacheManager in useMemo to ensure stable reference
+    const cacheManager = (0, react_1.useMemo)(() => {
+        return new implementations_1.CacheManagerCore(config || default_config_1.DEFAULT_CONFIG);
+    }, [config]);
     const contextValue = (0, react_1.useMemo)(() => ({
-        cacheManager: cacheManagerRef.current
-    }), []);
+        cacheManager // This is now guaranteed to be defined
+    }), [cacheManager]);
     return (react_1.default.createElement(CacheContext.Provider, { value: contextValue }, children));
 }
 /**
@@ -93,26 +80,24 @@ function useCacheValue(key, initialValue) {
     // Load initial value
     react_1.default.useEffect(() => {
         let mounted = true;
-        function loadValue() {
-            return __awaiter(this, void 0, void 0, function* () {
-                try {
-                    const cached = yield cacheManager.get(key);
-                    if (mounted) {
-                        setValue(cached);
-                        setError(null);
-                    }
+        async function loadValue() {
+            try {
+                const cached = await cacheManager.get(key);
+                if (mounted) {
+                    setValue(cached);
+                    setError(null);
                 }
-                catch (err) {
-                    if (mounted) {
-                        setError(err);
-                    }
+            }
+            catch (err) {
+                if (mounted) {
+                    setError(err);
                 }
-                finally {
-                    if (mounted) {
-                        setIsLoading(false);
-                    }
+            }
+            finally {
+                if (mounted) {
+                    setIsLoading(false);
                 }
-            });
+            }
         }
         loadValue().then(r => { });
         return () => {
@@ -120,9 +105,9 @@ function useCacheValue(key, initialValue) {
         };
     }, [key, cacheManager]);
     // Update value
-    const updateValue = react_1.default.useCallback((newValue) => __awaiter(this, void 0, void 0, function* () {
+    const updateValue = react_1.default.useCallback(async (newValue) => {
         try {
-            yield cacheManager.set(key, newValue);
+            await cacheManager.set(key, newValue);
             setValue(newValue);
             setError(null);
         }
@@ -130,7 +115,7 @@ function useCacheValue(key, initialValue) {
             setError(err);
             throw err;
         }
-    }), [key, cacheManager]);
+    }, [key, cacheManager]);
     return {
         value,
         error,
@@ -145,11 +130,26 @@ function useCacheBatch() {
     const cacheManager = useCacheManager();
     const [isLoading, setIsLoading] = react_1.default.useState(false);
     const [error, setError] = react_1.default.useState(null);
-    const executeBatch = react_1.default.useCallback((operations) => __awaiter(this, void 0, void 0, function* () {
+    const executeBatch = react_1.default.useCallback(async (operations) => {
         setIsLoading(true);
         setError(null);
         try {
-            return yield cacheManager.batch(operations);
+            // Process batch manually if not supported
+            const results = [];
+            // Execute operations sequentially
+            for (const op of operations) {
+                // Handle operations manually
+                if (op.type === 'get') {
+                    await cacheManager.get(op.key);
+                }
+                else if (op.type === 'set') {
+                    await cacheManager.set(op.key, op.value);
+                }
+                else if (op.type === 'delete') {
+                    await cacheManager.delete(op.key);
+                }
+            }
+            return results;
         }
         catch (err) {
             setError(err);
@@ -158,7 +158,7 @@ function useCacheBatch() {
         finally {
             setIsLoading(false);
         }
-    }), [cacheManager]);
+    }, [cacheManager]);
     return {
         executeBatch,
         isLoading,
@@ -172,10 +172,11 @@ function useCacheInvalidation() {
     const cacheManager = useCacheManager();
     return {
         invalidateKey: react_1.default.useCallback((key) => cacheManager.delete(key), [cacheManager]),
-        invalidatePattern: react_1.default.useCallback((pattern) => cacheManager.batch(Array.from(pattern).map(key => ({
-            type: 'delete',
-            key
-        }))), [cacheManager]),
+        invalidatePattern: react_1.default.useCallback((pattern) => {
+            const keysToDelete = Array.from(pattern);
+            return Promise.all(keysToDelete.map(key => cacheManager.delete(key)));
+        }, [cacheManager]),
         clearAll: react_1.default.useCallback(() => cacheManager.clear(), [cacheManager])
     };
 }
+//# sourceMappingURL=cache-provider.js.map

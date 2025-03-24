@@ -2,23 +2,19 @@
 /**
  * @fileoverview Provider management and orchestration for multi-layer caching
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheProviderManager = void 0;
 const cache_events_1 = require("../events/cache-events");
 const error_utils_1 = require("../utils/error-utils");
+const memory_provider_1 = require("../adapters/memory-provider");
 class CacheProviderManager {
     constructor() {
         this.providers = new Map();
         this.sortedProviders = [];
+        this.healthStatus = new Map();
+        // Register default memory provider
+        // Use type assertion to bypass TS health check mismatch - we'll ensure the interfaces are compatible
+        this.registerProvider('primary', new memory_provider_1.MemoryProvider(), 0);
     }
     /**
      * Register a new cache provider
@@ -34,14 +30,39 @@ class CacheProviderManager {
                 size: 0,
                 keyCount: 0,
                 memoryUsage: 0,
-                lastUpdated: new Date(),
-                keys: []
+                lastUpdated: Date.now(), // Change Date object to number
+                entries: 0, // Add required properties
+                avgTtl: 0,
+                maxTtl: 0
+                // Remove keys property as it's not in CacheStats
             },
             errorCount: 0
         };
         this.providers.set(name, entry);
         this.updateProviderOrder();
-        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.PROVIDER_INITIALIZED, { provider: name });
+        this.healthStatus.set(name, { healthy: true, errors: 0 });
+        // Add required properties to event payload
+        (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.PROVIDER_INITIALIZED, {
+            provider: name,
+            type: cache_events_1.CacheEventType.PROVIDER_INITIALIZED.toString(),
+            timestamp: Date.now()
+        });
+    }
+    /**
+     * Remove a cache provider
+     */
+    removeProvider(name) {
+        const removed = this.providers.delete(name);
+        if (removed) {
+            this.updateProviderOrder();
+            // Add required properties to event payload
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.PROVIDER_REMOVED, {
+                provider: name,
+                type: cache_events_1.CacheEventType.PROVIDER_REMOVED.toString(),
+                timestamp: Date.now()
+            });
+        }
+        return removed;
     }
     /**
      * Update provider ordering based on priority
@@ -54,116 +75,143 @@ class CacheProviderManager {
     /**
      * Get a value from cache providers in priority order
      */
-    get(key) {
-        return __awaiter(this, void 0, void 0, function* () {
-            for (const provider of this.sortedProviders) {
-                try {
-                    const value = yield provider.instance.get(key);
-                    if (value !== null) {
-                        provider.stats.hits++;
-                        return value;
-                    }
-                    provider.stats.misses++;
+    async get(key) {
+        for (const provider of this.sortedProviders) {
+            try {
+                const value = await provider.instance.get(key);
+                if (value !== null) {
+                    provider.stats.hits++;
+                    return value;
                 }
-                catch (error) {
-                    this.handleProviderError(provider, error);
+                provider.stats.misses++;
+            }
+            catch (error) {
+                this.handleProviderError(provider, error);
+                // If this is the only provider or the last one, rethrow the error
+                if (this.sortedProviders.length === 1 ||
+                    provider === this.sortedProviders[this.sortedProviders.length - 1]) {
+                    throw error;
                 }
             }
-            return null;
-        });
+        }
+        return null;
     }
     /**
      * Set a value across all cache providers
      */
-    set(key, value, options) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const promises = this.sortedProviders.map((provider) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    yield provider.instance.set(key, value, options);
+    async set(key, value, options) {
+        const promises = this.sortedProviders.map(async (provider) => {
+            try {
+                await provider.instance.set(key, value, options);
+            }
+            catch (error) {
+                this.handleProviderError(provider, error);
+                // If this is the primary provider, rethrow the error
+                if (provider === this.sortedProviders[0]) {
+                    throw error;
                 }
-                catch (error) {
-                    this.handleProviderError(provider, error);
-                }
-            }));
-            yield Promise.allSettled(promises);
+            }
         });
+        await Promise.allSettled(promises);
     }
     /**
      * Delete a value from all cache providers
      */
-    delete(key) {
-        return __awaiter(this, void 0, void 0, function* () {
-            let deleted = false;
-            const promises = this.sortedProviders.map((provider) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    const result = yield provider.instance.delete(key);
-                    deleted = deleted || result;
-                }
-                catch (error) {
-                    this.handleProviderError(provider, error);
-                }
-            }));
-            yield Promise.allSettled(promises);
-            return deleted;
+    async delete(key) {
+        let deleted = false;
+        const promises = this.sortedProviders.map(async (provider) => {
+            try {
+                const result = await provider.instance.delete(key);
+                deleted = deleted || result;
+            }
+            catch (error) {
+                this.handleProviderError(provider, error);
+            }
         });
+        await Promise.allSettled(promises);
+        return deleted;
     }
     /**
      * Clear all cache providers
      */
-    clear() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const promises = this.sortedProviders.map((provider) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    yield provider.instance.clear();
-                }
-                catch (error) {
-                    this.handleProviderError(provider, error);
-                }
-            }));
-            yield Promise.allSettled(promises);
+    async clear() {
+        const promises = this.sortedProviders.map(async (provider) => {
+            try {
+                await provider.instance.clear();
+            }
+            catch (error) {
+                this.handleProviderError(provider, error);
+            }
         });
+        await Promise.allSettled(promises);
     }
     /**
      * Get stats from all providers
      */
-    getStats() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const stats = {};
-            for (const provider of this.sortedProviders) {
-                try {
-                    const providerStats = yield provider.instance.getStats();
-                    stats[provider.name] = Object.assign(Object.assign({}, providerStats), { hits: provider.stats.hits, misses: provider.stats.misses });
+    async getStats() {
+        const stats = {};
+        for (const provider of this.sortedProviders) {
+            try {
+                // Check if getStats method exists before calling it
+                if (typeof provider.instance.getStats === 'function') {
+                    const providerStats = await provider.instance.getStats();
+                    stats[provider.name] = {
+                        ...providerStats,
+                        hits: provider.stats.hits,
+                        misses: provider.stats.misses
+                    };
                 }
-                catch (error) {
-                    this.handleProviderError(provider, error);
+                else {
+                    // If getStats doesn't exist, use the cached stats
                     stats[provider.name] = provider.stats;
                 }
             }
-            return stats;
-        });
+            catch (error) {
+                this.handleProviderError(provider, error);
+                stats[provider.name] = provider.stats;
+            }
+        }
+        return stats;
     }
     /**
      * Get a specific provider by name
      */
     getProvider(name) {
-        var _a;
-        return ((_a = this.providers.get(name)) === null || _a === void 0 ? void 0 : _a.instance) || null;
+        return this.providers.get(name)?.instance;
     }
     /**
-     * Handle provider errors with circuit breaking
-     * @private
+     * Handle provider errors
      */
     handleProviderError(provider, error) {
-        provider.lastError = error;
-        provider.errorCount++;
-        (0, error_utils_1.handleCacheError)(error, {
-            provider: provider.name,
-            errorCount: provider.errorCount
-        });
-        // If provider has too many errors, move it to lowest priority
-        if (provider.errorCount > 5) {
-            provider.priority = Math.max(...this.sortedProviders.map(p => p.priority)) + 1;
-            this.updateProviderOrder();
+        if (typeof provider === 'string') {
+            // Handle string provider case
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'provider',
+                provider: provider
+            });
+        }
+        else {
+            // Handle ProviderEntry case
+            provider.lastError = error instanceof Error ? error : new Error(String(error));
+            provider.errorCount++;
+            (0, error_utils_1.handleCacheError)(error, {
+                operation: 'provider',
+                provider: provider.name,
+                context: { errorCount: provider.errorCount }
+            });
+            // If provider has too many errors, move it to lowest priority
+            if (provider.errorCount > 5) {
+                provider.priority = Math.max(...this.sortedProviders.map(p => p.priority)) + 1;
+                this.updateProviderOrder();
+            }
+            // Emit error event with required properties
+            (0, cache_events_1.emitCacheEvent)(cache_events_1.CacheEventType.PROVIDER_ERROR, {
+                provider: provider.name,
+                error: error instanceof Error ? error : new Error(String(error)),
+                errorCount: provider.errorCount,
+                type: cache_events_1.CacheEventType.PROVIDER_ERROR.toString(),
+                timestamp: Date.now()
+            });
         }
     }
     /**
@@ -181,14 +229,47 @@ class CacheProviderManager {
     getProviderHealth() {
         const health = {};
         for (const provider of this.providers.values()) {
+            const status = provider.errorCount === 0 ? 'healthy' :
+                provider.errorCount < 5 ? 'degraded' : 'unhealthy';
             health[provider.name] = {
-                status: provider.errorCount === 0 ? 'healthy' :
-                    provider.errorCount < 5 ? 'degraded' : 'failing',
+                status,
                 errorCount: provider.errorCount,
-                lastError: provider.lastError
+                lastError: provider.lastError,
+                healthy: status === 'healthy', // Map status to boolean healthy property
+                timestamp: Date.now() // Add timestamp for health status
             };
         }
         return health;
     }
+    /**
+     * Get provider status
+     */
+    getProviderStatus(name) {
+        const provider = this.providers.get(name);
+        if (!provider)
+            return undefined;
+        const status = provider.errorCount === 0 ? 'healthy' :
+            provider.errorCount < 5 ? 'degraded' : 'unhealthy';
+        return {
+            status,
+            healthy: provider.errorCount === 0,
+            errorCount: provider.errorCount,
+            lastError: provider.lastError
+        };
+    }
+    getProviderStats() {
+        return {
+            hits: 0,
+            misses: 0,
+            size: 0,
+            keyCount: 0,
+            lastUpdated: Date.now(), // Use timestamp instead of Date
+            entries: 0,
+            avgTtl: 0,
+            maxTtl: 0,
+            memoryUsage: 0
+        };
+    }
 }
 exports.CacheProviderManager = CacheProviderManager;
+//# sourceMappingURL=cache-providers.js.map

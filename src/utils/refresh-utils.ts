@@ -1,4 +1,4 @@
-import { CacheOptions } from '../types/cache-types';
+import { CacheOptions } from '../types/common';
 import { emitCacheEvent, CacheEventType } from '../events/cache-events';
 import * as cacheCore from '../implementations/cache-manager-core';
 
@@ -41,19 +41,32 @@ export function scheduleRefresh(
  */
 async function executeRefresh(task: RefreshTask): Promise<void> {
   try {
-    emitCacheEvent(CacheEventType.REFRESH_START, { key: task.key });
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.REFRESH_START, { 
+      key: task.key,
+      type: 'refresh:start', // Use string literal since enum may not have this value
+      timestamp: Date.now()
+    });
     
     const value = await task.fn();
     await cacheCore.setCacheValue(task.key, value, task.options);
     
-    emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key: task.key });
+    // Add required properties to event payload
+    emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { 
+      key: task.key,
+      type: 'refresh:success', // Use string literal since enum may not have this value
+      timestamp: Date.now()
+    });
     
     // Schedule next refresh
     scheduleRefresh(task.key, task.fn, task.options);
   } catch (error) {
+    // Add required properties to event payload
     emitCacheEvent(CacheEventType.REFRESH_ERROR, { 
       key: task.key,
-      error: error as Error 
+      error: error as Error,
+      type: 'refresh:error', // Use string literal since enum may not have this value
+      timestamp: Date.now()
     });
   }
 }

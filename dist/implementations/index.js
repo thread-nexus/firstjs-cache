@@ -19,3 +19,4 @@ function createCacheManager(config) {
 function default_1(config) {
     return createCacheManager(config);
 }
+//# sourceMappingURL=index.js.map

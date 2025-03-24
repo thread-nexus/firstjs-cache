@@ -2,11 +2,15 @@
  * @fileoverview Types for cache configuration and operations
  */
 
+import { CacheOperationContext as BaseOperationContext } from '../utils/validation-utils';
 import { CacheOptions } from './common';
 
+/**
+ * Cache statistics for performance monitoring
+ * @deprecated Use CacheStats from common.ts
+ */
 export function CacheStats() {
 }
-
 
 /**
  * Cache configuration
@@ -151,37 +155,16 @@ export enum CacheOperationType {
 /**
  * Cache operation context
  */
-export interface CacheOperationContext {
+export interface CacheOperationContext extends BaseOperationContext {
   /**
    * Operation type
    */
   operation: CacheOperationType;
   
   /**
-   * Cache key(s)
-   */
-  key?: string;
-  keys?: string[];
-  
-  /**
-   * Provider name
-   */
-  provider?: string;
-  
-  /**
-   * Operation start time
-   */
-  startTime?: number;
-  
-  /**
    * Operation options
    */
   options?: CacheOptions;
-  
-  /**
-   * Additional context
-   */
-  [key: string]: any;
 }
 
 /**

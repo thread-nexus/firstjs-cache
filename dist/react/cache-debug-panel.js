@@ -36,15 +36,6 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CacheDebugPanel = CacheDebugPanel;
 const react_1 = __importStar(require("react"));
@@ -63,44 +54,48 @@ function CacheDebugPanel({ position = 'bottom-right', defaultOpen = false, class
     const [operationValue, setOperationValue] = (0, react_1.useState)('');
     const [operationType, setOperationType] = (0, react_1.useState)('get');
     // Handle cache operations
-    const handleOperation = () => __awaiter(this, void 0, void 0, function* () {
+    const handleOperation = async () => {
         try {
             let result;
             switch (operationType) {
                 case 'get':
-                    result = yield cacheManager.get(operationKey);
+                    result = await cacheManager.get(operationKey);
                     break;
                 case 'set':
                     try {
                         const value = JSON.parse(operationValue);
-                        yield cacheManager.set(operationKey, value);
+                        await cacheManager.set(operationKey, value);
                         result = 'Success';
                     }
-                    catch (_a) {
-                        yield cacheManager.set(operationKey, operationValue);
+                    catch {
+                        await cacheManager.set(operationKey, operationValue);
                         result = 'Success';
                     }
                     break;
                 case 'delete':
-                    result = yield cacheManager.delete(operationKey);
+                    result = await cacheManager.delete(operationKey);
                     break;
             }
             setOperationResult(result);
         }
         catch (error) {
-            setOperationResult({ error: error.message });
+            setOperationResult({
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
-    });
+    };
     // Handle key search
-    const handleSearch = () => __awaiter(this, void 0, void 0, function* () {
+    const handleSearch = async () => {
         try {
-            const result = yield cacheManager.get(searchKey);
+            const result = await cacheManager.get(searchKey);
             setSearchResult(result);
         }
         catch (error) {
-            setSearchResult({ error: error.message });
+            setSearchResult({
+                error: error instanceof Error ? error.message : String(error)
+            });
         }
-    });
+    };
     return (react_1.default.createElement("div", { className: `cache-debug-panel ${position} ${className || ''}` },
         react_1.default.createElement("button", { className: "toggle-button", onClick: () => setIsOpen(!isOpen) }, isOpen ? 'Close Debug Panel' : 'Open Cache Debug'),
         isOpen && (react_1.default.createElement("div", { className: "panel-content" },
@@ -132,8 +127,8 @@ function CacheDebugPanel({ position = 'bottom-right', defaultOpen = false, class
                             react_1.default.createElement("pre", null, JSON.stringify(operationResult, null, 2))))))),
                 activeTab === 'config' && (react_1.default.createElement("div", { className: "config-panel" },
                     react_1.default.createElement("h4", null, "Cache Configuration"),
-                    react_1.default.createElement("pre", null, JSON.stringify(cacheManager.config, null, 2))))))),
-        react_1.default.createElement("style", { jsx: true }, `
+                    react_1.default.createElement("pre", null, JSON.stringify(cacheManager.getConfigInfo ? cacheManager.getConfigInfo() : {}, null, 2))))))),
+        react_1.default.createElement("style", { dangerouslySetInnerHTML: { __html: `
         .cache-debug-panel {
           position: fixed;
           z-index: 9999;
@@ -260,5 +255,6 @@ function CacheDebugPanel({ position = 'bottom-right', defaultOpen = false, class
           display: grid;
           gap: 8px;
         }
-      `)));
+      ` } })));
 }
+//# sourceMappingURL=cache-debug-panel.js.map

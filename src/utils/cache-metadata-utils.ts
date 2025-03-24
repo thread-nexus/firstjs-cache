@@ -81,7 +81,7 @@ export function getMetadata(key: string): EntryMetadata | undefined {
  */
 export function setMetadata(key: string, data: Partial<EntryMetadata>): void {
   const existing = metadataStore.get(key);
-  const now = new Date();
+  const now = Date.now();
   
   if (existing) {
     metadataStore.set(key, {
@@ -91,11 +91,14 @@ export function setMetadata(key: string, data: Partial<EntryMetadata>): void {
     });
   } else {
     metadataStore.set(key, {
-      createdAt: now,
-      updatedAt: now,
-      accessCount: 0,
       tags: [],
-      ...data
+      createdAt: now,
+      lastAccessed: now,
+      size: 0,
+      compressed: false,
+      accessCount: 0,
+      ...data,
+      updatedAt: now
     });
   }
 }
@@ -107,8 +110,9 @@ export function recordAccess(key: string): void {
   const metadata = metadataStore.get(key);
   
   if (metadata) {
-    metadata.accessCount++;
-    metadata.updatedAt = new Date();
+    metadata.accessCount = (metadata.accessCount || 0) + 1;
+    metadata.lastAccessed = Date.now();
+    metadata.updatedAt = Date.now();
   }
 }
 
@@ -124,4 +128,26 @@ export function getAllKeys(): string[] {
  */
 export function getMetadataSize(): number {
   return metadataStore.size;
+}
+
+export function createMetadata(options?: Partial<EntryMetadata>): EntryMetadata {
+  const now = Date.now();
+  return {
+    tags: options?.tags || [],
+    createdAt: now,
+    lastAccessed: now,
+    size: options?.size || 0,
+    compressed: options?.compressed || false,
+    accessCount: 0
+  };
+}
+
+export function updateMetadata(metadata: EntryMetadata): EntryMetadata {
+  const now = Date.now();
+  return {
+    ...metadata,
+    lastAccessed: now,
+    accessCount: (metadata.accessCount || 0) + 1,
+    updatedAt: now
+  };
 }

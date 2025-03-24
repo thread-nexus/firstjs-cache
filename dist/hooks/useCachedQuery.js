@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.useCachedQuery = useCachedQuery;
 /**
@@ -16,7 +7,7 @@ exports.useCachedQuery = useCachedQuery;
  * React hook for data fetching with cache support
  */
 const react_1 = require("react");
-const useCache_1 = require("./useCache");
+const use_cache_1 = require("./use-cache"); // Correct path
 /**
  * Hook for data fetching with cache support
  *
@@ -26,18 +17,18 @@ const useCache_1 = require("./useCache");
  * @returns Object containing data, loading state, error, and refetch function
  */
 function useCachedQuery(key, fetchFn, options = {}) {
-    const cache = (0, useCache_1.useCache)();
     const cacheKey = Array.isArray(key) ? key.join(':') : key;
+    const cache = (0, use_cache_1.useCache)(cacheKey);
     const [data, setData] = (0, react_1.useState)(null);
     const [isLoading, setIsLoading] = (0, react_1.useState)(true);
     const [error, setError] = (0, react_1.useState)(null);
-    const fetchData = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
+    const fetchData = (0, react_1.useCallback)(async () => {
         setIsLoading(true);
         setError(null);
         try {
             // Check cache first unless disabled
             if (!options.disableCache) {
-                const cachedData = yield cache.get(cacheKey);
+                const cachedData = cache.data;
                 if (cachedData !== null) {
                     setData(cachedData);
                     setIsLoading(false);
@@ -48,13 +39,16 @@ function useCachedQuery(key, fetchFn, options = {}) {
                 }
             }
             // Fetch data
-            const result = yield fetchFn();
+            const result = await fetchFn();
             // Cache the result unless disabled
             if (!options.disableCache) {
-                yield cache.set(cacheKey, result, {
-                    ttl: options.ttl,
-                    tags: options.tags
-                });
+                const cacheOptions = {
+                    // Only include properties from CacheOptions
+                    ttl: options.cacheTime, // Map to appropriate property
+                    backgroundRefresh: options.staleWhileRevalidate
+                    // Don't include tags if it's not part of the type
+                };
+                await cache.setValue(result);
             }
             setData(result);
             if (options.onSuccess) {
@@ -70,7 +64,7 @@ function useCachedQuery(key, fetchFn, options = {}) {
         finally {
             setIsLoading(false);
         }
-    }), [cacheKey, fetchFn, cache, options]);
+    }, [cacheKey, fetchFn, cache, options]);
     (0, react_1.useEffect)(() => {
         if (options.skip) {
             setIsLoading(false);
@@ -78,9 +72,9 @@ function useCachedQuery(key, fetchFn, options = {}) {
         }
         fetchData().then(r => { });
     }, [fetchData, options.skip]);
-    const refetch = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
-        yield fetchData();
-    }), [fetchData]);
+    const refetch = (0, react_1.useCallback)(async () => {
+        await fetchData();
+    }, [fetchData]);
     return {
         data,
         isLoading,
@@ -88,3 +82,4 @@ function useCachedQuery(key, fetchFn, options = {}) {
         refetch
     };
 }
+//# sourceMappingURL=useCachedQuery.js.map

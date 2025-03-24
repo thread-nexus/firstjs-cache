@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { CacheStats } from '../types/cache-types';
+import { CacheStats } from '../types/common';
 import { CacheEventType, subscribeToCacheEvents } from '../events/cache-events';
 import { formatCacheSize } from '../implementations/cache-manager-utils';
 
@@ -24,7 +24,7 @@ interface CacheMonitorProps {
 }
 
 interface CacheEvent {
-  type: CacheEventType;
+  type: string; // Changed from CacheEventType to string
   timestamp: number;
   key?: string;
   duration?: number;
@@ -40,26 +40,26 @@ export function CacheMonitor({
   className,
   eventFilter
 }: CacheMonitorProps) {
-  const [stats, setStats] = useState<Record<string, CacheStats>>({});
+  const [stats, setStats] = useState<Record<string, any>>({});
   const [events, setEvents] = useState<CacheEvent[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>();
 
-  // Subscribe to cache events
+  // Subscribe to cache events with correct parameter
   useEffect(() => {
     if (!showEvents) return;
 
-    const unsubscribe = subscribeToCacheEvents('*', (event) => {
-      if (eventFilter && !eventFilter(event)) return;
+    const unsubscribe = subscribeToCacheEvents('all', (event) => {
+      if (eventFilter && !eventFilter({ type: event.type as CacheEventType })) return;
 
       setEvents(prev => [
         { 
           type: event.type,
-          timestamp: Date.now(),
+          timestamp: event.timestamp || Date.now(),
           key: event.key,
           duration: event.duration,
           size: event.size,
           error: event.error
-        },
+        } as CacheEvent,
         ...prev.slice(0, maxEvents - 1)
       ]);
     });
@@ -76,7 +76,7 @@ export function CacheMonitor({
       misses: (acc.misses || 0) + curr.misses,
       size: (acc.size || 0) + curr.size,
       keyCount: (acc.keyCount || 0) + curr.keyCount
-    }), {} as CacheStats);
+    }), {} as Record<string, number>);
   }, [stats]);
 
   // Calculate hit rate
@@ -95,15 +95,15 @@ export function CacheMonitor({
           <div className="cache-monitor-stats">
             <div className="stat-item">
               <label>Hit Rate</label>
-              <value>{hitRate.toFixed(2)}%</value>
+              <div className="stat-value">{hitRate.toFixed(2)}%</div>
             </div>
             <div className="stat-item">
               <label>Total Size</label>
-              <value>{formatCacheSize(aggregatedStats.size)}</value>
+              <div className="stat-value">{formatCacheSize(aggregatedStats.size)}</div>
             </div>
             <div className="stat-item">
               <label>Keys</label>
-              <value>{aggregatedStats.keyCount.toLocaleString()}</value>
+              <span className="stat-value">{aggregatedStats.keyCount.toLocaleString()}</span>
             </div>
           </div>
         )}
@@ -130,19 +130,19 @@ export function CacheMonitor({
                   <div className="provider-details">
                     <div className="stat-row">
                       <label>Hits</label>
-                      <value>{providerStats.hits.toLocaleString()}</value>
+                      <span className="stat-value">{providerStats.hits.toLocaleString()}</span>
                     </div>
                     <div className="stat-row">
                       <label>Misses</label>
-                      <value>{providerStats.misses.toLocaleString()}</value>
+                      <span className="stat-value">{providerStats.misses.toLocaleString()}</span>
                     </div>
                     <div className="stat-row">
                       <label>Size</label>
-                      <value>{formatCacheSize(providerStats.size)}</value>
+                      <span className="stat-value">{formatCacheSize(providerStats.size)}</span>
                     </div>
                     <div className="stat-row">
                       <label>Keys</label>
-                      <value>{providerStats.keyCount.toLocaleString()}</value>
+                      <span className="stat-value">{providerStats.keyCount.toLocaleString()}</span>
                     </div>
                   </div>
                 )}
@@ -185,7 +185,7 @@ export function CacheMonitor({
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         .cache-monitor {
           background: #f8f9fa;
           border-radius: 8px;
@@ -220,7 +220,7 @@ export function CacheMonitor({
           margin-bottom: 4px;
         }
 
-        .stat-item value {
+        .stat-value {
           display: block;
           color: #2d3748;
           font-size: 1.25rem;
@@ -281,7 +281,7 @@ export function CacheMonitor({
           color: #718096;
         }
 
-        .stat-row value {
+        .stat-value {
           color: #2d3748;
           font-weight: 500;
         }

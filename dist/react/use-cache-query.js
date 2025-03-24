@@ -1,17 +1,7 @@
 "use strict";
 /**
- * @fileoverview React hooks for cache integration with automatic
- * background refresh and optimistic updates.
+ * @fileoverview React hooks for cache integration
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.useCacheQuery = useCacheQuery;
 const react_1 = require("react");
@@ -33,25 +23,25 @@ function useCacheQuery(key, fetcher, options = {}) {
         }
     }, []);
     // Fetch data function
-    const fetchData = (0, react_1.useCallback)(() => __awaiter(this, void 0, void 0, function* () {
-        var _a, _b;
+    const fetchData = (0, react_1.useCallback)(async () => {
         if (!cache.current)
             return;
         try {
             setIsLoading(true);
-            const result = yield cache.current.getOrCompute(key, fetcher, options);
+            // Cast options to any to bypass type-checking for now
+            const result = await cache.current.getOrCompute(key, fetcher, options);
             setData(result);
             setError(null);
-            (_a = options.onSuccess) === null || _a === void 0 ? void 0 : _a.call(options, result);
+            options.onSuccess?.(result);
         }
         catch (err) {
             setError(err);
-            (_b = options.onError) === null || _b === void 0 ? void 0 : _b.call(options, err);
+            options.onError?.(err);
         }
         finally {
             setIsLoading(false);
         }
-    }), [key, fetcher, options]);
+    }, [key, fetcher, options]);
     // Subscribe to cache events
     (0, react_1.useEffect)(() => {
         const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)(cache_events_1.CacheEventType.SET, (event) => {
@@ -64,15 +54,16 @@ function useCacheQuery(key, fetcher, options = {}) {
     }, [key]);
     // Handle background refresh
     (0, react_1.useEffect)(() => {
-        if (!options.backgroundRefresh)
+        if (!options?.backgroundRefresh)
             return;
-        const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)(cache_events_1.CacheEventType.REFRESH_START, (event) => {
-            if (event.key === key) {
+        // Use event type all and filter instead of specific event type
+        const unsubscribe = (0, cache_events_1.subscribeToCacheEvents)('all', (event) => {
+            if (event.type === 'refresh:start' && event.key === key) {
                 setIsStale(true);
             }
         });
         return () => unsubscribe();
-    }, [key, options.backgroundRefresh]);
+    }, [key, options?.backgroundRefresh]);
     // Handle revalidation on focus
     (0, react_1.useEffect)(() => {
         if (!options.revalidateOnFocus)
@@ -107,20 +98,23 @@ function useCacheQuery(key, fetcher, options = {}) {
         fetchData().then(r => { });
     }, [fetchData]);
     // Mutate function for optimistic updates
-    const mutate = (0, react_1.useCallback)((updater) => __awaiter(this, void 0, void 0, function* () {
+    const mutate = (0, react_1.useCallback)(async (updater) => {
         if (!cache.current)
             return;
-        const newData = typeof updater === 'function' ? updater(data) : updater;
+        const newData = typeof updater === 'function'
+            ? updater(data)
+            : updater;
         setData(newData);
         try {
-            yield cache.current.set(key, newData, options);
+            // Cast options to any to bypass type-checking for now
+            await cache.current.set(key, newData, options);
         }
         catch (err) {
             // Revert on error
             setData(data);
             throw err;
         }
-    }), [key, data, options]);
+    }, [key, data, options]);
     // If suspend option is enabled, throw promise while loading
     if (options.suspend && isLoading) {
         throw fetchData();
@@ -134,3 +128,4 @@ function useCacheQuery(key, fetcher, options = {}) {
         mutate
     };
 }
+//# sourceMappingURL=use-cache-query.js.map
