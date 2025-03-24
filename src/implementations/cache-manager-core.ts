@@ -1,377 +1,200 @@
-/**
- * @fileoverview Core cache manager implementation that orchestrates all cache operations
- * and integrates various features like statistics, metadata, and advanced operations.
- */
-import {CacheOptions} from '../types/common';
-import {ICacheProvider} from '../interfaces/i-cache-provider';
-import {CacheProviderManager} from './cache-providers';
-import {CacheCompute} from './cache-compute';
-import {CacheStatistics} from './cache-statistics';
-import {CacheMetadataManager} from './cache-metadata-manager';
-import {CacheManagerOperations} from './cache-manager-operations';
-import {CacheEventType, emitCacheEvent} from '../events/cache-events';
-import {validateCacheKey, validateCacheOptions} from '../utils/validation-utils';
-import {ensureError, handleCacheError} from '../utils/error-utils';
 import {DEFAULT_CONFIG} from '../config/default-config';
-
-
-export let clearCache = undefined;
-
-
-export function setCacheValue() {
-
-}
-
-
-class UseCacheOptions {
-}
-
-export async function getOrComputeValue(key: string, fetcher: () => Promise<T>, options: UseCacheOptions) {
-
-}
-
-
-export function getCacheValue(key: string) {
-
-}
-
+import {ICacheProvider} from '../interfaces/i-cache-provider';
+import {CacheOptions} from '../types/common';
+import {MemoryAdapter} from '../adapters/memory-adapter';
 
 /**
  * Core implementation of the cache manager
  */
-class CacheManagerCore {
-  private providers: CacheProviderManager;
-  private compute: CacheCompute;
-  private statistics: CacheStatistics;
-  private metadata: CacheMetadataManager;
-  private operations: CacheManagerOperations;
-
+export class CacheManagerCore {
+  private providers: Map<string, ICacheProvider> = new Map();
+  private healthStatus: Map<string, {healthy: boolean, errors: number}> = new Map();
+  private monitoringInterval: NodeJS.Timeout | null = null;
   constructor(private config: typeof DEFAULT_CONFIG = DEFAULT_CONFIG) {
-    // Initialize components
-    this.providers = new CacheProviderManager();
-    this.compute = new CacheCompute(this.providers.getProvider('primary')!, {
-      defaultTtl: config.defaultTtl,
-      backgroundRefresh: config.backgroundRefresh,
-      refreshThreshold: config.refreshThreshold,
-    });
-    this.statistics = new CacheStatistics();
-    this.metadata = new CacheMetadataManager();
-    this.operations = new CacheManagerOperations(this.providers.getProvider('primary')!);
+    // Initialize default memory provider
+    this.providers.set('memory', new MemoryAdapter({
+      maxSize: config.maxSize,
+      maxItems: config.maxItems,
+      defaultTtl: config.defaultTtl
+    }));
 
+    // Initialize health status
+    this.providers.forEach((_, name) => {
+      this.healthStatus.set(name, {healthy: true, errors: 0});
+    });
     // Start monitoring if enabled
-    if (config.monitoring?.enabled) {
+    if (config.statsInterval) {
       this.startMonitoring();
     }
   }
 
   /**
-   * Register a cache provider
-   */
-  registerProvider(name: string, provider: ICacheProvider, priority: number = 0): void {
-    this.providers.registerProvider(name, provider, priority);
-  }
-
-  /**
    * Get a value from cache
    */
-  async get<T>(key: string): Promise<T | null> {
-    validateCacheKey(key);
-    const startTime = performance.now();
-    try {
-      const value = await this.providers.get<T>(key);
-      const duration = performance.now() - startTime;
-
-      if (value !== null) {
-        this.statistics.recordHit(duration);
-        this.metadata.recordAccess(key);
-      } else {
-        this.statistics.recordMiss(duration);
-      }
-
-      return value;
-    } catch (error) {
-      handleCacheError(error, { operation: 'get', key });
-      return null;
-    }
+  async get(key: string): Promise<any> {
+    const provider = this.getProvider();
+    return provider.get(key);
   }
-
   /**
    * Set a value in cache
    */
-  async set<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    validateCacheKey(key);
-    validateCacheOptions(options);
-    const startTime = performance.now();
-
-    try {
-      await this.providers.set(key, value, options);
-      const duration = performance.now() - startTime;
-      this.statistics.recordSet(JSON.stringify(value).length, duration);
-      this.metadata.set(key, { tags: options?.tags });
-    } catch (error) {
-      handleCacheError(error, { operation: 'set', key });
-      throw error;
-    }
+  async set(key: string, value: any, options?: CacheOptions): Promise<void> {
+    const provider = this.getProvider();
+    return provider.set(key, value, options);
   }
-
   /**
    * Delete a value from cache
    */
   async delete(key: string): Promise<boolean> {
-    try {
-      return await this.providers.delete(key);
-    } catch (error) {
-      handleCacheError(error, { operation: 'delete', key });
-      return false;
-    }
+    const provider = this.getProvider();
+    return provider.delete(key);
   }
 
   /**
    * Clear the entire cache
    */
   async clear(): Promise<void> {
-    try {
-      await this.providers.clear();
-      this.statistics.reset();
-      this.metadata.clear();
-    } catch (error) {
-      handleCacheError(error, { operation: 'clear' });
-      throw error;
-    }
+    const provider = this.getProvider();
+    return provider.clear();
   }
-
-  /**
-   * Get cache statistics
-   */
-  async getStats(): Promise<Record<string, any>> {
-    return this.statistics.getStats();
-  }
-
-  /**
-   * Get or compute a value
-   */
-  async getOrCompute<T>(
-      key: string,
-      fetcher: () => Promise<T>,
-      options?: CacheOptions
-  ): Promise<T> {
-    const result = await this.compute.getOrCompute(key, fetcher, options);
-    return result.value;
-  }
-
-  /**
-   * Start monitoring cache operations
-   */
-  private startMonitoring(): void {
-    // Implementation would go here
-  }
-}
-
-// Singleton instance for the core cache manager
-let cacheManagerInstance: CacheManagerCore | null = null;
-
-/**
- * Get the singleton cache manager instance
- */
-function getCacheManager(config = DEFAULT_CONFIG): CacheManagerCore {
-  if (!cacheManagerInstance) {
-    cacheManagerInstance = new CacheManagerCore(config);
-  }
-  return cacheManagerInstance;
-}
-
-/**
- * Cache Manager API facade
- */
-export const CacheManager = {
-  /**
-   * Get a value from cache
-   */
-  async get<T>(key: string): Promise<T | null> {
-    try {
-      validateCacheKey(key);
-      emitCacheEvent(CacheEventType.GET, { key });
-
-      const manager = getCacheManager();
-      const result = await manager.get<T>(key);
-
-      emitCacheEvent(
-        result !== null ? CacheEventType.GET_HIT : CacheEventType.GET_MISS,
-        { key, found: result !== null }
-      );
-
-      return result;
-    } catch (error) {
-      handleCacheError(error, { operation: 'get', key });
-      emitCacheEvent(CacheEventType.ERROR, { operation: 'get', key, error: ensureError(error) });
-      return null;
-    }
-  },
-
-  /**
-   * Get or compute a value
-   */
-  async getOrCompute<T>(
-      key: string,
-      fetcher: () => Promise<T>,
-      options?: CacheOptions
-  ): Promise<T> {
-    try {
-      validateCacheKey(key);
-      emitCacheEvent(CacheEventType.COMPUTE_START, { key });
-
-      const manager = getCacheManager();
-      const result = await manager.getOrCompute<T>(key, fetcher, options);
-
-      emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, { key });
-      return result;
-    } catch (error) {
-      const safeError = ensureError(error);
-      emitCacheEvent(CacheEventType.COMPUTE_ERROR, { key, error: safeError });
-      throw safeError;
-    }
-  },
-
-  /**
-   * Delete a value from cache
-   */
-  async delete(key: string): Promise<boolean> {
-    try {
-      validateCacheKey(key);
-      emitCacheEvent(CacheEventType.DELETE, { key });
-
-      const manager = getCacheManager();
-      return await manager.delete(key);
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'delete', 
-        key, 
-        error: ensureError(error) 
-      });
-      return false;
-    }
-  },
-
-  /**
-   * Set a value in cache
-   */
-  async set<T>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    try {
-      validateCacheKey(key);
-      emitCacheEvent(CacheEventType.SET, { key });
-
-      const manager = getCacheManager();
-      await manager.set<T>(key, value, options);
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'set', 
-        key, 
-        error: ensureError(error) 
-      });
-      throw error;
-    }
-  },
-
-  /**
-   * Get cache statistics
-   */
-  async getStats(): Promise<Record<string, any>> {
-    try {
-      const manager = getCacheManager();
-      const stats = await manager.getStats();
-
-      emitCacheEvent(CacheEventType.STATS_UPDATE, { stats });
-      return stats;
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'getStats', 
-        error: ensureError(error) 
-      });
-      throw error;
-    }
-  },
-
-  /**
-   * Clear the entire cache
-   */
-  async clear(): Promise<void> {
-    try {
-      emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: 0 });
-
-      const manager = getCacheManager();
-      await manager.clear();
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'clear', 
-        error: ensureError(error) 
-      });
-      throw error;
-    }
-  },
-
   /**
    * Get multiple values from cache
    */
-  async getMany<T>(keys: string[]): Promise<Record<string, T | null>> {
-    try {
-      const manager = getCacheManager();
-
-      // Process in parallel for better performance
-      const promises = keys.map(async (key) => {
-        validateCacheKey(key);
-        const value = await manager.get<T>(key);
-        return { key, value };
-      });
-
-      const resolvedResults = await Promise.all(promises);
-
-      // Populate results
-      const results: Record<string, T | null> = {};
-      for (const { key, value } of resolvedResults) {
-        results[key] = value;
-      }
-
-      return results;
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'getMany', 
-        error: ensureError(error) 
-      });
-      throw error;
-    }
-  },
-
+  async getMany(keys: string[]): Promise<Record<string, any>> {
+    const provider = this.getProvider();
+    return provider.getMany(keys);
+  }
   /**
    * Set multiple values in cache
    */
-  async setMany<T>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
-    try {
-      const manager = getCacheManager();
+  async setMany(entries: Record<string, any>, options?: CacheOptions): Promise<void> {
+    const provider = this.getProvider();
+    return provider.setMany(entries, options);
+  }
+  /**
+   * Get or compute a value
+   */
+  async getOrCompute(
+    key: string,
+    fetcher: () => Promise<any>,
+    options?: CacheOptions
+  ): Promise<any> {
+    const provider = this.getProvider();
+    const value = await provider.get(key);
 
-      // Process in parallel
-      const promises = Object.entries(entries).map(([key, value]) => {
-        validateCacheKey(key);
-        return manager.set<T>(key, value, options);
-      });
-
-      await Promise.all(promises);
-    } catch (error) {
-      emitCacheEvent(CacheEventType.ERROR, { 
-        operation: 'setMany', 
-        error: ensureError(error) 
-      });
-      throw error;
+    if (value !== null) {
+      return value;
     }
-  },
+
+    const computed = await fetcher();
+    await provider.set(key, computed, options);
+    return computed;
+  }
+  /**
+   * Get cache statistics
+   */
+  async getStats(): Promise<any> {
+    const provider = this.getProvider();
+    return provider.getStats ? provider.getStats() : {};
+  }
+  /**
+   * Get a provider by name
+   */
+  getProvider(name?: string): ICacheProvider {
+    const providerName = name || this.config.defaultProvider;
+    const provider = this.providers.get(providerName);
+
+    if (!provider) {
+      throw new Error(`Provider "${providerName}" not found`);
+    }
+
+    return provider;
+  }
 
   /**
-   * Register a cache provider
+   * Get provider operations
    */
-  registerProvider(name: string, provider: ICacheProvider, priority: number = 0): void {
-    const manager = getCacheManager();
-    manager.registerProvider(name, provider, priority);
+  getOperations(provider?: string): any {
+    // This would be implemented to return operations specific to the provider
+    return {};
   }
-};
 
-// Export the CacheManagerCore class for advanced usage
-export { CacheManagerCore };
+  /**
+   * Invalidate cache entries by tag
+   */
+  async invalidateByTag(tag: string): Promise<number> {
+    const provider = this.getProvider();
+    return provider.invalidateByTag ? provider.invalidateByTag(tag) : 0;
+  }
+
+  /**
+   * Invalidate cache entries by prefix
+   */
+  async invalidateByPrefix(prefix: string): Promise<number> {
+    // This would be implemented to invalidate by prefix
+    return 0;
+  }
+
+  /**
+   * Get all keys matching a pattern
+   */
+  async keys(pattern?: string): Promise<string[]> {
+    // This would be implemented to get keys by pattern
+    return [];
+  }
+
+  /**
+   * Delete cache entries matching a pattern
+   */
+  async deleteByPattern(pattern: string): Promise<number> {
+    // This would be implemented to delete by pattern
+    return 0;
+  }
+
+  /**
+   * Start monitoring provider health
+   */
+  startMonitoring(): void {
+    if (this.monitoringInterval) return;
+
+    this.monitoringInterval = setInterval(() => {
+      this.checkProviderHealth();
+    }, this.config.statsInterval * 1000);
+  }
+
+  /**
+   * Stop monitoring provider health
+   */
+  stopMonitoring(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+      this.monitoringInterval = null;
+    }
+  }
+
+  /**
+   * Check provider health
+   */
+  private async checkProviderHealth(): Promise<void> {
+    for (const [name, provider] of this.providers.entries()) {
+      try {
+        await provider.get('health-check');
+        this.healthStatus.set(name, {healthy: true, errors: 0});
+      } catch (error) {
+        const status = this.healthStatus.get(name);
+        if (status) {
+          status.errors += 1;
+          status.healthy = status.errors < 3; // Mark unhealthy after 3 errors
+          this.healthStatus.set(name, status);
+        }
+      }
+    }
+  }
+
+  /**
+   * Get provider health status
+   */
+  getProviderStatus(name: string): {healthy: boolean, errors: number} {
+    return this.healthStatus.get(name) || {healthy: false, errors: 0};
+  }
+}

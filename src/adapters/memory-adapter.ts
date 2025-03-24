@@ -2,183 +2,351 @@
  * @fileoverview In-memory storage adapter implementation with LRU caching
  */
 
-import { IStorageAdapter, StorageAdapterConfig } from '../interfaces/storage-adapter';
 import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+import { compressData, decompressData } from '../utils/compression-utils';
 
-interface CacheEntry {
-  value: any;
+/**
+ * Configuration options for the memory storage adapter
+ */
+export interface MemoryStorageOptions {
+  maxSize?: number;       // Maximum cache size in bytes
+  maxItems?: number;      // Maximum number of items
+  defaultTtl?: number;    // Default TTL in seconds
+  updateAgeOnGet?: boolean; // Whether to update item age on get
+  allowStale?: boolean;   // Whether to return stale items
+}
+/**
+ * Cache entry metadata
+ */
+interface CacheEntryMetadata {
+  tags: string[];
+  createdAt: number;
   expiresAt?: number;
   size: number;
+  compressed?: boolean;
   lastAccessed: number;
 }
-
-export class MemoryAdapter implements IStorageAdapter {
-  private store = new Map<string, CacheEntry>();
+/**
+ * In-memory storage adapter using LRU cache
+ */
+export class MemoryStorageAdapter {
+  private store = new Map<string, any>();
+  private metadata: Map<string, CacheEntryMetadata> = new Map();
+  private stats = {
+    hits: 0,
+    misses: 0,
+    sets: 0,
+    deletes: 0,
+    size: 0
+  };
   private readonly maxSize: number;
-  private currentSize = 0;
-  private readonly prefix: string;
-
-  constructor(config: StorageAdapterConfig & { maxSize?: number } = {}) {
-    this.maxSize = config.maxSize || 100 * 1024 * 1024; // 100MB default
-    this.prefix = config.prefix || '';
-  }
-
+  private readonly maxItems: number;
+  private readonly defaultTtl: number;
+  private readonly updateAgeOnGet: boolean;
+  
   /**
-   * Get value from memory
+   * Create a new memory storage adapter
    */
-  async get(key: string): Promise<string | null> {
-    const prefixedKey = this.getKeyWithPrefix(key);
-    const entry = this.store.get(prefixedKey);
-
-    if (!entry) {
+  constructor(options: MemoryStorageOptions = {}) {
+    this.maxSize = options.maxSize || 100 * 1024 * 1024; // 100MB default
+    this.maxItems = options.maxItems || 10000;
+    this.defaultTtl = options.defaultTtl || 3600; // 1 hour default
+    this.updateAgeOnGet = options.updateAgeOnGet !== false;
+  }
+  
+  /**
+   * Get a value from the cache
+   */
+  async get<T = any>(key: string): Promise<T | null> {
+    try {
+      const value = this.store.get(key);
+      const meta = this.metadata.get(key);
+      
+      if (value === undefined) {
+        this.stats.misses++;
+        return null;
+      }
+  
+      // Check expiration
+      if (meta?.expiresAt && Date.now() > meta.expiresAt) {
+        this.store.delete(key);
+        this.metadata.delete(key);
+        this.stats.misses++;
+        return null;
+  }
+  
+      this.stats.hits++;
+      
+      // Update last accessed time
+      if (this.updateAgeOnGet && meta) {
+        meta.lastAccessed = Date.now();
+      }
+      
+      // Handle decompression if needed
+      if (meta?.compressed && Buffer.isBuffer(value)) {
+        try {
+          const decompressed = await decompressData(value, 'utf8');
+          if (typeof decompressed === 'string') {
+            try {
+              return JSON.parse(decompressed) as T;
+            } catch (e) {
+              // If parsing fails, return the string value
+              return decompressed as unknown as T;
+            }
+          }
+          return decompressed as unknown as T;
+        } catch (e) {
+          // If decompression fails, return the raw value
+          return value as T;
+        }
+      }
+      
+      return value as T;
+    } catch (error) {
+      console.error(`Error getting cache key ${key}:`, error);
       return null;
     }
-
-    // Check expiration
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      this.store.delete(prefixedKey);
-      this.currentSize -= entry.size;
-      return null;
-    }
-
-    // Update last accessed
-    entry.lastAccessed = Date.now();
-    return entry.value;
   }
 
   /**
-   * Set value in memory
+   * Set a value in the cache
    */
-  async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
-    const prefixedKey = this.getKeyWithPrefix(key);
-    const size = this.getSize(value);
-    const ttl = options?.ttl;
-
-    // Ensure enough space
-    while (this.currentSize + size > this.maxSize && this.store.size > 0) {
-      this.evictLRU();
+  async set<T = any>(key: string, value: T, options?: {
+    ttl?: number;
+    tags?: string[];
+    compression?: boolean;
+    compressionThreshold?: number;
+  }): Promise<void> {
+    try {
+      const ttl = options?.ttl !== undefined ? options.ttl : this.defaultTtl;
+      
+      // Ensure we have space - evict if needed
+      this.ensureCapacity();
+      
+      let processedValue = value;
+      let size: number;
+      let compressed = false;
+      
+      // Handle compression if enabled
+      if (options?.compression) {
+        const threshold = options.compressionThreshold || 1024;
+        
+        // Only compress string values or objects that can be stringified
+        if (typeof value === 'string' || (typeof value === 'object' && value !== null)) {
+          try {
+            const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+            
+            if (Buffer.byteLength(serialized, 'utf8') > threshold) {
+              const compressedData = await compressData(serialized);
+              processedValue = compressedData;
+              compressed = true;
+              size = compressedData.length;
+            } else {
+              size = Buffer.byteLength(serialized, 'utf8');
+  }
+          } catch (e) {
+            console.error('Compression error:', e);
+            // Fallback to uncompressed
+            size = this.calculateSize(value);
+          }
+        } else {
+          size = this.calculateSize(value);
+        }
+      } else {
+        size = this.calculateSize(value);
+      }
+  
+      // Check if value exceeds maximum size
+      if (size > this.maxSize) {
+        throw new Error(`Value for key "${key}" exceeds maximum size (${size} > ${this.maxSize})`);
+      }
+      
+      // Store value in cache
+      this.store.set(key, processedValue);
+      
+      // Update metadata
+      this.metadata.set(key, {
+        tags: options?.tags || [],
+        createdAt: Date.now(),
+        expiresAt: ttl > 0 ? Date.now() + (ttl * 1000) : undefined,
+        size,
+        compressed,
+        lastAccessed: Date.now()
+      });
+      
+      this.stats.sets++;
+      this.stats.size = this.calculateTotalSize();
+      
+      // Emit event
+      emitCacheEvent(CacheEventType.SET, {
+        key,
+        size,
+        ttl
+      });
+    } catch (error) {
+      console.error(`Error setting cache key ${key}:`, error);
+      throw error;
     }
-
-    const entry: CacheEntry = {
-      value,
-      size,
-      lastAccessed: Date.now(),
-      expiresAt: ttl ? Date.now() + (ttl * 1000) : undefined
-    };
-
-    // Update size tracking
-    if (this.store.has(prefixedKey)) {
-      this.currentSize -= this.store.get(prefixedKey)!.size;
-    }
-    this.currentSize += size;
-
-    this.store.set(prefixedKey, entry);
   }
 
   /**
-   * Check if key exists
-   */
-  async has(key: string): Promise<boolean> {
-    const prefixedKey = this.getKeyWithPrefix(key);
-    const entry = this.store.get(prefixedKey);
-
-    if (!entry) {
-      return false;
-    }
-
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      this.store.delete(prefixedKey);
-      this.currentSize -= entry.size;
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Delete value from memory
+   * Delete a value from the cache
    */
   async delete(key: string): Promise<boolean> {
-    const prefixedKey = this.getKeyWithPrefix(key);
-    const entry = this.store.get(prefixedKey);
-
-    if (entry) {
-      this.store.delete(prefixedKey);
-      this.currentSize -= entry.size;
-      return true;
+    try {
+      const existed = this.store.has(key);
+      
+      if (existed) {
+        this.store.delete(key);
+        this.metadata.delete(key);
+        this.stats.deletes++;
+        this.stats.size = this.calculateTotalSize();
+        
+        emitCacheEvent(CacheEventType.DELETE, { key });
+  }
+  
+      return existed;
+    } catch (error) {
+      console.error(`Error deleting cache key ${key}:`, error);
+      return false;
     }
-
-    return false;
   }
 
   /**
-   * Clear all values
+   * Check if a key exists in the cache
+   */
+  async has(key: string): Promise<boolean> {
+    const value = await this.get(key);
+    return value !== null;
+  }
+  /**
+   * Clear all values from the cache
    */
   async clear(): Promise<void> {
-    this.store.clear();
-    this.currentSize = 0;
-  }
-
-  /**
-   * Get matching keys
-   */
-  async keys(pattern?: string): Promise<string[]> {
-    const keys = Array.from(this.store.keys());
-    
-    if (!pattern) {
-      return keys.map(key => this.removePrefix(key));
+    try {
+      const count = this.store.size;
+      this.store.clear();
+      this.metadata.clear();
+      
+      // Reset stats
+      this.stats.size = 0;
+      
+      emitCacheEvent(CacheEventType.CLEAR, { entriesRemoved: count });
+    } catch (error) {
+      console.error('Error clearing cache:', error);
     }
-
-    const regex = new RegExp(pattern.replace('*', '.*'));
-    return keys
-      .filter(key => regex.test(this.removePrefix(key)))
-      .map(key => this.removePrefix(key));
   }
 
   /**
-   * Get multiple values
+   * Get multiple values from the cache
    */
-  async getMany(keys: string[]): Promise<Record<string, any>> {
-    const result: Record<string, any> = {};
+  async getMany<T = any>(keys: string[]): Promise<Record<string, T | null>> {
+    const result: Record<string, T | null> = {};
     
     for (const key of keys) {
-      result[key] = await this.get(key);
-    }
+      result[key] = await this.get<T>(key);
+}
     
     return result;
   }
 
   /**
-   * Set multiple values
+   * Set multiple values in the cache
    */
-  async setMany<T = any>(entries: Record<string, T>, options?: CacheOptions): Promise<void> {
+  async setMany<T = any>(entries: Record<string, T>, options?: {
+    ttl?: number;
+    tags?: string[];
+    compression?: boolean;
+    compressionThreshold?: number;
+  }): Promise<void> {
     for (const [key, value] of Object.entries(entries)) {
       await this.set(key, value, options);
     }
   }
 
   /**
-   * Get storage stats
+   * Invalidate cache entries by tag
    */
-  getStats(): { size: number; count: number; maxSize: number } {
+  async invalidateByTag(tag: string): Promise<number> {
+    let count = 0;
+    
+    // Find keys with the specified tag
+    const keysToInvalidate: string[] = [];
+    for (const [key, meta] of this.metadata.entries()) {
+      if (meta.tags.includes(tag)) {
+        keysToInvalidate.push(key);
+      }
+    }
+    
+    // Delete each key
+    for (const key of keysToInvalidate) {
+      const deleted = await this.delete(key);
+      if (deleted) count++;
+    }
+    
+    emitCacheEvent(CacheEventType.INVALIDATE, {
+      tag,
+      entriesRemoved: count
+    });
+    
+    return count;
+  }
+
+  /**
+   * Get cache statistics
+   */
+  async getStats(): Promise<{
+    hits: number;
+    misses: number;
+    keyCount: number;
+    size: number;
+    maxSize: number;
+  }> {
     return {
-      size: this.currentSize,
-      count: this.store.size,
+      hits: this.stats.hits,
+      misses: this.stats.misses,
+      keyCount: this.store.size,
+      size: this.stats.size,
       maxSize: this.maxSize
     };
   }
 
-  private getKeyWithPrefix(key: string): string {
-    return this.prefix ? `${this.prefix}:${key}` : key;
+  /**
+   * Get metadata for a key
+   */
+  async getMetadata(key: string): Promise<any | null> {
+    return this.metadata.get(key) || null;
   }
 
-  private removePrefix(key: string): string {
-    return this.prefix ? key.slice(this.prefix.length + 1) : key;
+  /**
+   * Calculate the total size of all cache entries
+   */
+  private calculateTotalSize(): number {
+    let size = 0;
+    for (const meta of this.metadata.values()) {
+      size += meta.size;
+    }
+    return size;
   }
 
-  private getSize(value: any): number {
+  /**
+   * Calculate size of a value
+   */
+  private calculateSize(value: any): number {
+    if (value === null || value === undefined) {
+      return 8;
+    }
+    
     if (typeof value === 'string') {
       return Buffer.byteLength(value, 'utf8');
+    }
+    
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return 8;
+    }
+    
+    if (Buffer.isBuffer(value)) {
+      return value.length;
     }
     
     try {
@@ -189,91 +357,42 @@ export class MemoryAdapter implements IStorageAdapter {
     }
   }
 
+  /**
+   * Ensure the cache has capacity for new items
+   */
+  private ensureCapacity(): void {
+    // Check item count limit
+    if (this.store.size >= this.maxItems) {
+      this.evictLRU();
+    }
+    
+    // Check size limit
+    while (this.calculateTotalSize() >= this.maxSize && this.store.size > 0) {
+      this.evictLRU();
+    }
+  }
+
+  /**
+   * Evict least recently used item
+   */
   private evictLRU(): void {
     let oldestKey: string | null = null;
     let oldestAccess = Infinity;
-
-    for (const [key, entry] of this.store.entries()) {
-      if (entry.lastAccessed < oldestAccess) {
-        oldestAccess = entry.lastAccessed;
+    
+    for (const [key, meta] of this.metadata.entries()) {
+      if (meta.lastAccessed < oldestAccess) {
+        oldestAccess = meta.lastAccessed;
         oldestKey = key;
       }
     }
-
+    
     if (oldestKey) {
-      const entry = this.store.get(oldestKey)!;
-      this.store.delete(oldestKey);
-      this.currentSize -= entry.size;
-
+      this.delete(oldestKey).then(r => {});
+      
       emitCacheEvent(CacheEventType.EXPIRE, {
-        key: this.removePrefix(oldestKey),
+        key: oldestKey,
         reason: 'lru'
       });
-    }
-  }
-}
-
-/**
- * Memory storage adapter that matches the test expectations
- */
-export class MemoryStorageAdapter {
-  private store = new Map<string, any>();
-  
-  /**
-   * Get a value from the store
-   */
-  async get<T = any>(key: string): Promise<T | null> {
-    const value = this.store.get(key);
-    return value !== undefined ? value : null;
-  }
-  
-  /**
-   * Set a value in the store
-   */
-  async set<T = any>(key: string, value: T, ttl?: number): Promise<void> {
-    this.store.set(key, value);
-  }
-  
-  /**
-   * Delete a value from the store
-   */
-  async delete(key: string): Promise<boolean> {
-    return this.store.delete(key);
-  }
-  
-  /**
-   * Check if a key exists in the store
-   */
-  async has(key: string): Promise<boolean> {
-    return this.store.has(key);
-  }
-  
-  /**
-   * Clear all values from the store
-   */
-  async clear(): Promise<void> {
-    this.store.clear();
-  }
-  
-  /**
-   * Get multiple values from the store
-   */
-  async getMany<T = any>(keys: string[]): Promise<Record<string, T | null>> {
-    const result: Record<string, T | null> = {};
-    
-    for (const key of keys) {
-      result[key] = await this.get<T>(key);
-    }
-    
-    return result;
-  }
-  
-  /**
-   * Set multiple values in the store
-   */
-  async setMany<T = any>(entries: Record<string, T>, ttl?: number): Promise<void> {
-    for (const [key, value] of Object.entries(entries)) {
-      await this.set(key, value, ttl);
     }
   }
 }

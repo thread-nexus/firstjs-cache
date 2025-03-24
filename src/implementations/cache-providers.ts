@@ -6,6 +6,7 @@ import { ICacheProvider } from '../interfaces/i-cache-provider';
 import { CacheOptions, CacheStats } from '../types/common';
 import { emitCacheEvent, CacheEventType } from '../events/cache-events';
 import { handleCacheError } from '../utils/error-utils';
+import { MemoryProvider } from '../adapters/memory-provider';
 
 /**
  * Provider configuration with priority and metadata
@@ -23,6 +24,10 @@ export class CacheProviderManager {
   private providers: Map<string, ProviderEntry> = new Map();
   private sortedProviders: ProviderEntry[] = [];
 
+  constructor() {
+    // Register default memory provider
+    this.registerProvider('primary', new MemoryProvider(), 0);
+  }
   /**
    * Register a new cache provider
    */
@@ -48,9 +53,21 @@ export class CacheProviderManager {
     };
 
     this.providers.set(name, entry);
-    this.updateProviderOrder();
+      this.updateProviderOrder();
 
     emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, { provider: name });
+    }
+    
+  /**
+   * Remove a cache provider
+   */
+  removeProvider(name: string): boolean {
+    const removed = this.providers.delete(name);
+    if (removed) {
+      this.updateProviderOrder();
+      emitCacheEvent(CacheEventType.PROVIDER_REMOVED, { provider: name });
+    }
+    return removed;
   }
 
   /**
@@ -61,7 +78,6 @@ export class CacheProviderManager {
     this.sortedProviders = Array.from(this.providers.values())
       .sort((a, b) => a.priority - b.priority);
   }
-
   /**
    * Get a value from cache providers in priority order
    */
@@ -76,6 +92,11 @@ export class CacheProviderManager {
         provider.stats.misses++;
       } catch (error) {
         this.handleProviderError(provider, error);
+        // If this is the only provider or the last one, rethrow the error
+        if (this.sortedProviders.length === 1 || 
+            provider === this.sortedProviders[this.sortedProviders.length - 1]) {
+          throw error;
+        }
       }
     }
     return null;
@@ -90,6 +111,10 @@ export class CacheProviderManager {
         await provider.instance.set(key, value, options);
       } catch (error) {
         this.handleProviderError(provider, error);
+        // If this is the primary provider, rethrow the error
+        if (provider === this.sortedProviders[0]) {
+          throw error;
+        }
       }
     });
 
@@ -142,12 +167,12 @@ export class CacheProviderManager {
           ...providerStats,
           hits: provider.stats.hits,
           misses: provider.stats.misses
-        };
+    };
       } catch (error) {
         this.handleProviderError(provider, error);
         stats[provider.name] = provider.stats;
-      }
-    }
+  }
+}
 
     return stats;
   }
@@ -155,8 +180,8 @@ export class CacheProviderManager {
   /**
    * Get a specific provider by name
    */
-  getProvider(name: string): ICacheProvider | null {
-    return this.providers.get(name)?.instance || null;
+  getProvider(name: string): ICacheProvider | undefined {
+    return this.providers.get(name)?.instance;
   }
 
   /**
@@ -168,6 +193,7 @@ export class CacheProviderManager {
     provider.errorCount++;
 
     handleCacheError(error, {
+      operation: 'provider',
       provider: provider.name,
       errorCount: provider.errorCount
     });
@@ -179,6 +205,13 @@ export class CacheProviderManager {
       ) + 1;
       this.updateProviderOrder();
     }
+    
+    // Emit error event
+    emitCacheEvent(CacheEventType.PROVIDER_ERROR, {
+      provider: provider.name,
+      error,
+      errorCount: provider.errorCount
+    });
   }
 
   /**
@@ -200,7 +233,6 @@ export class CacheProviderManager {
     lastError?: Error;
   }> {
     const health: Record<string, any> = {};
-
     for (const provider of this.providers.values()) {
       health[provider.name] = {
         status: provider.errorCount === 0 ? 'healthy' :
@@ -211,5 +243,23 @@ export class CacheProviderManager {
     }
 
     return health;
+  }
+
+  /**
+   * Get provider status
+   */
+  getProviderStatus(name: string): {
+    healthy: boolean;
+    errorCount: number;
+    lastError?: Error;
+  } | undefined {
+    const provider = this.providers.get(name);
+    if (!provider) return undefined;
+
+    return {
+      healthy: provider.errorCount === 0,
+      errorCount: provider.errorCount,
+      lastError: provider.lastError
+    };
   }
 }

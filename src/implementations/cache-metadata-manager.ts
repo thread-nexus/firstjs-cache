@@ -1,249 +1,163 @@
 /**
- * @fileoverview Advanced metadata management for cache entries with
- * tag-based operations and efficient lookups.
+ * @fileoverview Cache metadata management implementation
  */
 
-import { EntryMetadata } from '../types/common';
-import { emitCacheEvent, CacheEventType } from '../events/cache-events';
-import { createKeyPattern } from './cache-manager-utils';
-
-interface MetadataEntry extends EntryMetadata {
-  key: string;
+import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+/**
+ * Cache item metadata
+ */
+interface CacheItemMetadata {
+      key: string;
+  tags: string[];
+  createdAt: number;
+  lastAccessed: number;
+  accessCount: number;
+  size?: number;
+  ttl?: number;
   expiresAt?: number;
 }
-
-export class CacheMetadataManager {
-  // Primary metadata storage
-  private metadata = new Map<string, MetadataEntry>();
-  
-  // Index for tag-based lookups
-  private tagIndex = new Map<string, Set<string>>();
-  
-  // LRU tracking
-  private accessOrder: string[] = [];
-  private readonly maxAccessHistory = 1000;
-
   /**
-   * Set metadata for a cache entry
+ * Cache metadata manager implementation
    */
-  set(key: string, data: Partial<EntryMetadata>): void {
-    const now = new Date();
+export class CacheMetadataManager {
+  private metadata: Map<string, CacheItemMetadata> = new Map();
+  /**
+   * Set metadata for a cache item
+   * 
+   * @param key - Cache key
+   * @param data - Metadata to set
+   */
+  set(key: string, data: {
+    tags?: string[];
+    size?: number;
+    ttl?: number;
+  }): void {
     const existing = this.metadata.get(key);
-
-    const entry: MetadataEntry = {
+    const now = Date.now();
+    
+    const metadata: CacheItemMetadata = {
       key,
+      tags: data.tags || existing?.tags || [],
       createdAt: existing?.createdAt || now,
-      updatedAt: now,
+      lastAccessed: now,
       accessCount: existing?.accessCount || 0,
-      tags: [...(existing?.tags || []), ...(data.tags || [])],
-      computeTime: data.computeTime,
-      refreshedAt: data.refreshedAt,
-      ...data
+      size: data.size !== undefined ? data.size : existing?.size,
+      ttl: data.ttl !== undefined ? data.ttl : existing?.ttl
     };
-
-    // Update metadata
-    this.metadata.set(key, entry);
-
-    // Update tag index
-    entry.tags.forEach(tag => {
-      if (!this.tagIndex.has(tag)) {
-        this.tagIndex.set(tag, new Set());
-      }
-      this.tagIndex.get(tag)!.add(key);
-    });
-
+    
+    // Calculate expiration if TTL is provided
+    if (metadata.ttl !== undefined && metadata.ttl > 0) {
+      metadata.expiresAt = now + metadata.ttl * 1000;
+    } else {
+      metadata.expiresAt = undefined;
+    }
+    
+    this.metadata.set(key, metadata);
+    
     emitCacheEvent(CacheEventType.METADATA_UPDATE, {
       key,
-      metadata: entry
+      metadata: { ...metadata }
     });
   }
 
   /**
-   * Get metadata for a cache entry
+   * Get metadata for a cache item
+   * 
+   * @param key - Cache key
+   * @returns Metadata or null if not found
    */
-  get(key: string): EntryMetadata | undefined {
-    const entry = this.metadata.get(key);
-    if (!entry) return undefined;
-
-    // Check expiration
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      this.delete(key);
-      return undefined;
-    }
-
-    return { ...entry };
+  get(key: string): CacheItemMetadata | null {
+    const metadata = this.metadata.get(key);
+    return metadata ? { ...metadata } : null;
   }
 
   /**
-   * Record access to a cache entry
-   */
-  recordAccess(key: string): void {
-    const entry = this.metadata.get(key);
-    if (!entry) return;
-
-    // Update access stats
-    entry.accessCount++;
-    entry.updatedAt = new Date();
-
-    // Update LRU tracking
-    this.accessOrder = [
-      key,
-      ...this.accessOrder.filter(k => k !== key)
-    ].slice(0, this.maxAccessHistory);
-  }
-
-  /**
-   * Delete metadata for a cache entry
+   * Delete metadata for a cache item
+   * 
+   * @param key - Cache key
+   * @returns Whether metadata was deleted
    */
   delete(key: string): boolean {
-    const entry = this.metadata.get(key);
-    if (!entry) return false;
+    const deleted = this.metadata.delete(key);
+    
+    if (deleted) {
+      emitCacheEvent(CacheEventType.METADATA_DELETE, { key });
+    }
+    
+    return deleted;
+  }
 
-    // Remove from tag index
-    entry.tags.forEach(tag => {
-      const tagSet = this.tagIndex.get(tag);
-      if (tagSet) {
-        tagSet.delete(key);
-        if (tagSet.size === 0) {
-          this.tagIndex.delete(tag);
-        }
-      }
-    });
-
-    // Remove from metadata and access order
-    this.metadata.delete(key);
-    this.accessOrder = this.accessOrder.filter(k => k !== key);
-
-    emitCacheEvent(CacheEventType.METADATA_DELETE, { 
-      key,
-      metadata: entry
-    });
-    return true;
+  /**
+   * Record access to a cache item
+   * 
+   * @param key - Cache key
+   */
+  recordAccess(key: string): void {
+    const metadata = this.metadata.get(key);
+    
+    if (metadata) {
+      metadata.lastAccessed = Date.now();
+      metadata.accessCount++;
+      this.metadata.set(key, metadata);
+    }
   }
 
   /**
    * Find keys by tag
+   * 
+   * @param tag - Tag to search for
+   * @returns Array of keys with the tag
    */
   findByTag(tag: string): string[] {
-    return Array.from(this.tagIndex.get(tag) || []);
-  }
-
-  /**
-   * Find keys by pattern
-   */
-  findByPattern(pattern: string): string[] {
-    try {
-      const regex = new RegExp(pattern);
-      return Array.from(this.metadata.keys()).filter(key => regex.test(key));
-    } catch (error) {
-      // If pattern is not a valid regex, treat it as a prefix
-      return this.findByPrefix(pattern);
+    const keys: string[] = [];
+    
+    for (const [key, metadata] of this.metadata.entries()) {
+      if (metadata.tags.includes(tag)) {
+        keys.push(key);
+      }
     }
+    
+    return keys;
   }
 
   /**
-   * Find keys by prefix
+   * Find expired keys
+   * 
+   * @returns Array of expired keys
    */
-  findByPrefix(prefix: string): string[] {
-    return Array.from(this.metadata.keys())
-      .filter(key => key.startsWith(prefix));
-  }
-
-  /**
-   * Get all cache keys
-   */
-  keys(): string[] {
-    return Array.from(this.metadata.keys());
-  }
-
-  /**
-   * Get recently accessed keys
-   */
-  getRecentlyAccessed(limit: number = 10): string[] {
-    return this.accessOrder.slice(0, limit);
-  }
-
-  /**
-   * Get metadata statistics
-   */
-  getStats(): {
-    totalEntries: number;
-    tagCount: number;
-    averageAccessCount: number;
-    recentlyAccessed: number;
-    tags: string[];
-    mostAccessedKeys: Array<{
-      key: string;
-      accessCount: number;
-    }>;
-  } {
-    let totalAccess = 0;
-    const keyAccessCounts: Array<{ key: string; accessCount: number }> = [];
-
-    this.metadata.forEach((entry, key) => {
-      totalAccess += entry.accessCount;
-      keyAccessCounts.push({
-        key,
-        accessCount: entry.accessCount
-      });
-    });
-
-    // Sort by access count descending
-    keyAccessCounts.sort((a, b) => b.accessCount - a.accessCount);
-
-    return {
-      totalEntries: this.metadata.size,
-      tagCount: this.tagIndex.size,
-      averageAccessCount: totalAccess / Math.max(1, this.metadata.size),
-      recentlyAccessed: this.accessOrder.length,
-      tags: Array.from(this.tagIndex.keys()),
-      mostAccessedKeys: keyAccessCounts.slice(0, 10)
-    };
+  findExpired(): string[] {
+    const now = Date.now();
+    const keys: string[] = [];
+    
+    for (const [key, metadata] of this.metadata.entries()) {
+      if (metadata.expiresAt && metadata.expiresAt <= now) {
+        keys.push(key);
+      }
+    }
+    
+    return keys;
   }
 
   /**
    * Clear all metadata
    */
   clear(): void {
-    const stats = this.getStats();
     this.metadata.clear();
-    this.tagIndex.clear();
-    this.accessOrder = [];
-
-    emitCacheEvent(CacheEventType.METADATA_CLEAR, {
-      stats,
-      message: 'All metadata cleared'
-    });
+    emitCacheEvent(CacheEventType.METADATA_CLEAR, {});
   }
 
   /**
-   * Clean up expired entries
+   * Get all metadata
+   * 
+   * @returns All metadata
    */
-  cleanup(): number {
-    const now = Date.now();
-    let cleaned = 0;
-    const expiredEntries: MetadataEntry[] = [];
-
-    this.metadata.forEach((entry, key) => {
-      if (entry.expiresAt && entry.expiresAt < now) {
-        expiredEntries.push(entry);
-        this.delete(key);
-        cleaned++;
-      }
-    });
-
-    if (cleaned > 0) {
-      emitCacheEvent(CacheEventType.CLEANUP, {
-        entriesRemoved: cleaned,
-        expiredEntries: expiredEntries.map(entry => ({
-          key: entry.key,
-          tags: entry.tags,
-          createdAt: entry.createdAt,
-          expiresAt: entry.expiresAt
-        }))
-      });
+  getAll(): Record<string, CacheItemMetadata> {
+    const result: Record<string, CacheItemMetadata> = {};
+    
+    for (const [key, metadata] of this.metadata.entries()) {
+      result[key] = { ...metadata };
     }
-
-    return cleaned;
+    
+    return result;
   }
 }

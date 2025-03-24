@@ -88,12 +88,19 @@ export class MemoryStorageAdapter {
       if (meta?.compressed && Buffer.isBuffer(value)) {
         try {
           const decompressed = await decompressData(value, 'utf8');
-          return typeof decompressed === 'string' ? 
-            JSON.parse(decompressed) as T : decompressed as unknown as T;
-        } catch (e) {
-          // If decompression or parsing fails, return the raw value
-          return value as T;
+          if (typeof decompressed === 'string') {
+            try {
+              return JSON.parse(decompressed) as T;
+          } catch (e) {
+              // If parsing fails, return the string value
+              return decompressed as unknown as T;
+          }
         }
+          return decompressed as unknown as T;
+        } catch (e) {
+          // If decompression fails, return the raw value
+          return value as T;
+      }
       }
       
       return value as T;
@@ -138,15 +145,15 @@ export class MemoryStorageAdapter {
               size = compressedData.length;
             } else {
               size = Buffer.byteLength(serialized, 'utf8');
-            }
+    }
           } catch (e) {
             console.error('Compression error:', e);
             // Fallback to uncompressed
             size = this.calculateSize(value);
-          }
+  }
         } else {
           size = this.calculateSize(value);
-        }
+}
       } else {
         size = this.calculateSize(value);
       }
@@ -300,6 +307,13 @@ export class MemoryStorageAdapter {
       size: this.stats.size,
       maxSize: this.maxSize
     };
+  }
+
+  /**
+   * Get metadata for a key
+   */
+  async getMetadata(key: string): Promise<any | null> {
+    return this.metadata.get(key) || null;
   }
 
   /**

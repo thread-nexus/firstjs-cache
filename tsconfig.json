@@ -19,6 +19,6 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "__tests__/providers/cache-providers.test.ts", "__tests__/index.test.ts", "__tests__/providers/cache-statistics.test.ts", "__tests__/metadata/cache-metadata-manager.test.ts"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

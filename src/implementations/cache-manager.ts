@@ -1,7 +1,3 @@
-/**
- * @fileoverview Main cache manager implementation
- */
-
 import { CacheOptions } from '../types/common';
 import { ICacheProvider } from '../interfaces/i-cache-provider';
 import { CacheMetadata } from './CacheMetadata';

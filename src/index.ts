@@ -1,44 +1,62 @@
-/**
- * @fileoverview Main entry point for the cache module
- */
+// Import core components
+import { CacheManager } from './implementations/cache-manager';
+import { CacheManagerCore } from './implementations/cache-manager-core';
 
-// Core exports
-export { CacheManager } from './implementations/cache-manager';
-export { CacheManagerOperations } from './implementations/cache-manager-operations';
-export { CacheMetadata } from './implementations/CacheMetadata';
+// Import event system
+import { CacheEventType, emitCacheEvent, onCacheEvent, offCacheEvent } from './events/cache-events';
 
-// Adapters
-export { MemoryStorageAdapter } from './implementations/adapters/MemoryStorageAdapter';
-export { MemoryAdapter } from './adapters/memory-adapter';
+// Import error utilities
+import { CacheError, CacheErrorCode, createCacheError, handleCacheError } from './utils/error-utils';
 
-// Interfaces
-export { ICacheProvider } from './interfaces/i-cache-provider';
-export { IStorageAdapter, StorageAdapterOptions } from './interfaces/storage-adapter';
+// Import adapters
+import { MemoryAdapter } from './adapters/memory-adapter';
 
-// Types
-export { CacheOptions, CacheStats, CacheComputeResult, CacheOperationResult } from './types/common';
-export { CacheConfig, CacheOperationType, StorageAdapterConfig } from './types/cache-types';
+// Import types
+import { CacheOptions, CacheStats } from './types/common';
+// Create a convenience object for module exports
+const CacheModule = {
+  CacheManager,
+  CacheManagerCore,
+  CacheEventType,
+  CacheErrorCode,
+  CacheError,
+  
+  // Event system
+  emitCacheEvent,
+  onCacheEvent,
+  offCacheEvent,
+  
+  // Adapters
+  MemoryAdapter,
+  
+  // Utilities
+  createCacheError,
+  handleCacheError,
+};
 
-// Events
-export { CacheEventType, emitCacheEvent, subscribeToCacheEvents, createCacheEventLogger } from './events/cache-events';
-
-// Utilities
-export { handleCacheError, CacheError, CacheProviderError, CacheOperationError } from './utils/error-utils';
-export { validateCacheKey, validateCacheOptions } from './utils/validation-utils';
-export { serialize, deserialize } from './utils/serialization-utils';
-export { compressData, decompressData } from './utils/compression-utils';
-export { 
-  createCacheKey, 
-  mergeCacheOptions, 
-  calculateExpiration, 
-  isExpired, 
-  formatCacheSize, 
-  parseDuration, 
-  createKeyPattern,
-  batchOperations,
-  debounce,
-  throttle
-} from './implementations/cache-manager-utils';
-
-// Configuration
-export { DEFAULT_CONFIG, CACHE_CONSTANTS } from './config/default-config';
+// Export all components
+export {
+  CacheManager,
+  CacheManagerCore,
+  CacheEventType,
+  CacheErrorCode,
+  CacheError,
+  
+  // Event system
+  emitCacheEvent,
+  onCacheEvent,
+  offCacheEvent,
+  
+  // Adapters
+  MemoryAdapter,
+  
+  // Utilities
+  createCacheError,
+  handleCacheError,
+  
+  // Types
+  CacheOptions,
+  CacheStats,
+};
+// Export default module
+export default CacheModule;

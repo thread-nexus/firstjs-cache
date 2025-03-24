@@ -6,11 +6,19 @@
 import { CacheStats } from '../types/common';
 import { emitCacheEvent } from '../events/cache-events';
 import { CacheManagerAdvanced } from './cache-manager-advanced';
+import { CacheStatistics } from './cache-statistics';
 
 /**
  * Extension of CacheManager with statistics functionality
  */
 export class CacheManagerStats extends CacheManagerAdvanced {
+  private cacheStats: CacheStatistics;
+
+  constructor(...args: ConstructorParameters<typeof CacheManagerAdvanced>) {
+    super(...args);
+    this.cacheStats = new CacheStatistics();
+  }
+
   /**
    * Get cache statistics from all layers
    * 

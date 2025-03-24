@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">8.33% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>5/60</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">27.27% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/11</span>
+                <span class='fraction'>3/11</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.14% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/14</span>
+                <span class='fraction'>1/14</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">8.33% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/60</span>
+                <span class='fraction'>5/60</span>
             </div>
         
             
@@ -319,10 +319,32 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -331,29 +353,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -559,9 +559,9 @@ import { handleCacheError } from '../utils/error-utils';
 export class CacheManagerAdvanced {
   private providerManager: CacheProviderManager;
   private compute: CacheCompute;
-  private statsInterval: NodeJS.Timer | null = <span class="cstat-no" title="statement not covered" >null;</span>
+  private statsInterval: NodeJS.Timer | null = null;
 &nbsp;
-<span class="fstat-no" title="function not covered" >  co</span>nstructor(
+  constructor(
     private options: {
       providers?: Array&lt;{
         name: string;
@@ -574,17 +574,17 @@ export class CacheManagerAdvanced {
       statsInterval?: number;
       maxRetries?: number;
       retryDelay?: number;
-    } = <span class="branch-0 cbranch-no" title="branch not covered" >{}</span>
+    } = {}
   ) {
-<span class="cstat-no" title="statement not covered" >    this.providerManager = new CacheProviderManager();</span>
+    this.providerManager = new CacheProviderManager();
     
     // Initialize providers
-<span class="cstat-no" title="statement not covered" >    options.providers?.forEach(<span class="fstat-no" title="function not covered" >({</span> name, instance, priority }) =&gt; {</span>
+    options.providers?.forEach(<span class="fstat-no" title="function not covered" >({</span> name, instance, priority }) =&gt; {
 <span class="cstat-no" title="statement not covered" >      this.providerManager.registerProvider(name, instance, priority);</span>
     });
 &nbsp;
     // Initialize compute manager
-<span class="cstat-no" title="statement not covered" >    this.compute = new CacheCompute(this.providerManager.getProvider('primary') || options.providers?.[0]?.instance!, {</span>
+    this.compute = new CacheCompute(this.providerManager.getProvider('primary') || <span class="branch-1 cbranch-no" title="branch not covered" >options.providers?.[0]?.instance!,</span> {
       defaultTtl: options.defaultTtl,
       backgroundRefresh: options.backgroundRefresh,
       refreshThreshold: options.refreshThreshold,
@@ -593,7 +593,7 @@ export class CacheManagerAdvanced {
     });
 &nbsp;
     // Start stats collection if enabled
-<span class="cstat-no" title="statement not covered" >    if (options.statsInterval) {</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (options.statsInterval) {
 <span class="cstat-no" title="statement not covered" >      this.startStatsCollection(options.statsInterval);</span>
     }
   }
@@ -790,7 +790,7 @@ export class CacheManagerAdvanced {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-23T23:20:01.895Z
+                at 2025-03-24T00:21:23.722Z
             </div>
         <script src="../prettify.js"></script>
         <script>

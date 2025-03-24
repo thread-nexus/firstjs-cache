@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">85.36% </span>
+                <span class="strong">83.59% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>105/123</span>
+                <span class='fraction'>107/128</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">70.58% </span>
+                <span class="strong">68.57% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>48/68</span>
+                <span class='fraction'>48/70</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">93.33% </span>
+                <span class="strong">87.5% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>14/15</span>
+                <span class='fraction'>14/16</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">85.24% </span>
+                <span class="strong">83.46% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>104/122</span>
+                <span class='fraction'>106/127</span>
             </div>
         
             
@@ -444,7 +444,21 @@
 <a name='L379'></a><a href='#L379'>379</a>
 <a name='L380'></a><a href='#L380'>380</a>
 <a name='L381'></a><a href='#L381'>381</a>
-<a name='L382'></a><a href='#L382'>382</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L382'></a><a href='#L382'>382</a>
+<a name='L383'></a><a href='#L383'>383</a>
+<a name='L384'></a><a href='#L384'>384</a>
+<a name='L385'></a><a href='#L385'>385</a>
+<a name='L386'></a><a href='#L386'>386</a>
+<a name='L387'></a><a href='#L387'>387</a>
+<a name='L388'></a><a href='#L388'>388</a>
+<a name='L389'></a><a href='#L389'>389</a>
+<a name='L390'></a><a href='#L390'>390</a>
+<a name='L391'></a><a href='#L391'>391</a>
+<a name='L392'></a><a href='#L392'>392</a>
+<a name='L393'></a><a href='#L393'>393</a>
+<a name='L394'></a><a href='#L394'>394</a>
+<a name='L395'></a><a href='#L395'>395</a>
+<a name='L396'></a><a href='#L396'>396</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -535,10 +549,17 @@
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-yes">1x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -739,13 +760,20 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -915,12 +943,19 @@ export class MemoryStorageAdapter {
       if (meta?.compressed &amp;&amp; Buffer.isBuffer(value)) {
         try {
           const decompressed = await decompressData(value, 'utf8');
-          return typeof decompressed === 'string' ? 
-            JSON.parse(decompressed) as T : <span class="branch-1 cbranch-no" title="branch not covered" >decompressed as unknown as T;</span>
-        } catch (e) {
-          // If decompression or parsing fails, return the raw value
-          return value as T;
+          <span class="missing-if-branch" title="else path not taken" >E</span>if (typeof decompressed === 'string') {
+            try {
+              return JSON.parse(decompressed) as T;
+          } catch (e) {
+              // If parsing fails, return the string value
+              return decompressed as unknown as T;
+          }
         }
+<span class="cstat-no" title="statement not covered" >          return decompressed as unknown as T;</span>
+        } catch (e) {
+          // If decompression fails, return the raw value
+<span class="cstat-no" title="statement not covered" >          return value as T;</span>
+      }
       }
       
       return value as T;
@@ -965,15 +1000,15 @@ export class MemoryStorageAdapter {
               size = compressedData.length;
             } else <span class="missing-if-branch" title="else path not taken" >E</span>{
 <span class="cstat-no" title="statement not covered" >              size = Buffer.byteLength(serialized, 'utf8');</span>
-            }
+    }
           } catch (e) {
 <span class="cstat-no" title="statement not covered" >            console.error('Compression error:', e);</span>
             // Fallback to uncompressed
 <span class="cstat-no" title="statement not covered" >            size = this.calculateSize(value);</span>
-          }
+  }
         } else <span class="missing-if-branch" title="else path not taken" >E</span>{
 <span class="cstat-no" title="statement not covered" >          size = this.calculateSize(value);</span>
-        }
+}
       } else {
         size = this.calculateSize(value);
       }
@@ -1130,6 +1165,13 @@ export class MemoryStorageAdapter {
   }
 &nbsp;
   /**
+   * Get metadata for a key
+   */
+<span class="fstat-no" title="function not covered" >  as</span>ync getMetadata(key: string): Promise&lt;any | null&gt; {
+<span class="cstat-no" title="statement not covered" >    return this.metadata.get(key) || null;</span>
+  }
+&nbsp;
+  /**
    * Calculate the total size of all cache entries
    */
   private calculateTotalSize(): number {
@@ -1213,7 +1255,7 @@ export class MemoryStorageAdapter {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-03-23T23:20:01.895Z
+                at 2025-03-24T00:21:23.722Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

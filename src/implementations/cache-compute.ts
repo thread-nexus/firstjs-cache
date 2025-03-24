@@ -1,249 +1,262 @@
 /**
- * @fileoverview Advanced computation handling with caching, background refresh,
- * and stale-while-revalidate pattern implementation.
+ * @fileoverview Cache compute implementation for handling cache misses and background refresh
  */
 
-import { CacheOptions } from '../types/common';
-import { emitCacheEvent, CacheEventType } from '../events/cache-events';
-import { handleCacheError } from '../utils/error-utils';
 import { ICacheProvider } from '../interfaces/i-cache-provider';
+import { CacheEventType, emitCacheEvent } from '../events/cache-events';
+import { handleCacheError } from '../utils/error-utils';
+import { CacheOptions } from '../types/common';
 
-// Track compute operations in progress
-const computeOperations = new Map<string, Promise<any>>();
-
-// Track background refresh operations
-const refreshOperations = new Map<string, {
-  nextRefresh: number;
-  promise: Promise<void>;
-}>();
-
+/**
+ * Options for compute operations
+ */
+interface ComputeOptions extends CacheOptions {
+  maxRetries?: number;
+  retryDelay?: number;
+  timeout?: number;
+  staleIfError?: boolean;
+}
+/**
+ * Result of a compute operation
+ */
 interface ComputeResult<T> {
   value: T;
   computeTime: number;
   stale: boolean;
 }
-
+/**
+ * Cache compute implementation
+ */
 export class CacheCompute {
+  private readonly defaultTtl: number;
+  private readonly backgroundRefresh: boolean;
+  private readonly refreshThreshold: number;
+  private refreshPromises: Map<string, Promise<any>> = new Map();
+  /**
+   * Create a new cache compute instance
+   * 
+   * @param provider - Cache provider
+   * @param options - Compute options
+   */
   constructor(
     private provider: ICacheProvider,
     private options: {
       defaultTtl?: number;
       backgroundRefresh?: boolean;
       refreshThreshold?: number;
-      maxRetries?: number;
-      retryDelay?: number;
     } = {}
-  ) {}
-
+  ) {
+    this.defaultTtl = options.defaultTtl || 3600;
+    this.backgroundRefresh = options.backgroundRefresh !== false;
+    this.refreshThreshold = options.refreshThreshold || 0.75;
+  }
   /**
-   * Get or compute a cached value with advanced features
+   * Get a value from cache or compute it if not found
+   * 
+   * @param key - Cache key
+   * @param fetcher - Function to compute the value
+   * @param options - Cache options
+   * @returns Compute result
    */
   async getOrCompute<T>(
     key: string,
-    compute: () => Promise<T>,
-    options?: CacheOptions
+    fetcher: () => Promise<T>,
+    options?: ComputeOptions
   ): Promise<ComputeResult<T>> {
-    // Check for in-progress computation
-    const inProgress = computeOperations.get(key);
-    if (inProgress) {
-      return inProgress;
-    }
-
     try {
-      // Try to get from cache first
-      const cached = await this.provider.get(key);
-      if (cached !== null) {
+      // Try to get from cache
+      const cachedValue = await this.provider.get<T>(key);
+      
+      // If found, check if refresh needed
+      if (cachedValue !== null) {
         const metadata = await this.provider.getMetadata?.(key);
         const isStale = this.isValueStale(metadata?.refreshedAt, options);
-
+        
         // Schedule background refresh if needed
         if (isStale && this.shouldBackgroundRefresh(options)) {
-          this.scheduleBackgroundRefresh(key, compute, options);
+          await this.scheduleBackgroundRefresh(key, fetcher, options);
         }
 
-        return {
-          value: cached,
+    return {
+          value: cachedValue,
           computeTime: metadata?.computeTime || 0,
           stale: isStale
-        };
-      }
-
+    };
+  }
+      
       // Compute new value
-      return this.computeAndCache(key, compute, options);
+      return await this.computeAndCache(key, fetcher, options);
     } catch (error) {
       handleCacheError(error, {
         operation: 'getOrCompute',
         key
       });
       throw error;
-    }
+}
   }
-
+  
   /**
    * Compute value and cache it
-   * @private
    */
   private async computeAndCache<T>(
     key: string,
-    compute: () => Promise<T>,
-    options?: CacheOptions
+    fetcher: () => Promise<T>,
+    options?: ComputeOptions
   ): Promise<ComputeResult<T>> {
-    const computePromise = (async () => {
-      const startTime = performance.now();
+    const startTime = performance.now();
+    
+    try {
+      emitCacheEvent(CacheEventType.COMPUTE_START, { key });
+      const value = await this.executeWithRetry(() => fetcher(), options);
+      const computeTime = performance.now() - startTime;
       
-      try {
-        emitCacheEvent(CacheEventType.COMPUTE_START, { key });
-        
-        const value = await this.executeWithRetry(() => compute());
-        const computeTime = performance.now() - startTime;
-
-        // Cache the computed value
-        await this.provider.set(key, value, {
-          ...options,
-          computeTime,
-          refreshedAt: new Date()
-        });
-
-        emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
-          key,
-          duration: computeTime
-        });
-
-        return {
-          value,
-          computeTime,
-          stale: false
-        };
-      } catch (error) {
-        emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
-          key,
-          error
-        });
-        throw error;
-      } finally {
-        computeOperations.delete(key);
-      }
-    })();
-
-    computeOperations.set(key, computePromise);
-    return computePromise;
+      // Cache the computed value
+      await this.provider.set(key, value, {
+        ...options,
+        computeTime,
+        refreshedAt: new Date()
+      });
+      
+      emitCacheEvent(CacheEventType.COMPUTE_SUCCESS, {
+        key,
+        duration: computeTime
+      });
+      
+      return {
+        value,
+        computeTime,
+        stale: false
+      };
+    } catch (error) {
+      emitCacheEvent(CacheEventType.COMPUTE_ERROR, {
+        key,
+        error
+      });
+      throw error;
+    }
   }
-
+  
   /**
    * Execute with retry logic
-   * @private
    */
   private async executeWithRetry<T>(
     operation: () => Promise<T>,
-    attempt: number = 1
+    options?: ComputeOptions
   ): Promise<T> {
-    try {
-      return await operation();
-    } catch (error) {
-      if (attempt >= (this.options.maxRetries || 3)) {
-        throw error;
+    const maxRetries = options?.maxRetries || 3;
+    const retryDelay = options?.retryDelay || 1000;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation();
+      } catch (error) {
+        if (attempt >= maxRetries) {
+          throw error;
+        }
+        
+        const delay = retryDelay * Math.pow(2, attempt - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      const delay = (this.options.retryDelay || 1000) * Math.pow(2, attempt - 1);
-      await new Promise(resolve => setTimeout(resolve, delay));
-
-      return this.executeWithRetry(operation, attempt + 1);
     }
+    
+    throw new Error('Exceeded maximum number of retries');
   }
-
+  
   /**
    * Check if a value is stale
-   * @private
    */
   private isValueStale(
     refreshedAt?: Date,
     options?: CacheOptions
   ): boolean {
     if (!refreshedAt) return true;
-
-    const ttl = options?.ttl || this.options.defaultTtl || 3600;
-    const threshold = options?.refreshThreshold || 
-                     this.options.refreshThreshold || 
-                     0.75;
-
+    
+    const ttl = options?.ttl || this.defaultTtl;
+    const threshold = options?.refreshThreshold || this.refreshThreshold;
+    
     const age = Date.now() - refreshedAt.getTime();
     return age > ttl * threshold * 1000;
   }
-
+  
   /**
    * Check if background refresh should be used
-   * @private
    */
   private shouldBackgroundRefresh(options?: CacheOptions): boolean {
-    return options?.backgroundRefresh ?? 
-           this.options.backgroundRefresh ?? 
-           false;
+    return options?.backgroundRefresh ?? this.backgroundRefresh;
   }
-
+  
   /**
    * Schedule a background refresh
-   * @private
    */
-  private scheduleBackgroundRefresh<T>(
+  private async scheduleBackgroundRefresh<T>(
     key: string,
-    compute: () => Promise<T>,
-    options?: CacheOptions
-  ): void {
+    fetcher: () => Promise<T>,
+    options?: ComputeOptions
+  ): Promise<void> {
     // Check if refresh is already scheduled
-    const existing = refreshOperations.get(key);
-    if (existing && existing.nextRefresh > Date.now()) {
+    if (this.refreshPromises.has(key)) {
       return;
     }
-
+    
     const refreshPromise = (async () => {
       try {
         emitCacheEvent(CacheEventType.REFRESH_START, { key });
-        
-        const { value, computeTime } = await this.computeAndCache(
-          key,
-          compute,
-          options
-        );
-
-        emitCacheEvent(CacheEventType.REFRESH_SUCCESS, {
-          key,
-          duration: computeTime
-        });
-
-        return value;
+        await this.computeAndCache(key, fetcher, options);
+        emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
       } catch (error) {
-        emitCacheEvent(CacheEventType.REFRESH_ERROR, {
-          key,
-          error
-        });
+        emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error });
       } finally {
-        refreshOperations.delete(key);
+        this.refreshPromises.delete(key);
       }
     })();
-
-    refreshOperations.set(key, {
-      nextRefresh: Date.now() + 60000, // Prevent refresh spam
-      promise: refreshPromise
-    });
+    
+    this.refreshPromises.set(key, refreshPromise);
+    
+    // Prevent refresh spam
+    await new Promise(resolve => setTimeout(resolve, 60000));
+    this.refreshPromises.delete(key);
   }
-
+  
+  /**
+   * Schedule a refresh operation for a key
+   * 
+   * @param key - Cache key to refresh
+   * @param fetcher - Function to compute the new value
+   * @param options - Cache options
+   * @returns Promise that resolves when the refresh is complete
+   */
+  async scheduleRefresh<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    options?: ComputeOptions
+  ): Promise<void> {
+    try {
+      emitCacheEvent(CacheEventType.REFRESH_START, { key });
+      await this.computeAndCache(key, fetcher, options);
+      emitCacheEvent(CacheEventType.REFRESH_SUCCESS, { key });
+    } catch (error) {
+      emitCacheEvent(CacheEventType.REFRESH_ERROR, { key, error });
+      throw error;
+    }
+  }
+  
   /**
    * Cancel background refresh for a key
    */
-  cancelBackgroundRefresh(key: string): void {
-    refreshOperations.delete(key);
+  cancelRefresh(key: string): void {
+    this.refreshPromises.delete(key);
   }
-
+  
   /**
    * Get status of compute operations
    */
-  getComputeStatus(): {
+  getRefreshStatus(): {
     activeComputes: number;
     activeRefreshes: number;
   } {
     return {
-      activeComputes: computeOperations.size,
-      activeRefreshes: refreshOperations.size
+      activeComputes: 0,
+      activeRefreshes: this.refreshPromises.size
     };
   }
 }

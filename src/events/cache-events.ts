@@ -1,187 +1,188 @@
+/**
+ * @fileoverview Cache event system for monitoring and responding to cache operations
+ */
 import { EventEmitter } from 'events';
 
-/**
- * @enum {string}
- * Cache event types for monitoring and tracking cache operations
- * 
- * @remarks
- * These events are emitted during various cache operations and can be used
- * for monitoring, debugging, and performance tracking.
- */
+// Cache event emitter instance
+export const cacheEventEmitter = new EventEmitter();
+
+// Cache event types
 export enum CacheEventType {
-  /** Emitted when attempting to get a value */
-  GET = 'cache:get',
-  /** Emitted on successful cache hit */
-  GET_HIT = 'cache:get:hit',
-  /** Emitted on cache miss */
-  GET_MISS = 'cache:get:miss',
-  /** Emitted when getting stale data while computing fresh data */
-  GET_STALE = 'cache:get:stale',
-  /** Emitted when setting a value */
-  SET = 'cache:set',
-  /** Emitted when deleting a value */
-  DELETE = 'cache:delete',
-  /** Emitted when clearing the cache */
-  CLEAR = 'cache:clear',
-  /** Emitted on errors */
-  ERROR = 'cache:error',
-  /** Emitted when an entry expires */
-  EXPIRE = 'cache:expire',
-  /** Emitted when invalidating entries */
-  INVALIDATE = 'cache:invalidate',
-  /** Emitted when starting computation */
-  COMPUTE_START = 'cache:compute:start',
-  /** Emitted on successful computation */
-  COMPUTE_SUCCESS = 'cache:compute:success',
-  /** Emitted on computation error */
-  COMPUTE_ERROR = 'cache:compute:error',
-  /** Emitted when starting background refresh */
-  REFRESH_START = 'cache:refresh:start',
-  /** Emitted on successful refresh */
-  REFRESH_SUCCESS = 'cache:refresh:success',
-  /** Emitted on refresh error */
-  REFRESH_ERROR = 'cache:refresh:error',
-  /** Emitted when stats are updated */
-  STATS_UPDATE = 'cache:stats:update',
-  /** Emitted when stats are reset */
-  STATS_RESET = 'cache:stats:reset',
-  /** Emitted when a provider is initialized */
-  PROVIDER_INITIALIZED = 'cache:provider:initialized',
-  /** Emitted during cache cleanup */
-  CLEANUP = 'cache:cleanup',
-  /** Emitted when metadata is updated */
-  METADATA_UPDATE = 'cache:metadata:update',
-  /** Emitted when metadata is deleted */
-  METADATA_DELETE = 'cache:metadata:delete',
-  /** Emitted when metadata is cleared */
-  METADATA_CLEAR = 'cache:metadata:clear'
+  SET = 'set',
+  GET = 'get',
+  GET_HIT = 'get:hit',
+  GET_MISS = 'get:miss',
+  DELETE = 'delete',
+  CLEAR = 'clear',
+  EXPIRE = 'expire',
+  ERROR = 'error',
+  INVALIDATE = 'invalidate',
+  STATS_UPDATE = 'stats:update',
+  METADATA_UPDATE = 'metadata:update',
+  METADATA_DELETE = 'metadata:delete',
+  METADATA_CLEAR = 'metadata:clear',
+  PROVIDER_INITIALIZED = 'provider:initialized',
+  PROVIDER_REMOVED = 'provider:removed',
+  PROVIDER_ERROR = 'provider:error',
+  COMPUTE_START = 'compute:start',
+  COMPUTE_SUCCESS = 'compute:success',
+  COMPUTE_ERROR = 'compute:error',
+  REFRESH_START = 'refresh:start',
+  REFRESH_SUCCESS = 'refresh:success',
+  REFRESH_ERROR = 'refresh:error',
+}
+
+// Event listener type
+export type CacheEventListener = (eventData: any) => void;
+
+// Event registry
+const eventListeners: Map<string, Set<CacheEventListener>> = new Map();
+const wildcardListeners: Set<CacheEventListener> = new Set();
+
+/**
+ * Register an event listener
+ * 
+ * @param eventType - Event type to listen for, or '*' for all events
+ * @param listener - Event listener function
+ */
+export function onCacheEvent(eventType: string, listener: CacheEventListener): void {
+  if (eventType === '*') {
+    wildcardListeners.add(listener);
+    cacheEventEmitter.on('*', listener);
+    return;
+  }
+
+  if (!eventListeners.has(eventType)) {
+    eventListeners.set(eventType, new Set());
+  }
+
+  eventListeners.get(eventType)!.add(listener);
+  cacheEventEmitter.on(eventType, listener);
 }
 
 /**
- * Cache event payload interface
+ * Remove an event listener
+ * 
+ * @param eventType - Event type the listener was registered for
+ * @param listener - Event listener function to remove
+ * @returns True if the listener was removed, false otherwise
  */
-export interface CacheEventPayload {
-  key?: string;
-  keys?: string[];
-  pattern?: string;
-  prefix?: string;
-  tag?: string;
-  tags?: string[];
-  value?: any;
-  size?: number;
-  duration?: number;
-  ttl?: number;
-  error?: Error;
-  message?: string;
-  success?: boolean;
-  stats?: Record<string, any>;
-  metadata?: Record<string, any>;
-  provider?: string;
-  batchSize?: number;
-  entriesRemoved?: number;
-  computeTime?: number;
-  timestamp?: number;
-  [key: string]: any;
-}
-
-// Singleton event emitter instance with wildcard support
-class CacheEventEmitter extends EventEmitter {
-  constructor() {
-    super();
-    // Set higher limit for event listeners to avoid memory leak warnings
-    this.setMaxListeners(100);
+export function offCacheEvent(eventType: string, listener: CacheEventListener): boolean {
+  if (eventType === '*') {
+    cacheEventEmitter.off('*', listener);
+    return wildcardListeners.delete(listener);
   }
 
-  emit(event: string | symbol, ...args: any[]): boolean {
-    // Add timestamp to event payload if not present
-    if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
-      if (!args[0].timestamp) {
-        args[0].timestamp = Date.now();
-      }
-    }
-    
-    // Emit to specific event listeners
-    const result = super.emit(event, ...args);
-    
-    // Also emit to wildcard listeners
-    if (event !== '*') {
-      super.emit('*', ...args);
-    }
-    
-    return result;
-  }
+  const listeners = eventListeners.get(eventType);
+  if (!listeners) return false;
+
+  cacheEventEmitter.off(eventType, listener);
+  const result = listeners.delete(listener);
   
-  // Add removeAllListeners method that the tests expect
-  removeAllListeners(event?: string | symbol): this {
-    return super.removeAllListeners(event);
+  // Clean up empty listener sets
+  if (listeners.size === 0) {
+    eventListeners.delete(eventType);
   }
-}
 
-// Create singleton instance
-export const cacheEventEmitter = new CacheEventEmitter();
+  return result;
+}
 
 /**
  * Emit a cache event
  * 
  * @param eventType - Type of event to emit
- * @param payload - Event payload data
+ * @param data - Event data
  */
-export function emitCacheEvent(eventType: CacheEventType | string, payload: CacheEventPayload = {}): void {
-  cacheEventEmitter.emit(eventType, payload);
-}
-
-/**
- * Subscribe to cache events
- * 
- * @param eventType - Type of event to listen for, or '*' for all events
- * @param listener - Event listener callback
- * @returns Unsubscribe function
- */
-export function subscribeToCacheEvents(
-  eventType: CacheEventType | string,
-  listener: (payload: CacheEventPayload) => void
-): () => void {
-  cacheEventEmitter.on(eventType, listener);
-  
-  // Return unsubscribe function
-  return () => {
-    cacheEventEmitter.off(eventType, listener);
+export function emitCacheEvent(eventType: string, data: any): void {
+  const eventData = {
+    ...data,
+    timestamp: Date.now() // Use numeric timestamp instead of Date object
   };
+
+      try {
+    // Emit the event through the EventEmitter
+    cacheEventEmitter.emit(eventType, eventData);
+    cacheEventEmitter.emit('*', eventData);
+      } catch (error) {
+    console.error(`Error emitting cache event ${eventType}:`, error);
+      }
 }
 
 /**
- * Get the event emitter instance
- * @returns The event emitter
- */
-export function getCacheEventEmitter(): EventEmitter {
-  return cacheEventEmitter;
-}
-
-/**
- * Create a cache event logger
+ * Get the count of registered listeners
  * 
- * @param level - Log level (error, warn, info, debug)
- * @returns Event listener function
+ * @returns Count of registered listeners
  */
-export function createCacheEventLogger(level: 'error' | 'warn' | 'info' | 'debug' = 'info'): (payload: CacheEventPayload) => void {
-  return (payload: CacheEventPayload) => {
-    const { timestamp, ...rest } = payload;
-    const time = timestamp ? new Date(timestamp).toISOString() : new Date().toISOString();
-    const message = `[${time}] Cache Event: ${JSON.stringify(rest)}`;
+export function getListenerCount(): Record<string, number> {
+  const counts: Record<string, number> = {
+    '*': wildcardListeners.size
+  };
+
+  for (const [eventType, listeners] of eventListeners.entries()) {
+    counts[eventType] = listeners.size;
+  }
+
+  return counts;
+}
+
+/**
+ * Clear all event listeners
+ */
+export function clearAllListeners(): void {
+  cacheEventEmitter.removeAllListeners();
+  eventListeners.clear();
+  wildcardListeners.clear();
+}
+
+/**
+ * Remove all listeners for a specific event
+ * 
+ * @param event - Event to remove listeners for
+ */
+export function removeAllListeners(event?: string | symbol): void {
+  if (event) {
+    cacheEventEmitter.removeAllListeners(event);
+    if (typeof event === 'string') {
+      eventListeners.delete(event);
+    }
+    if (event === '*') {
+      wildcardListeners.clear();
+    }
+  } else {
+    clearAllListeners();
+  }
+}
+
+/**
+ * Create a logger function that logs cache events at the specified level
+ * 
+ * @param level - Log level
+ * @returns Logger function
+ */
+export function createCacheEventLogger(level: 'error' | 'warn' | 'info' | 'debug' = 'info'): CacheEventListener {
+  return (eventData: any) => {
+    const { type, timestamp, ...data } = eventData;
+    // Handle timestamp validation to prevent errors
+    let time;
+    try {
+      time = new Date(timestamp).toISOString();
+    } catch (e) {
+      time = new Date().toISOString();
+    }
     
     switch (level) {
       case 'error':
-        console.error(message);
+        console.error(`[CACHE ${type}] ${time}:`, data);
         break;
       case 'warn':
-        console.warn(message);
+        console.warn(`[CACHE ${type}] ${time}:`, data);
         break;
       case 'debug':
-        console.debug(message);
+        console.debug(`[CACHE ${type}] ${time}:`, data);
         break;
       case 'info':
       default:
-        console.info(message);
+        console.info(`[CACHE ${type}] ${time}:`, data);
         break;
     }
   };
