@@ -1,151 +1,103 @@
 /**
- * Error utilities for cache operations
+ * @fileoverview Error utilities for cache operations
+ * 
+ * This module has been updated to leverage the centralized error handling system.
  */
 
-/**
- * Cache error codes
- */
-export enum CacheErrorCode {
-    INVALID_KEY = 'INVALID_KEY',
-    INVALID_VALUE = 'INVALID_VALUE',
-    PROVIDER_ERROR = 'PROVIDER_ERROR',
-    SERIALIZATION_ERROR = 'SERIALIZATION_ERROR',
-    DESERIALIZATION_ERROR = 'DESERIALIZATION_ERROR',
-    COMPRESSION_ERROR = 'COMPRESSION_ERROR',
-    DECOMPRESSION_ERROR = 'DECOMPRESSION_ERROR',
-    STORAGE_ERROR = 'STORAGE_ERROR',
-    NETWORK_ERROR = 'NETWORK_ERROR',
-    TIMEOUT_ERROR = 'TIMEOUT_ERROR',
-    NOT_FOUND = 'NOT_FOUND',
-    INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
-    INVALID_CONFIGURATION = 'INVALID_CONFIGURATION',
-    OPERATION_FAILED = 'OPERATION_FAILED',
-    UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+import { 
+  CacheErrorCode, 
+  CacheError, 
+  ErrorContext,
+  handleCacheError as processError,
+  createCacheError,
+  isRetryableError as checkRetryable,
+  applyRecoveryStrategies,
+  recoveryStrategies
+} from './error-handling';
 
-    // Add missing error codes
-    KEY_TOO_LONG = 'KEY_TOO_LONG',
-    INVALID_ARGUMENT = 'INVALID_ARGUMENT',
-    CIRCUIT_OPEN = 'CIRCUIT_OPEN',
-    OPERATION_ERROR = 'OPERATION_ERROR',
-    NO_PROVIDER = 'NO_PROVIDER',
-    BATCH_ERROR = 'BATCH_ERROR',
-    RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
-    TIMEOUT = 'TIMEOUT',
-    DATA_INTEGRITY_ERROR = 'DATA_INTEGRITY_ERROR',
-    UNKNOWN = 'UNKNOWN'
-}
+// Re-export from error-handling
+export { 
+  CacheErrorCode, 
+  CacheError, 
+  ErrorContext,
+  ErrorSeverity,
+  ErrorCategory,
+  createCacheError,
+  isRetryableError,
+  applyRecoveryStrategies,
+  recoveryStrategies
+} from './error-handling';
 
 /**
- * Cache error class
- */
-export class CacheError extends Error {
-    /**
-     * Error code
-     */
-    code: CacheErrorCode;
-
-    /**
-     * Original error
-     */
-    cause?: Error;
-
-    /**
-     * Additional context
-     */
-    context?: Record<string, any>;
-
-    /**
-     * Create a new cache error
-     *
-     * @param message - Error message
-     * @param code - Error code
-     * @param cause - Original error
-     * @param context - Additional context
-     */
-    constructor(
-        message: string,
-        code: CacheErrorCode = CacheErrorCode.UNKNOWN_ERROR,
-        cause?: Error,
-        context?: Record<string, any>
-    ) {
-        super(message);
-        this.name = 'CacheError';
-        this.code = code;
-        this.cause = cause;
-        this.context = context;
-
-        // Capture stack trace
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, CacheError);
-        }
-    }
-}
-
-/**
- * Create a cache error
+ * Handle a cache error with standard error processing
  *
- * @param message - Error message
- * @param code - Error code
- * @param cause - Original error
- * @param context - Additional context
- * @returns Cache error
+ * @param error The error to handle
+ * @param context Additional context
+ * @param p0
+ * @returns Processed CacheError
  */
-export function createCacheError(
-    message: string,
-    code: CacheErrorCode = CacheErrorCode.UNKNOWN_ERROR,
-    cause?: Error,
-    context?: Record<string, any>
-): CacheError {
-    return new CacheError(message, code, cause, context);
+export function handleCacheError(error: unknown, context: ErrorContext = {}, p0: boolean): CacheError {
+  return processError(error, context);
 }
 
 /**
- * Ensure an error is a proper Error object
- *
- * @param error - Error to normalize
- * @returns Normalized error
+ * Helper function to wrap operations with error handling
+ * 
+ * @param operation Function to execute
+ * @param context Error context
+ * @param defaultValue Default value to return on error
+ * @returns Operation result or default value
  */
-export function ensureError(error: unknown): Error {
-    if (error instanceof Error) {
-        return error;
+export async function withErrorHandling<T>(
+  operation: () => Promise<T>,
+  context: ErrorContext = {},
+  defaultValue?: T
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const cacheError = handleCacheError(error, context);
+    
+    if (defaultValue !== undefined) {
+      return defaultValue;
     }
-
-    if (typeof error === 'string') {
-        return new Error(error);
-    }
-
-    try {
-        return new Error(JSON.stringify(error));
-    } catch {
-        return new Error('Unknown error');
-    }
+    
+    throw cacheError;
+  }
 }
 
 /**
- * Handle a cache error
- *
- * @param error - Error to handle
- * @param context - Error context
- * @param throwError - Whether to throw the error
- * @returns Normalized error
+ * Retry an operation with error handling
+ * 
+ * @param operation Function to execute
+ * @param context Error context
+ * @param maxRetries Maximum retry attempts
+ * @param baseDelay Base delay between retries in ms
+ * @returns Operation result
  */
-export function handleCacheError(
-    error: unknown,
-    context: Record<string, any> = {},
-    throwError: boolean = false
-): Error {
-    const normalizedError = ensureError(error);
-
-    // Log the error
-    console.error(`Cache error: ${normalizedError.message}`, {
-        context,
-        stack: normalizedError.stack
-    });
-
-    // Throw if requested
-    if (throwError) {
-        throw normalizedError;
+export async function retryWithErrorHandling<T>(
+  operation: () => Promise<T>,
+  context: ErrorContext = {},
+  maxRetries: number = 3,
+  baseDelay: number = 300
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const cacheError = handleCacheError(error, context);
+    
+    // Try recovery with retry strategy
+    const result = await applyRecoveryStrategies(
+      cacheError,
+      [recoveryStrategies.retry(operation, maxRetries, baseDelay)],
+      context
+    );
+    
+    if (result !== null) {
+      return result;
     }
-
-    return normalizedError;
+    
+    // No recovery was possible
+    throw cacheError;
+  }
 }

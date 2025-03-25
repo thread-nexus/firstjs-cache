@@ -25,7 +25,7 @@ export function findKeysByTag(tag: string): string[] {
     const matchingKeys: string[] = [];
 
     metadataStore.forEach((data, key) => {
-        if (data.tags.includes(tag)) {
+        if (data.tags?.includes(tag)) {
             matchingKeys.push(key);
         }
     });
@@ -138,7 +138,8 @@ export function createMetadata(options?: Partial<EntryMetadata>): EntryMetadata 
         lastAccessed: now,
         size: options?.size || 0,
         compressed: options?.compressed || false,
-        accessCount: 0
+        accessCount: 0,
+        updatedAt: now
     };
 }
 

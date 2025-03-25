@@ -1,193 +1,185 @@
 /**
- * @fileoverview Types for cache configuration and operations
+ * @fileoverview Core cache types
  */
 
-import {CacheOperationContext as BaseOperationContext} from '../utils/validation-utils';
-import {CacheOptions} from './common';
+import {EntryMetadata} from './metadata-types';
 
 /**
- * Cache statistics for performance monitoring
- * @deprecated Use CacheStats from common.ts
+ * Options for cache operations
  */
-export function CacheStats() {
+export interface CacheOptions {
+  /**
+   * Time-to-live in seconds
+   */
+  ttl?: number;
+  
+  /**
+   * Tags for grouping and invalidation
+   */
+  tags?: string[];
+  
+  /**
+   * Whether to refresh in background when stale
+   */
+  backgroundRefresh?: boolean;
+  
+  /**
+   * Threshold (0-1) of TTL after which to refresh
+   */
+  refreshThreshold?: number;
+  
+  /**
+   * Whether to compress the value
+   */
+  compression?: boolean;
+  
+  /**
+   * Minimum size in bytes for compression to be applied
+   */
+  compressionThreshold?: number;
+  
+  /**
+   * Time taken to compute the value, for metrics
+   */
+  computeTime?: number;
+  
+  /**
+   * When the value was last refreshed
+   */
+  refreshedAt?: number;
+  
+  /**
+   * Additional options passed to providers
+   */
+  [key: string]: any;
 }
 
 /**
- * Cache configuration
+ * Cache statistics
  */
-export interface CacheConfig {
-    /**
-     * Default time to live in seconds
-     */
-    defaultTtl: number;
-
-    /**
-     * Whether to deduplicate concurrent requests for the same key
-     */
-    deduplicateRequests: boolean;
-
-    /**
-     * Whether to enable background refresh by default
-     */
-    backgroundRefresh: boolean;
-
-    /**
-     * Percentage of TTL elapsed before triggering background refresh (0-1)
-     */
-    refreshThreshold: number;
-
-    /**
-     * Whether to throw errors or handle them internally
-     */
-    throwOnErrors: boolean;
-
-    /**
-     * Whether to enable logging
-     */
-    logging: boolean;
-
-    /**
-     * Whether to include stack traces in logs
-     */
-    logStackTraces: boolean;
-
-    /**
-     * Monitoring configuration
-     */
-    monitoring?: {
-        /**
-         * Whether to enable monitoring
-         */
-        enabled: boolean;
-
-        /**
-         * Monitoring interval in milliseconds
-         */
-        interval: number;
-
-        /**
-         * Whether to collect detailed statistics
-         */
-        detailedStats: boolean;
-    };
-
-    /**
-     * Default options for cache operations
-     */
-    defaultOptions: CacheOptions;
+export interface CacheStats {
+  /**
+   * Total size in bytes (if applicable)
+   */
+  size: number;
+  
+  /**
+   * Cache hit count
+   */
+  hits: number;
+  
+  /**
+   * Cache miss count
+   */
+  misses: number;
+  
+  /**
+   * Number of keys in cache
+   */
+  keyCount: number;
+  
+  /**
+   * Memory usage in bytes (if applicable)
+   */
+  memoryUsage: number;
+  
+  /**
+   * When stats were last updated
+   */
+  lastUpdated: number;
+  
+  /**
+   * Optional list of keys
+   */
+  keys?: string[];
+  
+  /**
+   * Any error message if stats collection failed
+   */
+  error?: string;
+  
+  /**
+   * Additional provider-specific stats
+   */
+  [key: string]: any;
 }
 
 /**
- * Storage adapter configuration
+ * Result of a cache operation
  */
-export interface StorageAdapterConfig {
-    /**
-     * Key prefix for this adapter
-     */
-    prefix?: string;
-
-    /**
-     * Default TTL in seconds
-     */
-    defaultTtl?: number;
-
-    /**
-     * Connection options for remote adapters
-     */
-    connection?: {
-        /**
-         * Connection host
-         */
-        host?: string;
-
-        /**
-         * Connection port
-         */
-        port?: number;
-
-        /**
-         * Connection URL
-         */
-        url?: string;
-
-        /**
-         * Authentication credentials
-         */
-        auth?: {
-            username?: string;
-            password?: string;
-            token?: string;
-        };
-
-        /**
-         * Connection timeout in milliseconds
-         */
-        timeout?: number;
-
-        /**
-         * Whether to use TLS/SSL
-         */
-        tls?: boolean;
-    };
-
-    /**
-     * Additional adapter-specific options
-     */
-    [key: string]: any;
+export interface CacheResult<T> {
+  /**
+   * Whether the operation was successful
+   */
+  success: boolean;
+  
+  /**
+   * The value retrieved from cache
+   */
+  value?: T;
+  
+  /**
+   * The cache key
+   */
+  key: string;
+  
+  /**
+   * Whether the value was found in cache
+   */
+  found?: boolean;
+  
+  /**
+   * The layer where the value was found
+   */
+  layer?: string;
+  
+  /**
+   * Metadata for the cache entry
+   */
+  metadata?: EntryMetadata;
+  
+  /**
+   * Time taken for the operation in milliseconds
+   */
+  duration?: number;
+  
+  /**
+   * Any error that occurred
+   */
+  error?: Error;
 }
 
 /**
- * Cache operation types
+ * Health status of a cache provider
  */
-export enum CacheOperationType {
-    GET = 'get',
-    SET = 'set',
-    DELETE = 'delete',
-    CLEAR = 'clear',
-    HAS = 'has',
-    COMPUTE = 'compute',
-    REFRESH = 'refresh',
-    INVALIDATE = 'invalidate',
-    BATCH = 'batch',
-    TRANSACTION = 'transaction'
+export interface ProviderHealthStatus {
+  /**
+   * Whether the provider is healthy
+   */
+  healthy: boolean;
+  
+  /**
+   * Status code
+   */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  
+  /**
+   * Status message
+   */
+  message: string;
+  
+  /**
+   * When the health check was performed
+   */
+  lastCheck: number;
+  
+  /**
+   * Provider-specific details
+   */
+  details?: Record<string, any>;
 }
 
 /**
- * Cache operation context
+ * Type for a function that can be wrapped with caching
  */
-export interface CacheOperationContext extends BaseOperationContext {
-    /**
-     * Operation type
-     */
-    operation: CacheOperationType;
-
-    /**
-     * Operation options
-     */
-    options?: CacheOptions;
-}
-
-/**
- * Cache transaction operation
- */
-export interface CacheTransactionOperation {
-    /**
-     * Operation type
-     */
-    type: 'get' | 'set' | 'delete' | 'has';
-
-    /**
-     * Cache key
-     */
-    key: string;
-
-    /**
-     * Value for set operations
-     */
-    value?: any;
-
-    /**
-     * Operation options
-     */
-    options?: CacheOptions;
-}
+export type CacheableFunction<T extends (...args: any[]) => any> = T;

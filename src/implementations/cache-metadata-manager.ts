@@ -3,6 +3,7 @@
  */
 
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
+import { eventManager } from '../events/event-manager';
 
 /**
  * Cache item metadata
@@ -57,9 +58,10 @@ export class CacheMetadataManager {
 
         this.metadata.set(key, metadata);
 
-        emitCacheEvent(CacheEventType.METADATA_UPDATE, {
+        eventManager.emit(CacheEventType.METADATA_UPDATE, {
             key,
-            metadata: {...metadata}
+            size: metadata.size,
+            timestamp: Date.now()
         });
     }
 
@@ -84,7 +86,10 @@ export class CacheMetadataManager {
         const deleted = this.metadata.delete(key);
 
         if (deleted) {
-            emitCacheEvent(CacheEventType.METADATA_DELETE, {key});
+            eventManager.emit(CacheEventType.METADATA_DELETE, {
+                key,
+                timestamp: Date.now()
+            });
         }
 
         return deleted;
@@ -146,7 +151,9 @@ export class CacheMetadataManager {
      */
     clear(): void {
         this.metadata.clear();
-        emitCacheEvent(CacheEventType.METADATA_CLEAR, {});
+        eventManager.emit(CacheEventType.METADATA_CLEAR, {
+            timestamp: Date.now()
+        });
     }
 
     /**

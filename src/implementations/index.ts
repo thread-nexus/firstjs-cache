@@ -16,6 +16,10 @@ export {
     CacheManagerStats,
 };
 
+// Export types and constants
+export * from '../types';
+export * from '../constants';
+
 // Create a new cache manager
 export function createCacheManager(config: CacheConfig): CacheManager {
     return new CacheManager(config);

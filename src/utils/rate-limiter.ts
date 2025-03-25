@@ -1,256 +1,250 @@
 /**
- * Rate limiter for cache operations
+ * @fileoverview Rate limiter implementation for cache operations
+ * 
+ * A token bucket algorithm implementation that controls the rate of operations
+ * performed against cache services. This helps prevent overloading backend services
+ * and ensures consistent performance during high traffic periods.
+ * 
+ * @module utils/rate-limiter
  */
 
-import {RateLimitConfig} from '../types';
-import {CacheError, CacheErrorCode} from './error-utils';
+import { CacheErrorCode, createCacheError } from './error-utils';
 
 /**
- * Rate limiter implementation
+ * Configuration options for the rate limiter
+ * 
+ * @interface RateLimiterOptions
+ */
+export interface RateLimiterOptions {
+  /**
+   * Maximum number of operations allowed in the specified time window
+   * 
+   * @type {number}
+   * @example 100 - Allow 100 operations per window
+   */
+  limit: number;
+  
+  /**
+   * Time window in milliseconds during which the limit applies
+   * 
+   * @type {number}
+   * @example 60000 - Set a one minute window (60000ms)
+   */
+  window: number;
+  
+  /**
+   * Controls whether to throw an error when rate limit is exceeded
+   * If false, the limit method will return false instead
+   * 
+   * @type {boolean}
+   * @default true
+   */
+  throwOnLimit?: boolean;
+  
+  /**
+   * Strategy to use when rate limit is exceeded
+   * - 'error': Throw an error or return false based on throwOnLimit
+   * - 'wait': Wait until enough tokens are available
+   * - 'reject': Immediately reject without waiting
+   * 
+   * @type {'error' | 'wait' | 'reject'}
+   * @default 'error'
+   */
+  strategy?: 'error' | 'wait' | 'reject';
+}
+
+/**
+ * Token bucket implementation for rate limiting cache operations
+ * 
+ * This class manages a virtual bucket of tokens that refill over time.
+ * Each operation consumes one or more tokens, and operations are limited
+ * when the bucket is empty.
+ * 
+ * @class RateLimiter
  */
 export class RateLimiter {
-    /**
-     * Rate limit configuration
-     */
-    private config: Required<RateLimitConfig>;
-
-    /**
-     * Operation counters
-     */
-    private counters = new Map<string, { count: number; resetAt: number }>();
-
-    /**
-     * Operation queues
-     */
-    private queues = new Map<string, Array<{
-        resolve: () => void;
-        reject: (error: Error) => void;
-        timeout: NodeJS.Timeout
-    }>>();
-
-    /**
-     * Create a new rate limiter
-     *
-     * @param config - Rate limit configuration
-     */
-    constructor(config: RateLimitConfig) {
-        this.config = {
-            limit: config.limit,
-            window: config.window,
-            throwOnLimit: config.throwOnLimit || false,
-            queueExceeding: config.queueExceeding || false,
-            maxQueueSize: config.maxQueueSize || 100,
-            maxWaitTime: config.maxWaitTime || 30000
-        };
+  /**
+   * Current number of tokens available in the bucket
+   * @private
+   */
+  private tokens: number;
+  
+  /**
+   * Timestamp of the last token refill
+   * @private
+   */
+  private lastRefill: number;
+  
+  /**
+   * Maximum capacity of the token bucket
+   * @private
+   */
+  private readonly maxTokens: number;
+  
+  /**
+   * Rate at which tokens are refilled (tokens per millisecond)
+   * @private
+   */
+  private readonly refillRate: number;
+  
+  /**
+   * Time window in milliseconds for token refill calculation
+   * @private
+   */
+  private readonly refillInterval: number;
+  
+  /**
+   * Whether to throw an error when rate limit is exceeded
+   * @private
+   */
+  private readonly throwOnLimit: boolean;
+  
+  /**
+   * Strategy to use when rate limit is exceeded
+   * @private
+   */
+  private readonly strategy: 'error' | 'wait' | 'reject';
+  
+  /**
+   * Creates a new rate limiter instance
+   * 
+   * @param {RateLimiterOptions} options - Configuration options for the rate limiter
+   * 
+   * @example
+   * ```typescript
+   * const limiter = new RateLimiter({
+   *   limit: 100,
+   *   window: 60000, // 1 minute
+   *   strategy: 'wait'
+   * });
+   * ```
+   */
+  constructor(options: RateLimiterOptions) {
+    this.maxTokens = options.limit;
+    this.tokens = this.maxTokens;
+    this.lastRefill = Date.now();
+    // Calculate tokens per ms
+    this.refillRate = this.maxTokens / options.window;
+    this.refillInterval = options.window;
+    this.throwOnLimit = options.throwOnLimit ?? true;
+    this.strategy = options.strategy ?? 'error';
+  }
+  
+  /**
+   * Attempt to consume tokens for an operation, handling rate limiting
+   * according to the configured strategy
+   * 
+   * @param {string} operation - Name of the operation being limited
+   * @param {number} cost - Number of tokens to consume for this operation
+   * @returns {Promise<boolean>} True if operation is allowed, false if rejected
+   * @throws {CacheError} If rate limit is exceeded and throwOnLimit is true
+   * 
+   * @example
+   * ```typescript
+   * // Check if operation can proceed
+   * if (await limiter.limit('get', 1)) {
+   *   // Perform operation
+   * }
+   * ```
+   */
+  async limit(operation: string, cost: number = 1): Promise<boolean> {
+    this.refillTokens();
+    
+    if (this.tokens >= cost) {
+      this.tokens -= cost;
+      return true;
     }
-
-    /**
-     * Limit an operation
-     *
-     * @param operation - Operation name
-     * @returns Promise that resolves when the operation can proceed
-     */
-    async limit(operation: string): Promise<void> {
-        // Get or create counter
-        const counter = this.getCounter(operation);
-
-        // Check if limit is exceeded
-        if (counter.count >= this.config.limit) {
-            // Check if we should queue
-            if (this.config.queueExceeding) {
-                await this.queueOperation(operation);
-                return;
-            }
-
-            // Throw or return based on configuration
-            if (this.config.throwOnLimit) {
-                throw new CacheError(
-                    `Rate limit exceeded for operation: ${operation}`,
-                    CacheErrorCode.RATE_LIMIT_EXCEEDED
-                );
-            }
-
-            // Wait for next window
-            await this.waitForNextWindow(counter);
+    
+    // Handle rate limiting based on strategy
+    switch (this.strategy) {
+      case 'wait':
+        const waitTime = this.calculateWaitTime(cost);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        this.refillTokens();
+        this.tokens -= cost;
+        return true;
+        
+      case 'reject':
+        return false;
+        
+      case 'error':
+      default:
+        if (this.throwOnLimit) {
+          throw createCacheError(
+            `Rate limit exceeded for operation "${operation}"`,
+            CacheErrorCode.RATE_LIMITED
+          );
         }
-
-        // Increment counter
-        counter.count++;
+        return false;
     }
-
-    /**
-     * Check if an operation is rate limited
-     *
-     * @param operation - Operation name
-     * @returns Whether the operation is rate limited
-     */
-    isLimited(operation: string): boolean {
-        const counter = this.counters.get(operation);
-        return counter !== undefined && counter.count >= this.config.limit;
+  }
+  
+  /**
+   * Get the current number of available tokens
+   * 
+   * @returns {number} Current token count
+   */
+  getTokens(): number {
+    this.refillTokens();
+    return this.tokens;
+  }
+  
+  /**
+   * Reset the token bucket to its full capacity
+   * Useful after error conditions or service recovery
+   */
+  reset(): void {
+    this.tokens = this.maxTokens;
+    this.lastRefill = Date.now();
+  }
+  
+  /**
+   * Refill tokens based on elapsed time since last refill
+   * 
+   * @private
+   */
+  private refillTokens(): void {
+    const now = Date.now();
+    const elapsed = now - this.lastRefill;
+    
+    if (elapsed <= 0) {
+      return;
     }
-
-    /**
-     * Get current rate limit status
-     *
-     * @param operation - Operation name
-     * @returns Rate limit status
-     */
-    getStatus(operation: string): { limit: number; remaining: number; resetAt: number } {
-        const counter = this.counters.get(operation);
-
-        if (!counter) {
-            return {
-                limit: this.config.limit,
-                remaining: this.config.limit,
-                resetAt: Date.now() + this.config.window
-            };
-        }
-
-        return {
-            limit: this.config.limit,
-            remaining: Math.max(0, this.config.limit - counter.count),
-            resetAt: counter.resetAt
-        };
-    }
-
-    /**
-     * Reset rate limit for an operation
-     *
-     * @param operation - Operation name
-     */
-    reset(operation: string): void {
-        this.counters.delete(operation);
-    }
-
-    /**
-     * Reset all rate limits
-     */
-    resetAll(): void {
-        this.counters.clear();
-    }
-
-    /**
-     * Get or create a counter for an operation
-     *
-     * @param operation - Operation name
-     * @returns Counter
-     */
-    private getCounter(operation: string): { count: number; resetAt: number } {
-        const now = Date.now();
-
-        // Get existing counter
-        const counter = this.counters.get(operation);
-
-        // Check if counter exists and is still valid
-        if (counter && counter.resetAt > now) {
-            return counter;
-        }
-
-        // Create new counter
-        const resetAt = now + this.config.window;
-        const newCounter = {count: 0, resetAt};
-
-        // Store counter
-        this.counters.set(operation, newCounter);
-
-        // Schedule reset
-        setTimeout(() => {
-            // Reset counter
-            const currentCounter = this.counters.get(operation);
-            if (currentCounter && currentCounter.resetAt === resetAt) {
-                this.counters.delete(operation);
-            }
-        }, this.config.window);
-
-        return newCounter;
-    }
-
-    /**
-     * Wait for the next window
-     *
-     * @param counter - Counter
-     */
-    private async waitForNextWindow(counter: { resetAt: number }): Promise<void> {
-        const delay = Math.max(0, counter.resetAt - Date.now());
-        await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
-    /**
-     * Queue an operation
-     *
-     * @param operation - Operation name
-     */
-    private async queueOperation(operation: string): Promise<void> {
-        // Get or create queue
-        if (!this.queues.has(operation)) {
-            this.queues.set(operation, []);
-        }
-
-        const queue = this.queues.get(operation)!;
-
-        // Check if queue is full
-        if (queue.length >= this.config.maxQueueSize) {
-            throw new CacheError(
-                `Queue full for operation: ${operation}`,
-                CacheErrorCode.RATE_LIMIT_EXCEEDED
-            );
-        }
-
-        // Add to queue
-        return new Promise<void>((resolve, reject) => {
-            // Create timeout
-            const timeout = setTimeout(() => {
-                // Remove from queue
-                const index = queue.findIndex(item => item.timeout === timeout);
-                if (index !== -1) {
-                    queue.splice(index, 1);
-                }
-
-                // Reject with timeout error
-                reject(new CacheError(
-                    `Queue timeout for operation: ${operation}`,
-                    CacheErrorCode.TIMEOUT
-                ));
-            }, this.config.maxWaitTime);
-
-            // Add to queue
-            queue.push({resolve, reject, timeout});
-
-            // Process queue
-            this.processQueue(operation);
-        });
-    }
-
-    /**
-     * Process the operation queue
-     *
-     * @param operation - Operation name
-     */
-    private async processQueue(operation: string): Promise<void> {
-        // Get queue
-        const queue = this.queues.get(operation);
-        if (!queue || queue.length === 0) {
-            return;
-        }
-
-        // Check if we can process an item
-        const counter = this.getCounter(operation);
-        if (counter.count < this.config.limit) {
-            // Get next item
-            const item = queue.shift();
-            if (item) {
-                // Clear timeout
-                clearTimeout(item.timeout);
-
-                // Increment counter
-                counter.count++;
-
-                // Resolve promise
-                item.resolve();
-            }
-        }
-
-        // Schedule next check
-        setTimeout(() => this.processQueue(operation), 100);
-    }
+    
+    // Calculate new tokens and add them
+    const newTokens = elapsed * this.refillRate;
+    this.tokens = Math.min(this.maxTokens, this.tokens + newTokens);
+    this.lastRefill = now;
+  }
+  
+  /**
+   * Calculate the time to wait for enough tokens to be available
+   * 
+   * @param {number} cost - Number of tokens needed
+   * @returns {number} Time to wait in milliseconds
+   * @private
+   */
+  private calculateWaitTime(cost: number): number {
+    const tokensNeeded = cost - this.tokens;
+    return Math.ceil(tokensNeeded / this.refillRate);
+  }
 }
+
+/**
+ * Factory function to create a new rate limiter instance
+ * 
+ * @param {RateLimiterOptions} options - Configuration options for the rate limiter
+ * @returns {RateLimiter} A configured rate limiter instance
+ * 
+ * @example
+ * ```typescript
+ * const limiter = createRateLimiter({
+ *   limit: 100,
+ *   window: 60000,
+ *   strategy: 'wait'
+   * });
+   * ```
+   */
+  export function createRateLimiter(options: RateLimiterOptions): RateLimiter {
+    return new RateLimiter(options);
+  }

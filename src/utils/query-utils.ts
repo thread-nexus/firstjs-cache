@@ -212,7 +212,7 @@ export async function invalidateQueries(
 
         return keys.length;
     } catch (error) {
-        handleCacheError(error, {operation: 'invalidateQueries', pattern});
+        handleCacheError(error, {operation: 'invalidateQueries', pattern}, false);
         return 0;
     }
 }
@@ -231,7 +231,7 @@ export async function deleteCacheValue(
     try {
         return await cacheManager.delete(key);
     } catch (error) {
-        handleCacheError(error, {operation: 'deleteCacheValue', key});
+        handleCacheError(error, {operation: 'deleteCacheValue', key}, true);
         return false;
     }
 }
@@ -250,7 +250,7 @@ export async function getCacheValue<T>(
     try {
         return await cacheManager.get<T>(key);
     } catch (error) {
-        handleCacheError(error, {operation: 'getCacheValue', key});
+        handleCacheError(error, {operation: 'getCacheValue', key}, true);
         return null;
     }
 }
@@ -272,7 +272,7 @@ export async function setCacheValue<T>(
     try {
         await cacheManager.set(key, value, options);
     } catch (error) {
-        handleCacheError(error, {operation: 'setCacheValue', key});
+        handleCacheError(error, {operation: 'setCacheValue', key}, false);
         throw error;
     }
 }

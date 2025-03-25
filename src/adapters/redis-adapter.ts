@@ -7,6 +7,8 @@ import {IStorageAdapter} from '../interfaces/i-storage-adapter';
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
 import {handleCacheError} from '../utils/error-utils';
 import {HealthStatus} from '../types';
+import {metrics} from "../utils/metrics";
+import {logger} from "../utils/logger";
 
 // Redis client type definition
 interface RedisClient {
@@ -31,6 +33,8 @@ interface RedisClient {
     connect?(): Promise<void>;
 
     expire?(key: string, seconds: number): Promise<number>;
+
+    ping?(): Promise<string>;
 }
 
 export class RedisAdapter implements IStorageAdapter {
@@ -39,6 +43,7 @@ export class RedisAdapter implements IStorageAdapter {
     private readonly prefix: string;
     private readonly connectionPromise: Promise<void>;
     private isConnected = false;
+    private config: string | undefined;
 
     constructor(
         config: {
@@ -63,23 +68,74 @@ export class RedisAdapter implements IStorageAdapter {
     async get<T = string>(key: string): Promise<T | null> {
         await this.ensureConnection();
         const prefixedKey = this.getKeyWithPrefix(key);
+        
+        // Start timer for tracking Redis operations
+        const startTime = performance.now();
+        let success = false;
 
         try {
             const value = await this.client.get(prefixedKey);
+            const duration = performance.now() - startTime;
+            
+            // Record Redis operation metrics
+            metrics.timer('redis.command.get', duration, {
+                hit: value !== null ? 'hit' : 'miss',
+                provider: 'redis'
+            });
+            
+            // Log for slow operations
+            if (duration > 100) { // Log slow operations > 100ms
+                logger.warn(`Slow Redis GET operation`, {
+                    key,
+                    duration,
+                    provider: 'redis'
+                });
+            }
+            
+            // Track hits and misses
+            if (value !== null) {
+                metrics.increment('redis.hits', 1);
+                success = true;
+            } else {
+                metrics.increment('redis.misses', 1);
+            }
 
             emitCacheEvent(
                 value !== null ? CacheEventType.GET_HIT : CacheEventType.GET_MISS,
-                {key, provider: 'redis'}
+                {key, provider: 'redis', duration}
             );
 
             return value === null ? null : JSON.parse(value) as T;
         } catch (error) {
+            const duration = performance.now() - startTime;
+            
+            // Record error metrics
+            metrics.timer('redis.command.get', duration, {
+                hit: 'error',
+                provider: 'redis'
+            });
+            metrics.increment('redis.errors', 1, {
+                operation: 'get',
+                errorType: error instanceof Error ? error.name : 'unknown'
+            });
+            
             handleCacheError(error, {
                 operation: 'get',
                 key,
-                provider: 'redis'
-            });
+                provider: 'redis',
+                duration
+            }, false);
+            
+            // Check if we should try to reconnect
+            await this.handlePotentialConnectionError(error);
+            
             throw error;
+        } finally {
+            // Track overall Redis operation rates
+            metrics.increment('redis.operations', 1, {
+                operation: 'get',
+                success: success ? 'true' : 'false'
+            });
         }
     }
 
@@ -108,7 +164,7 @@ export class RedisAdapter implements IStorageAdapter {
                 operation: 'set',
                 key,
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -128,7 +184,7 @@ export class RedisAdapter implements IStorageAdapter {
                 operation: 'has',
                 key,
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -156,7 +212,7 @@ export class RedisAdapter implements IStorageAdapter {
                 operation: 'delete',
                 key,
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -191,7 +247,7 @@ export class RedisAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'clear',
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -212,7 +268,7 @@ export class RedisAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'keys',
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -237,7 +293,7 @@ export class RedisAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'getMany',
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -263,14 +319,14 @@ export class RedisAdapter implements IStorageAdapter {
 
             emitCacheEvent(CacheEventType.SET, {
                 provider: 'redis',
-                batchSize: prefixedEntries.length,
+                keys: Object.keys(entries), // Use keys array instead of batchSize
                 ttl: options?.ttl
             });
         } catch (error) {
             handleCacheError(error, {
                 operation: 'setMany',
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -294,22 +350,39 @@ export class RedisAdapter implements IStorageAdapter {
         };
     }
 
+    /**
+     * Perform a health check on the Redis connection
+     * 
+     * @returns Health status
+     */
     async healthCheck(): Promise<HealthStatus> {
         try {
-            // Check if client has a status property or try to test connection directly
-            const isConnected = this.isConnected || await this.testConnection();
-
-            return {
-                status: 'healthy',
-                healthy: true, // Add the required healthy property
-                details: {
-                    connected: isConnected
-                }
-            };
+            // Check if Redis is connected
+            const pingResult = this.client.ping ? await this.client.ping() : 'PONG';
+            
+            if (pingResult === 'PONG') {
+                return {
+                    status: 'healthy',
+                    healthy: true,
+                    timestamp: Date.now(),
+                    lastCheck: Date.now(),
+                    details: { connected: true }
+                };
+            } else {
+                return {
+                    status: 'unhealthy',
+                    healthy: false,
+                    timestamp: Date.now(),
+                    lastCheck: Date.now(),
+                    error: 'Redis did not respond with PONG'
+                };
+            }
         } catch (error) {
             return {
                 status: 'unhealthy',
-                healthy: false, // Add the required healthy property
+                healthy: false,
+                timestamp: Date.now(),
+                lastCheck: Date.now(),
                 error: error instanceof Error ? error.message : String(error)
             };
         }
@@ -353,14 +426,13 @@ export class RedisAdapter implements IStorageAdapter {
 
             emitCacheEvent(CacheEventType.PROVIDER_INITIALIZED, {
                 provider: 'redis',
-                host: config.host,
-                port: config.port
+                key: 'redis-init'  // Add a key instead of host/port
             });
         } catch (error) {
             handleCacheError(error, {
                 operation: 'connect',
                 provider: 'redis'
-            });
+            }, false);
             throw error;
         }
     }
@@ -392,6 +464,89 @@ export class RedisAdapter implements IStorageAdapter {
             return true;
         } catch (error) {
             return false;
+        }
+    }
+
+    /**
+     * Handle potential connection error and try to reconnect if needed
+     */
+    private async handlePotentialConnectionError(error: unknown): Promise<void> {
+        // Check if the error looks like a connection issue
+        const isConnectionError = error instanceof Error && (
+            error.message.includes('connection') ||
+            error.message.includes('network') ||
+            error.message.includes('timeout') ||
+            error.message.includes('disconnected') ||
+            error.message.includes('ECONNREFUSED')
+        );
+        
+        if (isConnectionError) {
+            logger.warn(`Redis connection error detected, attempting to reconnect`, {
+                error: error instanceof Error ? error.message : String(error)
+            });
+            
+            metrics.increment('redis.connection_errors', 1);
+            
+            // Mark connection as broken
+            this.isConnected = false;
+            
+            // Try to reconnect in the background
+            setTimeout(() => {
+                this.retryConnection()
+                    .catch(err => {
+                        logger.error(`Failed to reconnect to Redis`, {
+                            error: err instanceof Error ? err.message : String(err)
+                        });
+                    });
+            }, 1000); // Wait 1 second before trying to reconnect
+        }
+    }
+
+    /**
+     * Retry connection with backoff
+     */
+    private async retryConnection(
+        attempts: number = 5,
+        initialDelay: number = 1000
+    ): Promise<void> {
+        let delay = initialDelay;
+        
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                logger.info(`Attempting to reconnect to Redis (attempt ${attempt}/${attempts})`, {
+                    delay
+                });
+                
+                await this.connect({
+                    host: (this.config as any).host,
+                    port: (this.config as any).port,
+                    password: (this.config as any).password,
+                    db: Number((this.config as any).db ?? 0)
+                });
+                
+                logger.info(`Successfully reconnected to Redis after ${attempt} attempts`);
+                metrics.increment('redis.reconnections', 1, {
+                    attempts: attempt.toString()
+                });
+                
+                return;
+            } catch (error) {
+                logger.error(`Failed to reconnect to Redis (attempt ${attempt}/${attempts})`, {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+                
+                if (attempt === attempts) {
+                    metrics.increment('redis.reconnection_failures', 1);
+                    throw error;
+                }
+                
+                // Exponential backoff with 50% jitter
+                const jitter = 0.5 * Math.random() * delay;
+                delay = Math.min(delay * 2 + jitter, 30000); // Cap at 30 seconds
+                
+                // Wait before the next attempt
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
     }
 }

@@ -1,392 +1,194 @@
 /**
- * Cache operations utility functions
+ * @fileoverview Basic cache operations
  */
 
 import {ICacheProvider} from '../interfaces/i-cache-provider';
-import {CacheOptions} from '../types';
+import {CacheMonitoring} from '../utils/monitoring-utils';
 import {CacheErrorCode, createCacheError} from '../utils/error-utils';
-import {CACHE_CONSTANTS} from '../config/default-config';
+import {RateLimiter} from '../utils/rate-limiter';
+import {CircuitBreaker} from '../utils/circuit-breaker';
+import {CacheStats} from '../types';
+import {CacheValidation} from './cache-validation';
+import {CacheProviderSelector} from './cache-provider-selection';
+import {GetOptions, SetOptions} from './enhanced-cache';
 
 /**
- * Cache operations helper class
+ * A class responsible for cache operations such as getting, setting, deleting, and clearing cache entries.
+ * It also provides functionality for cache monitoring, rate limiting, fallback handling, and statistics retrieval.
  */
 export class CacheOperations {
     /**
-     * In-flight requests for deduplication
+     * Create a new cache operations instance
      */
-    private static inFlightRequests = new Map<string, Promise<any>>();
-
+    constructor(
+        private providers: Map<string, ICacheProvider>,
+        private monitor: CacheMonitoring,
+        private serializer: { serialize: Function, deserialize: Function },
+        private rateLimiter: RateLimiter,
+        private circuitBreaker: CircuitBreaker,
+        private validation: CacheValidation,
+        private providerSelector: CacheProviderSelector
+    ) {}
     /**
-     * Default batch size
+     * Get a value from cache
      */
-    private static maxBatchSize = CACHE_CONSTANTS.DEFAULT_BATCH_SIZE;
-
-    /**
-     * Batch operation with concurrency control
-     *
-     * @param items - Items to process
-     * @param operation - Operation to perform on each item
-     * @param options - Batch options
-     * @returns Promise that resolves when all operations are complete
-     */
-    static async batchOperations<T>(
-        items: T[],
-        operation: (item: T) => Promise<void>,
-        options: {
-            batchSize?: number;
-            stopOnError?: boolean;
-            maxConcurrent?: number;
-        } = {}
-    ): Promise<{ success: boolean; errors: Error[] }> {
-        const batchSize = options.batchSize || this.maxBatchSize;
-        const stopOnError = options.stopOnError || false;
-        const maxConcurrent = options.maxConcurrent || 5;
-
-        const errors: Error[] = [];
-
-        // Split items into batches
-        const batches = this.splitIntoBatches(items, batchSize);
-
-        // Process batches with concurrency control
-        for (const batch of batches) {
-            // Create a promise for each item in the batch
-            const promises = batch.map(item => async () => {
-                try {
-                    await operation(item);
-                    return null;
-                } catch (error) {
-                    const err = error instanceof Error ? error : new Error(String(error));
-                    errors.push(err);
-                    return err;
-                }
-            });
-
-            // Process promises with concurrency limit
-            const results = await this.processWithConcurrency(promises, maxConcurrent);
-
-            // Check if we should stop on error
-            if (stopOnError && results.some(r => r !== null)) {
-                break;
-            }
-        }
-
-        // If any operations failed, throw an error with details
-        if (errors.length > 0) {
-            // Create a batch error
-            const batchError = createCacheError(
-                `Batch operation failed: ${errors.length} of ${items.length} operations failed`,
-                CacheErrorCode.BATCH_ERROR,
-                errors[0],
-                {errors, failedCount: errors.length, totalCount: items.length}
-            );
-
-            if (stopOnError) {
-                throw batchError;
-            }
-        }
-
-        return {
-            success: errors.length === 0,
-            errors
-        };
-    }
-
-    /**
-     * Execute with deduplication to prevent duplicate in-flight requests
-     *
-     * @param key - Cache key
-     * @param operation - Operation to perform
-     * @returns Result of the operation
-     */
-    static async executeWithDeduplication<T>(
-        key: string,
-        operation: () => Promise<T>
-    ): Promise<T> {
-        // Check if there's already an in-flight request for this key
-        const dedupKey = `dedup:${key}`;
-
-        if (this.inFlightRequests.has(dedupKey)) {
-            // Return the existing promise
-            return await this.inFlightRequests.get(dedupKey) as Promise<T>;
-        }
-
-        // Create a new promise for this operation
-        const promise = (async () => {
-            try {
-                return await operation();
-            } finally {
-                // Remove from in-flight requests
-                this.inFlightRequests.delete(dedupKey);
-            }
-        })();
-
-        // Store the promise
-        this.inFlightRequests.set(dedupKey, promise);
-
-        return promise;
-    }
-
-    /**
-     * Handle background refresh for a cache entry
-     *
-     * @param key - Cache key
-     * @param provider - Cache provider
-     * @param compute - Function to compute the value
-     * @param options - Cache options
-     * @returns Promise that resolves when the refresh is complete
-     */
-    static async handleBackgroundRefresh<T>(
-        key: string,
-        provider: ICacheProvider,
-        compute: () => Promise<T>,
-        options?: CacheOptions
-    ): Promise<void> {
+    async get<T>(key: string, options?: GetOptions): Promise<T | null> {
+        await this.rateLimiter.limit('get');
+        const startTime = performance.now();
         try {
-            // Get metadata if available
-            const getMetadata = provider.getMetadata as ((key: string) => Promise<any>) | undefined;
-            const metadata = await getMetadata?.(key);
+            this.validation.validateKey(key);
+            const provider = this.providerSelector.selectProvider(options?.provider);
 
-            // Check if we need to refresh
-            if (metadata && options?.refreshThreshold && options.ttl) {
-                const now = Date.now();
-                const createdAt = metadata.createdAt instanceof Date
-                    ? metadata.createdAt.getTime()
-                    : metadata.createdAt as number;
-
-                const ttlMs = options.ttl * 1000;
-                const refreshThresholdMs = ttlMs * options.refreshThreshold;
-                const refreshAt = createdAt + refreshThresholdMs;
-
-                // If we've passed the refresh threshold but not expired
-                if (now >= refreshAt && now < createdAt + ttlMs) {
-                    // Refresh in the background
-                    await this.executeWithDeduplication(`refresh:${key}`, async () => {
-                        try {
-                            const value = await compute();
-                            await provider.set(key, value, options);
-                        } catch (error) {
-                            console.error(`Background refresh failed for key ${key}:`, error);
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            // Don't let background refresh failures affect the main flow
-            console.error(`Error in background refresh for key ${key}:`, error);
-        }
-    }
-
-    /**
-     * Retry an operation with exponential backoff
-     *
-     * @param operation - Operation to retry
-     * @param maxRetries - Maximum number of retries
-     * @param baseDelay - Base delay in milliseconds
-     * @returns Result of the operation
-     */
-    static async retryOperation<T>(
-        operation: () => Promise<T>,
-        maxRetries: number = 3,
-        baseDelay: number = 1000
-    ): Promise<T> {
-        let lastError: Error | null = null;
-
-        for (let attempt = 0; attempt <= maxRetries; attempt++) {
-            try {
-                return await operation();
-            } catch (error) {
-                lastError = error instanceof Error ? error : new Error(String(error));
-
-                // If this was the last attempt, don't delay
-                if (attempt === maxRetries) {
-                    break;
-                }
-
-                // Calculate delay with exponential backoff and jitter
-                const delay = baseDelay * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
-
-                // Wait before next attempt
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-
-        // If we get here, all attempts failed
+            // Check circuit breaker state
+            if (this.circuitBreaker && typeof this.circuitBreaker.isOpen === 'function' && this.circuitBreaker.isOpen()) {
         throw createCacheError(
-            `Operation failed after ${maxRetries + 1} attempts: ${lastError?.message}`,
-            CacheErrorCode.OPERATION_ERROR,
-            lastError || undefined
+                    'Circuit breaker is open',
+                    CacheErrorCode.CIRCUIT_OPEN
         );
     }
 
-    /**
-     * Safely clear a cache provider
-     *
-     * @param provider - Cache provider
-     * @returns Whether the operation was successful
-     */
-    static async safeClear(
-        provider: ICacheProvider
-    ): Promise<boolean> {
-        try {
-            await provider.clear();
-            return true;
+            const result = await provider.get(key);
+
+            if (result === null && options?.fallback) {
+                return this.handleFallback<T>(key, options);
+            }
+
+            const value = result ? await this.serializer.deserialize(result) as T : null;
+            const isHit = value !== null;
+
+            if (isHit) {
+                this.monitor.recordHit(performance.now() - startTime);
+            } else {
+                this.monitor.recordMiss(performance.now() - startTime);
+            }
+
+            return value;
         } catch (error) {
-            console.error('Error clearing cache:', error);
-            return false;
+            this.validation.handleError('get', error as Error, {key});
+            return null;
         }
     }
 
     /**
-     * Safely delete a key from a cache provider
-     *
-     * @param key - Cache key
-     * @param provider - Cache provider
-     * @returns Whether the operation was successful
+     * Set a value in cache
      */
-    static async safeDelete(
-        key: string,
-        provider: ICacheProvider
-    ): Promise<boolean> {
+    async set<T = any>(key: string, value: T, options?: SetOptions): Promise<void> {
+        await this.rateLimiter.limit('set');
+        const startTime = performance.now();
         try {
-            return await provider.delete(key);
-        } catch (error) {
-            console.error(`Error deleting key ${key}:`, error);
-            return false;
-        }
-    }
+            this.validation.validateKey(key);
+            this.validation.validateValue(value);
 
-    /**
-     * Ensure a cache provider is available
-     *
-     * @param provider - Cache provider
-     * @returns The provider if available
-     */
-    static ensureProvider(provider?: ICacheProvider): ICacheProvider {
-        if (!provider) {
+            const serializedValue = this.serializer.serialize(value);
+            const provider = this.providerSelector.selectProvider(options?.provider);
+
+            // Check circuit breaker state
+            if (this.circuitBreaker && typeof this.circuitBreaker.isOpen === 'function' && this.circuitBreaker.isOpen()) {
             throw createCacheError(
-                'No cache provider available',
-                CacheErrorCode.NO_PROVIDER
+                    'Circuit breaker is open',
+                    CacheErrorCode.CIRCUIT_OPEN
             );
         }
 
-        return provider;
+            const ttl = options?.ttl;
+            const cacheOptions = {
+                ...options,
+                ttl
+            };
+            
+            await provider.set(key, serializedValue, cacheOptions);
+            
+            this.monitor.recordHit(performance.now() - startTime);
+        } catch (error) {
+            this.validation.handleError('set', error as Error, {key, value});
+    }
     }
 
     /**
-     * Generate a cache key from arguments
-     *
-     * @param prefix - Key prefix
-     * @param args - Arguments to include in key
-     * @returns Generated cache key
+     * Delete a value from cache
      */
-    static generateCacheKey(prefix: string, args: any[]): string {
-        const argString = args.map(arg => {
-            if (arg === null) return 'null';
-            if (arg === undefined) return 'undefined';
-            if (typeof arg === 'function') return 'function';
-            if (typeof arg === 'object') return JSON.stringify(arg);
-            return String(arg);
-        }).join(':');
+    async delete(key: string): Promise<boolean> {
+        await this.rateLimiter.limit('delete');
+        const startTime = performance.now();
 
-        return `${prefix}:${argString}`;
-    }
+        try {
+            this.validation.validateKey(key);
+            const provider = this.providerSelector.selectProvider();
+            const result = await provider.delete(key);
 
-    /**
-     * Handle cache operation errors
-     *
-     * @param operation - Operation name
-     * @param error - Error object
-     * @param context - Error context
-     * @returns Normalized error
-     */
-    static handleError(
-        operation: string,
-        error: Error,
-        context: Record<string, any> = {}
-    ): Error {
-        // Log the error
-        console.error(`Cache operation '${operation}' failed:`, error, context);
+            if (!result) {
+                this.monitor.recordMiss(performance.now() - startTime);
+            }
 
-        // Return a normalized error
-        return createCacheError(
-            `Cache operation '${operation}' failed: ${error.message}`,
-            CacheErrorCode.OPERATION_ERROR,
-            error,
-            context
-        );
-    }
-
-    /**
-     * Check if a value should be refreshed based on TTL and threshold
-     *
-     * @param timestamp - When the value was created
-     * @param ttl - Time-to-live in seconds
-     * @param refreshThreshold - Refresh threshold (0-1)
-     * @returns Whether the value should be refreshed
-     */
-    static shouldRefresh(
-        timestamp: Date,
-        ttl: number,
-        refreshThreshold: number
-    ): boolean {
-        if (!ttl || !refreshThreshold || refreshThreshold <= 0 || refreshThreshold > 1) {
+            return result;
+        } catch (error) {
+            this.validation.handleError('delete', error as Error, {key});
             return false;
         }
-
-        const now = Date.now();
-        const createdAt = timestamp.getTime();
-        const expiresAt = createdAt + (ttl * 1000);
-        const refreshAt = createdAt + (ttl * refreshThreshold * 1000);
-
-        return now >= refreshAt && now < expiresAt;
     }
 
     /**
-     * Split items into batches
-     *
-     * @param items - Items to split
-     * @param batchSize - Maximum batch size
-     * @returns Array of batches
+     * Clear all values from cache
      */
-    private static splitIntoBatches<T>(items: T[], batchSize: number): T[][] {
-        const batches: T[][] = [];
+    async clear(): Promise<void> {
+        await this.rateLimiter.limit('clear');
+        const startTime = performance.now();
 
-        for (let i = 0; i < items.length; i += batchSize) {
-            batches.push(items.slice(i, i + batchSize));
+        try {
+            const provider = this.providerSelector.selectProvider();
+            await provider.clear();
+
+            this.monitor.recordMiss(performance.now() - startTime);
+        } catch (error) {
+            this.validation.handleError('clear', error as Error);
         }
-
-        return batches;
     }
-
     /**
-     * Process functions with concurrency control
-     *
-     * @param fns - Functions to process
-     * @param concurrency - Maximum concurrency
-     * @returns Results of the functions
+     * Get cache statistics
      */
-    private static async processWithConcurrency<T>(
-        fns: (() => Promise<T>)[],
-        concurrency: number
-    ): Promise<T[]> {
-        const results: T[] = [];
-        const executing: Promise<void>[] = [];
+    async getStats(): Promise<Record<string, CacheStats>> {
+        const result: Record<string, CacheStats> = {};
+        try {
+            const provider = this.providerSelector.getProvider('default');
 
-        for (const fn of fns) {
-            const p = fn().then(result => {
-                results.push(result);
-                executing.splice(executing.indexOf(p), 1);
-            });
-
-            executing.push(p);
-
-            if (executing.length >= concurrency) {
-                await Promise.race(executing);
+            if (provider !== null && typeof provider.getStats === 'function') {
+                result['default'] = await provider.getStats();
+            } else {
+                // Return default stats if method doesn't exist
+                result['default'] = {
+                    hits: 0,
+                    misses: 0,
+                    size: 0,
+                    memoryUsage: 0,
+                    lastUpdated: Date.now(),
+                    keyCount: 0
+                };
             }
+
+            return result;
+        } catch (error) {
+            console.error('Error getting cache stats:', error);
+            // Return default stats on error
+            return {
+                'default': {
+                    hits: 0,
+                    misses: 0,
+                    size: 0,
+                    memoryUsage: 0,
+                    lastUpdated: Date.now(),
+                    keyCount: 0
+                }
+            };
         }
+    }
 
-        await Promise.all(executing);
-
-        return results;
+    /**
+     * Handle fallback for cache misses
+     */
+    private async handleFallback<T>(key: string, options?: GetOptions): Promise<T | null> {
+        if (options?.fallback) {
+            return options.fallback();
+        }
+        return Promise.resolve(null);
     }
 }

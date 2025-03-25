@@ -49,11 +49,7 @@ export class CacheProviderManager {
                 size: 0,
                 keyCount: 0,
                 memoryUsage: 0,
-                lastUpdated: Date.now(), // Change Date object to number
-                entries: 0, // Add required properties
-                avgTtl: 0,
-                maxTtl: 0
-                // Remove keys property as it's not in CacheStats
+                lastUpdated: Date.now()
             },
             errorCount: 0
         };
@@ -276,7 +272,7 @@ export class CacheProviderManager {
             handleCacheError(error, {
                 operation: 'provider',
                 provider: provider
-            });
+            }, true);
         } else {
             // Handle ProviderEntry case
             provider.lastError = error instanceof Error ? error : new Error(String(error));
@@ -286,7 +282,7 @@ export class CacheProviderManager {
                 operation: 'provider',
                 provider: provider.name,
                 context: {errorCount: provider.errorCount}
-            });
+            }, true);
 
             // If provider has too many errors, move it to lowest priority
             if (provider.errorCount > 5) {
@@ -314,7 +310,6 @@ export class CacheProviderManager {
             size: 0,
             keyCount: 0,
             lastUpdated: Date.now(), // Use timestamp instead of Date
-            entries: 0,
             avgTtl: 0,
             maxTtl: 0,
             memoryUsage: 0

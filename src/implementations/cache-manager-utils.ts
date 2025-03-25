@@ -7,6 +7,7 @@ import {DEFAULT_CONFIG} from '../config/default-config';
 import {ICacheProvider} from '../interfaces/i-cache-provider';
 import {CacheManager} from '../core/cache-manager';
 import {CacheConfig} from '../interfaces/i-cache-config';
+import {hasProviderMethod, trySafeProviderMethod} from '../utils/provider-method-utils';
 
 /**
  * Merge cache options with defaults
@@ -17,7 +18,7 @@ import {CacheConfig} from '../interfaces/i-cache-config';
  */
 export function mergeCacheOptions(
     options: CacheOptions = {},
-    defaults: CacheOptions = DEFAULT_CONFIG.defaultOptions
+    defaults: CacheOptions = DEFAULT_CONFIG.defaultOptions as CacheOptions
 ): CacheOptions {
     return {
         ...defaults,
@@ -47,7 +48,7 @@ export function createCacheManager(config: CacheConfig): CacheManager {
  * @returns Whether the provider has the method
  */
 export function providerHasMethod(provider: ICacheProvider, methodName: keyof ICacheProvider): boolean {
-    return provider && typeof provider[methodName] === 'function';
+    return hasProviderMethod(provider, methodName);
 }
 
 /**
@@ -63,17 +64,12 @@ export async function safelyCallProviderMethod<T>(
     methodName: keyof ICacheProvider,
     ...args: any[]
 ): Promise<T | null> {
-    if (providerHasMethod(provider, methodName)) {
-        try {
-            // Type assertion to make TypeScript happy
-            const method = provider[methodName] as (...args: any[]) => Promise<T>;
-            return await method(...args);
-        } catch (error) {
-            console.error(`Error calling ${String(methodName)} on provider:`, error);
-            return null;
-        }
-    }
-    return null;
+    return trySafeProviderMethod<T>(
+        provider, 
+        methodName, 
+        { providerName: provider.name || 'unknown' },
+        ...args
+    );
 }
 
 /**
@@ -172,4 +168,26 @@ export function formatCacheSize(bytes: number, decimals: number = 2): string {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
 
     return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+}
+
+/**
+ * Format error message
+ * 
+ * @param error The error
+ * @returns Formatted error message
+ */
+export function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  
+  if (typeof error === 'string') {
+    return error;
+  }
+  
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown error';
+  }
 }

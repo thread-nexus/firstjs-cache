@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {subscribeToCacheEvents} from '../events/cache-events';
+import {eventManager} from '../events/event-manager';
 
 // Remove incorrect import
 // import { getStats as getCacheStats } from '../core/cache-manager';
@@ -56,9 +56,13 @@ export function CacheMonitor({
 
     // Subscribe to cache events
     useEffect(() => {
-        return subscribeToCacheEvents('all', (event) => {
+        // Subscribe to all cache events
+        const unsubscribe = eventManager.subscribe('*', (event) => {
+            // Event handling logic
             setEvents(prev => [...prev.slice(-99), event]);
         });
+
+        return () => unsubscribe();
     }, []);
 
     return (

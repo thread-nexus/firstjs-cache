@@ -1,120 +1,56 @@
 /**
- * @fileoverview Main entry point for the cache library
+ * @fileoverview Main export file for the cache module
  */
 
-// Import core components
-import {CacheManager} from './implementations';
-import {CacheMetadata} from './implementations';
+// Main exports
+import {createCache} from './easy-cache';
 
-// Import event system
-import {
-    CacheEventType,
+// Named exports
+export {
+    createCache,
+    // Aliases for backward compatibility
+    createCache as createEasyCache
+};
+
+// Event system
+export {
+    subscribeToCacheEvents,
     emitCacheEvent,
-    offCacheEvent,
-    onCacheEvent,
-    subscribeToCacheEvents
+    CacheEventType,
+    subscribeToCacheEvents as onCacheEvent,
+    getEventEmitter
 } from './events/cache-events';
 
-// Import error utilities
-import {CacheError, CacheErrorCode, createCacheError, ensureError, handleCacheError} from './utils/error-utils';
-
-// Import adapters
-import {MemoryAdapter} from './adapters';
-
-// Import utilities
-import {
-    createCacheManager,
-    deepMerge,
-    generateCacheKey,
-    mergeCacheOptions,
-    providerHasMethod,
-    safelyCallProviderMethod,
-    shouldRefresh
-} from './implementations/cache-manager-utils';
-
-// Import types
-import {CacheEventPayload, CacheOptions, CacheStats, EntryMetadata} from './types';
-import {CacheConfig, ProviderConfig} from './interfaces/i-cache-config';
-import {ICacheProvider} from './interfaces/i-cache-provider';
-
-// Create a convenience object for module exports
-const CacheModule = {
-    // Core classes
-    CacheManager,
-    CacheMetadata,
-
-    // Constants
-    CacheEventType,
-    CacheErrorCode,
-
-    // Error handling
-    CacheError,
-    createCacheError,
-    handleCacheError,
-    ensureError,
-
-    // Event system
-    emitCacheEvent,
-    onCacheEvent,
-    offCacheEvent,
-    subscribeToCacheEvents,
-
-    // Adapters
-    MemoryAdapter,
-
-    // Utilities
-    createCacheManager,
-    mergeCacheOptions,
-    providerHasMethod,
-    safelyCallProviderMethod,
-    generateCacheKey,
-    shouldRefresh,
-    deepMerge
-};
-
-// Export all components
+// Core implementations
 export {
-    // Core classes
-    CacheManager,
-    CacheMetadata,
+    CacheManagerCore,
+} from './implementations/cache-manager-core';
 
-    // Constants
-    CacheEventType,
-    CacheErrorCode,
+// Providers
+export {
+    MemoryProvider
+} from './providers/memory-provider';
 
-    // Error handling
-    CacheError,
-    createCacheError,
-    handleCacheError,
-    ensureError,
+// Types
+export * from './types';
 
-    // Event system
-    emitCacheEvent,
-    onCacheEvent,
-    offCacheEvent,
-    subscribeToCacheEvents,
+// Constants
+export * from './constants';
 
-    // Adapters
-    MemoryAdapter,
+// Monitoring exports
+export { CacheMonitoring } from './utils/monitoring-utils';
+export { monitor } from './decorators/monitor';
+export * from './types';
 
-    // Utilities
-    createCacheManager,
-    mergeCacheOptions,
-    providerHasMethod,
-    safelyCallProviderMethod,
-    generateCacheKey,
-    shouldRefresh,
-    deepMerge,
+// Easy setup function
+// export function setupCacheMonitoring(config?: Partial<MonitoringConfig>) {
+//   return CacheMonitoringAPI.getInstance(config);
+// }
+// After: Comment it out until proper types are provided:
+export function setupCacheMonitoring(config?: any) {
+  // CacheMonitoringAPI not available
+  return;
+}
 
-    // Types
-    CacheOptions,
-    CacheStats,
-    EntryMetadata,
-    CacheEventPayload,
-    CacheConfig,
-    ProviderConfig,
-    ICacheProvider
-};
-
-// Export default module
-export default CacheModule;
+// Default export
+export default createCache;

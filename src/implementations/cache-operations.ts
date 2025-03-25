@@ -44,7 +44,7 @@ export class CacheOperations {
             // Return value
             return value as T;
         } catch (error) {
-            handleCacheError(error, {operation: 'get', key});
+            handleCacheError(error, {operation: 'get', key}, false);
             return null;
         }
     }
@@ -64,7 +64,7 @@ export class CacheOperations {
             // Set value in provider
             await this.provider.set(key, processedValue, options);
         } catch (error) {
-            handleCacheError(error, {operation: 'set', key});
+            handleCacheError(error, {operation: 'set', key}, false);
             throw error;
         }
     }
@@ -80,7 +80,7 @@ export class CacheOperations {
             // Delete value from provider
             return await this.provider.delete(key);
         } catch (error) {
-            handleCacheError(error, {operation: 'delete', key});
+            handleCacheError(error, {operation: 'delete', key}, false);
             return false;
         }
     }
@@ -93,7 +93,7 @@ export class CacheOperations {
             // Clear provider
             await this.provider.clear();
         } catch (error) {
-            handleCacheError(error, {operation: 'clear'});
+            handleCacheError(error, {operation: 'clear'}, false);
         }
     }
 
@@ -112,7 +112,7 @@ export class CacheOperations {
 
             return null;
         } catch (error) {
-            handleCacheError(error, {operation: 'getMetadata', key});
+            handleCacheError(error, {operation: 'getMetadata', key}, false);
             return null;
         }
     }
@@ -140,7 +140,7 @@ export class CacheOperations {
 
             return results;
         } catch (error) {
-            handleCacheError(error, {operation: 'getMany', keys});
+            handleCacheError(error, {operation: 'getMany', keys}, false);
 
             // Return null for all keys on error
             return keys.reduce((acc, key) => {
@@ -160,7 +160,8 @@ export class CacheOperations {
         try {
             // Check if provider supports setMany
             if (this.provider.setMany) {
-                await this.provider.setMany(entries, options);
+                const entriesMap = new Map<string, T>(Object.entries(entries));
+                await this.provider.setMany(entriesMap, options);
                 return;
             }
 
@@ -169,7 +170,7 @@ export class CacheOperations {
                 await this.set(key, value as T, options);
             }
         } catch (error) {
-            handleCacheError(error, {operation: 'setMany', entries: Object.keys(entries)});
+            handleCacheError(error, {operation: 'setMany', entries: Object.keys(entries)}, false);
             throw error;
         }
     }
@@ -191,7 +192,7 @@ export class CacheOperations {
             const value = await this.provider.get(key);
             return value !== null;
         } catch (error) {
-            handleCacheError(error, {operation: 'has', key});
+            handleCacheError(error, {operation: 'has', key}, false);
             return false;
         }
     }
@@ -204,7 +205,7 @@ export class CacheOperations {
      * @returns Processed value
      */
     private async processValue<T>(value: T, options?: CacheOptions): Promise<T> {
-        // For now, just return the value as is
+        // For now, return the value as is
         // In a real implementation, this would handle compression, serialization, etc.
         return value;
     }

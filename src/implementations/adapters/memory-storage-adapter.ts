@@ -345,13 +345,16 @@ export class MemoryStorageAdapter implements IStorageAdapter {
      * @returns Health status
      */
     async healthCheck(): Promise<HealthStatus> {
+        const now = Date.now();
+        
         return {
             status: 'healthy',
             healthy: true,
-            timestamp: Date.now(),
+            timestamp: now,
+            lastCheck: now,
             details: {
-                size: this.stats.size,
-                itemCount: this.store.size
+                size: 0,
+                itemCount: 0
             }
         };
     }

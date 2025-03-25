@@ -3,343 +3,198 @@
  * with real-time updates and performance metrics.
  */
 
-import React, {useEffect, useMemo, useState} from 'react';
-import {CacheEventType, subscribeToCacheEvents} from '../events/cache-events';
-import {formatCacheSize} from '../implementations/cache-manager-utils';
-
-interface CacheMonitorProps {
-    /** Refresh interval in milliseconds */
-    refreshInterval?: number;
-    /** Whether to show detailed stats */
-    showDetails?: boolean;
-    /** Whether to show real-time events */
-    showEvents?: boolean;
-    /** Maximum number of events to show */
-    maxEvents?: number;
-    /** Custom styling */
-    className?: string;
-    /** Custom event filter */
-    eventFilter?: (event: { type: CacheEventType }) => boolean;
-}
+import React, {useEffect, useState} from 'react';
+import {CacheEventType} from '../events/cache-events';
+import {eventManager} from '../events/event-manager';
+import {CacheEventPayload, CacheStats} from '../types';
 
 interface CacheEvent {
-    type: string; // Changed from CacheEventType to string
+    type: string;
     timestamp: number;
     key?: string;
     duration?: number;
     size?: number;
-    error?: Error;
+    error?: Error | string;
 }
 
-export function CacheMonitor({
-                                 refreshInterval = 5000,
-                                 showDetails = false,
-                                 showEvents = true,
-                                 maxEvents = 50,
-                                 className,
-                                 eventFilter
-                             }: CacheMonitorProps) {
-    const [stats, setStats] = useState<Record<string, any>>({});
+interface CacheMonitorProps {
+    maxEvents?: number;
+    showStats?: boolean;
+    showEvents?: boolean;
+    refreshInterval?: number;
+    cacheManager?: any;
+}
+
+export const CacheMonitor: React.FC<CacheMonitorProps> = ({
+    maxEvents = 100,
+    showStats = true,
+    showEvents = true,
+    refreshInterval = 2000,
+    cacheManager
+}) => {
     const [events, setEvents] = useState<CacheEvent[]>([]);
-    const [selectedProvider, setSelectedProvider] = useState<string>();
+    const [stats, setStats] = useState<Record<string, CacheStats>>({});
+    const [isExpanded, setIsExpanded] = useState(false);
 
-    // Subscribe to cache events with correct parameter
     useEffect(() => {
-        if (!showEvents) return;
-
-        const unsubscribe = subscribeToCacheEvents('all', (event) => {
-            if (eventFilter && !eventFilter({type: event.type as CacheEventType})) return;
-
-            setEvents(prev => [
-                {
+        // Subscribe to all cache events
+        const unsubscribe = eventManager.subscribe('*', (event: CacheEventPayload & { type: string }) => {
+            setEvents(prev => {
+                const newEvent: CacheEvent = {
                     type: event.type,
                     timestamp: event.timestamp || Date.now(),
                     key: event.key,
                     duration: event.duration,
                     size: event.size,
                     error: event.error
-                } as CacheEvent,
-                ...prev.slice(0, maxEvents - 1)
-            ]);
+                };
+
+                // Keep only the most recent events
+                return [newEvent, ...prev].slice(0, maxEvents);
+            });
         });
 
-        return () => unsubscribe();
-    }, [showEvents, maxEvents, eventFilter]);
+        // Fetch stats periodically if cache manager is provided
+        let statsInterval: NodeJS.Timeout | null = null;
+        if (cacheManager && showStats) {
+            statsInterval = setInterval(async () => {
+                try {
+                    const cacheStats = await cacheManager.getStats();
+                    setStats(cacheStats);
+                } catch (error) {
+                    console.error('Error fetching cache stats:', error);
+                }
+            }, refreshInterval);
+        }
 
-    // Calculate aggregated stats
-    const aggregatedStats = useMemo(() => {
-        if (!stats || Object.keys(stats).length === 0) return null;
+        return () => {
+            unsubscribe();
+            if (statsInterval) clearInterval(statsInterval);
+        };
+    }, [cacheManager, maxEvents, refreshInterval, showStats]);
 
-        return Object.values(stats).reduce((acc, curr) => ({
-            hits: (acc.hits || 0) + curr.hits,
-            misses: (acc.misses || 0) + curr.misses,
-            size: (acc.size || 0) + curr.size,
-            keyCount: (acc.keyCount || 0) + curr.keyCount
-        }), {} as Record<string, number>);
-    }, [stats]);
+    const formatTime = (timestamp: number) => {
+        return new Date(timestamp).toLocaleTimeString();
+    };
 
-    // Calculate hit rate
-    const hitRate = useMemo(() => {
-        if (!aggregatedStats) return 0;
-        const total = aggregatedStats.hits + aggregatedStats.misses;
-        return total > 0 ? (aggregatedStats.hits / total) * 100 : 0;
-    }, [aggregatedStats]);
+    const formatDuration = (duration?: number) => {
+        return duration != null ? `${duration.toFixed(2)}ms` : 'N/A';
+    };
+
+    const formatSize = (size?: number) => {
+        if (size == null) return 'N/A';
+        if (size < 1024) return `${size}B`;
+        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
+        return `${(size / (1024 * 1024)).toFixed(1)}MB`;
+    };
+
+    const getEventColor = (type: string) => {
+        switch (type) {
+            case CacheEventType.HIT: return 'green';
+            case CacheEventType.MISS: return 'orange';
+            case CacheEventType.ERROR: return 'red';
+            case CacheEventType.SET: return 'blue';
+            case CacheEventType.DELETE: return 'red';
+            case CacheEventType.EXPIRED: return 'orange';
+            default: return 'gray';
+        }
+    };
 
     return (
-        <div className={`cache-monitor ${className || ''}`}>
-            {/* Overview Section */}
-            <div className="cache-monitor-overview">
-                <h3>Cache Overview</h3>
-                {aggregatedStats && (
-                    <div className="cache-monitor-stats">
-                        <div className="stat-item">
-                            <label>Hit Rate</label>
-                            <div className="stat-value">{hitRate.toFixed(2)}%</div>
-                        </div>
-                        <div className="stat-item">
-                            <label>Total Size</label>
-                            <div className="stat-value">{formatCacheSize(aggregatedStats.size)}</div>
-                        </div>
-                        <div className="stat-item">
-                            <label>Keys</label>
-                            <span className="stat-value">{aggregatedStats.keyCount.toLocaleString()}</span>
-                        </div>
-                    </div>
-                )}
+        <div style={{
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            padding: '10px',
+            fontFamily: 'monospace',
+            fontSize: '12px',
+            maxHeight: isExpanded ? '500px' : '200px',
+            overflowY: 'auto',
+            backgroundColor: '#f9f9f9',
+            transition: 'max-height 0.3s ease'
+        }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <h3 style={{ margin: 0 }}>Cache Monitor</h3>
+                <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '16px'
+                    }}
+                >
+                    {isExpanded ? '▲' : '▼'}
+                </button>
             </div>
 
-            {/* Provider Details */}
-            {showDetails && (
-                <div className="cache-monitor-providers">
-                    <h4>Cache Providers</h4>
-                    <div className="provider-list">
-                        {Object.entries(stats).map(([name, providerStats]) => (
-                            <div
-                                key={name}
-                                className={`provider-item ${selectedProvider === name ? 'selected' : ''}`}
-                                onClick={() => setSelectedProvider(name)}
-                            >
-                                <div className="provider-header">
-                                    <span className="provider-name">{name}</span>
-                                    <span className="provider-hit-rate">
-                    {((providerStats.hits / (providerStats.hits + providerStats.misses)) * 100).toFixed(2)}%
-                  </span>
-                                </div>
-                                {selectedProvider === name && (
-                                    <div className="provider-details">
-                                        <div className="stat-row">
-                                            <label>Hits</label>
-                                            <span className="stat-value">{providerStats.hits.toLocaleString()}</span>
-                                        </div>
-                                        <div className="stat-row">
-                                            <label>Misses</label>
-                                            <span className="stat-value">{providerStats.misses.toLocaleString()}</span>
-                                        </div>
-                                        <div className="stat-row">
-                                            <label>Size</label>
-                                            <span className="stat-value">{formatCacheSize(providerStats.size)}</span>
-                                        </div>
-                                        <div className="stat-row">
-                                            <label>Keys</label>
-                                            <span
-                                                className="stat-value">{providerStats.keyCount.toLocaleString()}</span>
-                                        </div>
-                                    </div>
-                                )}
+            {showStats && (
+                <div style={{ marginBottom: '10px' }}>
+                    <h4 style={{ marginTop: 0 }}>Cache Stats</h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                        {Object.entries(stats).map(([provider, providerStats]) => (
+                            <div key={provider} style={{ 
+                                border: '1px solid #ddd', 
+                                borderRadius: '4px', 
+                                padding: '5px',
+                                backgroundColor: 'white',
+                                minWidth: '200px'
+                            }}>
+                                <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{provider}</div>
+                                <div>Hits: {providerStats.hits}</div>
+                                <div>Misses: {providerStats.misses}</div>
+                                <div>Keys: {providerStats.keyCount}</div>
+                                <div>Size: {formatSize(providerStats.size)}</div>
+                                <div>Memory: {formatSize(providerStats.memoryUsage)}</div>
+                                <div>Last Updated: {formatTime(providerStats.lastUpdated)}</div>
                             </div>
                         ))}
                     </div>
                 </div>
             )}
 
-            {/* Event Log */}
-            {showEvents && events.length > 0 && (
-                <div className="cache-monitor-events">
-                    <h4>Recent Events</h4>
-                    <div className="event-list">
-                        {events.map((event, index) => (
-                            <div key={index} className={`event-item ${event.error ? 'error' : ''}`}>
-                <span className="event-time">
-                  {new Date(event.timestamp).toLocaleTimeString()}
-                </span>
-                                <span className="event-type">{event.type}</span>
-                                {event.key && (
-                                    <span className="event-key" title={event.key}>
-                    {event.key.length > 30 ? `${event.key.slice(0, 27)}...` : event.key}
-                  </span>
-                                )}
-                                {event.duration && (
-                                    <span className="event-duration">{event.duration.toFixed(2)}ms</span>
-                                )}
-                                {event.size && (
-                                    <span className="event-size">{formatCacheSize(event.size)}</span>
-                                )}
-                                {event.error && (
-                                    <span className="event-error" title={event.error.message}>
-                    {event.error.message}
-                  </span>
-                                )}
-                            </div>
-                        ))}
+            {showEvents && (
+                <div>
+                    <h4 style={{ marginTop: 0 }}>Recent Events</h4>
+                    <div>
+                        {events.length === 0 ? (
+                            <div style={{ fontStyle: 'italic', color: '#999' }}>No events recorded yet</div>
+                        ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #ddd' }}>
+                                        <th>Time</th>
+                                        <th>Type</th>
+                                        <th>Key</th>
+                                        <th>Duration</th>
+                                        <th>Size</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {events.map((event, idx) => (
+                                        <tr 
+                                            key={idx} 
+                                            style={{ 
+                                                borderBottom: '1px solid #eee',
+                                                color: getEventColor(event.type)
+                                            }}
+                                        >
+                                            <td>{formatTime(event.timestamp)}</td>
+                                            <td>{event.type}</td>
+                                            <td style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                {event.key || '-'}
+                                            </td>
+                                            <td>{formatDuration(event.duration)}</td>
+                                            <td>{formatSize(event.size)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
                     </div>
                 </div>
             )}
-
-            <style>{`
-        .cache-monitor {
-          background: #f8f9fa;
-          border-radius: 8px;
-          padding: 16px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-        }
-
-        .cache-monitor h3,
-        .cache-monitor h4 {
-          margin: 0 0 16px;
-          color: #2d3748;
-        }
-
-        .cache-monitor-stats {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 16px;
-          margin-bottom: 24px;
-        }
-
-        .stat-item {
-          background: white;
-          padding: 12px;
-          border-radius: 6px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .stat-item label {
-          display: block;
-          color: #718096;
-          font-size: 0.875rem;
-          margin-bottom: 4px;
-        }
-
-        .stat-value {
-          display: block;
-          color: #2d3748;
-          font-size: 1.25rem;
-          font-weight: 600;
-        }
-
-        .provider-list {
-          display: grid;
-          gap: 12px;
-        }
-
-        .provider-item {
-          background: white;
-          border-radius: 6px;
-          padding: 12px;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .provider-item:hover {
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .provider-item.selected {
-          border-left: 3px solid #4299e1;
-        }
-
-        .provider-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .provider-name {
-          font-weight: 500;
-          color: #2d3748;
-        }
-
-        .provider-hit-rate {
-          color: #48bb78;
-          font-size: 0.875rem;
-        }
-
-        .provider-details {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid #e2e8f0;
-        }
-
-        .stat-row {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 4px;
-          font-size: 0.875rem;
-        }
-
-        .stat-row label {
-          color: #718096;
-        }
-
-        .stat-value {
-          color: #2d3748;
-          font-weight: 500;
-        }
-
-        .event-list {
-          background: white;
-          border-radius: 6px;
-          padding: 8px;
-          max-height: 300px;
-          overflow-y: auto;
-        }
-
-        .event-item {
-          display: grid;
-          grid-template-columns: auto auto 1fr auto auto;
-          gap: 12px;
-          padding: 8px;
-          border-bottom: 1px solid #e2e8f0;
-          font-size: 0.875rem;
-        }
-
-        .event-item:last-child {
-          border-bottom: none;
-        }
-
-        .event-item.error {
-          background: #fff5f5;
-        }
-
-        .event-time {
-          color: #718096;
-        }
-
-        .event-type {
-          color: #4299e1;
-          font-weight: 500;
-        }
-
-        .event-key {
-          color: #2d3748;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .event-duration {
-          color: #805ad5;
-        }
-
-        .event-size {
-          color: #38a169;
-        }
-
-        .event-error {
-          color: #e53e3e;
-          font-weight: 500;
-        }
-      `}</style>
         </div>
     );
-}
+};
+
+export default CacheMonitor;

@@ -4,8 +4,9 @@
 
 import {CacheOptions} from '../types';
 import {ICacheProvider} from '../interfaces/i-cache-provider';
-import {CacheErrorCode, createCacheError, handleCacheError} from '../utils/error-utils';
-import {providerHasMethod} from './cache-manager-utils';
+import {CacheErrorCode, createCacheError, handleCacheError, providerHasMethod} from '../utils/error-utils';
+import {CACHE_OPERATION} from '../constants';
+import {CacheManagerCore} from './cache-manager-core';
 
 /**
  * Cache manager operations
@@ -19,10 +20,97 @@ export class CacheManagerOperations {
     /**
      * Create a new cache manager operations instance
      *
-     * @param provider - Cache provider
+     * @param coreOrProvider - Cache core or provider
      */
-    constructor(provider: ICacheProvider) {
-        this.provider = provider;
+    constructor(coreOrProvider: CacheManagerCore | ICacheProvider) {
+        if ('getProvider' in coreOrProvider) {
+            const provider = coreOrProvider.getProvider();
+            if (!provider) {
+                throw createCacheError('No cache provider available', CacheErrorCode.NO_PROVIDER);
+            }
+            this.provider = provider;
+        } else {
+            this.provider = coreOrProvider;
+        }
+    }
+
+    /**
+     * Get a value from cache
+     *
+     * @param key - Cache key
+     * @returns Cached value or null if not found
+     */
+    async get<T = any>(key: string): Promise<T | null> {
+        try {
+            const value = await this.provider.get(key);
+            return value as T;
+        } catch (error) {
+            handleCacheError(error, {operation: CACHE_OPERATION.GET, key}, true);
+            return null;
+        }
+    }
+
+    /**
+     * Set a value in cache
+     *
+     * @param key - Cache key
+     * @param value - Value to cache
+     * @param options - Cache options
+     */
+    async set<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
+        try {
+            await this.provider.set(key, value, options);
+        } catch (error) {
+            handleCacheError(error, {operation: CACHE_OPERATION.SET, key}, true);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete a value from cache
+     *
+     * @param key - Cache key
+     * @returns Whether the value was deleted
+     */
+    async delete(key: string): Promise<boolean> {
+        try {
+            return await this.provider.delete(key);
+        } catch (error) {
+            handleCacheError(error, {operation: CACHE_OPERATION.DELETE, key}, true);
+            return false;
+        }
+    }
+
+    /**
+     * Clear all values from cache
+     */
+    async clear(): Promise<void> {
+        try {
+            await this.provider.clear();
+        } catch (error) {
+            handleCacheError(error, {operation: CACHE_OPERATION.CLEAR}, true);
+        }
+    }
+
+    /**
+     * Get a value from cache (alias for get)
+     *
+     * @param key - Cache key
+     * @returns Cached value or null if not found
+     */
+    async getCacheValue<T = any>(key: string): Promise<T | null> {
+        return this.get<T>(key);
+    }
+
+    /**
+     * Set a value in cache (alias for set)
+     *
+     * @param key - Cache key
+     * @param value - Value to cache
+     * @param options - Cache options
+     */
+    async setCacheValue<T = any>(key: string, value: T, options?: CacheOptions): Promise<void> {
+        return this.set<T>(key, value, options);
     }
 
     /**
@@ -54,7 +142,7 @@ export class CacheManagerOperations {
                 );
             }
         } catch (error) {
-            handleCacheError(error, {operation: 'pushToArray', key});
+            handleCacheError(error, {operation: 'pushToArray', key}, true);
             throw error;
         }
     }
@@ -83,7 +171,7 @@ export class CacheManagerOperations {
 
             return value;
         } catch (error) {
-            handleCacheError(error, {operation: 'popFromArray', key});
+            handleCacheError(error, {operation: 'popFromArray', key}, true);
             throw error;
         }
     }
@@ -109,7 +197,7 @@ export class CacheManagerOperations {
 
             return value;
         } catch (error) {
-            handleCacheError(error, {operation: 'increment', key});
+            handleCacheError(error, {operation: 'increment', key}, true);
             throw error;
         }
     }
@@ -151,7 +239,7 @@ export class CacheManagerOperations {
 
             return value;
         } catch (error) {
-            handleCacheError(error, {operation: 'update', key});
+            handleCacheError(error, {operation: 'update', key}, true);
             throw error;
         }
     }
@@ -179,7 +267,7 @@ export class CacheManagerOperations {
 
             return result;
         } catch (error) {
-            handleCacheError(error, {operation: 'getMany', keys});
+            handleCacheError(error, {operation: 'getMany', keys}, true);
 
             // Return null for all keys on error
             return keys.reduce((acc, key) => {
@@ -209,7 +297,7 @@ export class CacheManagerOperations {
                 await this.provider.set(key, value, options);
             }
         } catch (error) {
-            handleCacheError(error, {operation: 'setMany', entries: Object.keys(entries)});
+            handleCacheError(error, {operation: 'setMany', entries: Object.keys(entries)}, true);
             throw error;
         }
     }
@@ -231,7 +319,7 @@ export class CacheManagerOperations {
 
             return count;
         } catch (error) {
-            handleCacheError(error, {operation: 'deleteMany', keys});
+            handleCacheError(error, {operation: 'deleteMany', keys}, true);
             throw error;
         }
     }
@@ -250,7 +338,7 @@ export class CacheManagerOperations {
             const current = await this.provider.get(key) as T[] | null;
             const set = current || [];
 
-            // Check if value already exists
+            // Check if the value already exists
             if (Array.isArray(set)) {
                 const exists = set.some(item => JSON.stringify(item) === JSON.stringify(value));
 
@@ -272,7 +360,7 @@ export class CacheManagerOperations {
                 );
             }
         } catch (error) {
-            handleCacheError(error, {operation: 'addToSet', key});
+            handleCacheError(error, {operation: 'addToSet', key}, true);
             throw error;
         }
     }
@@ -309,7 +397,7 @@ export class CacheManagerOperations {
 
             return false;
         } catch (error) {
-            handleCacheError(error, {operation: 'removeFromSet', key});
+            handleCacheError(error, {operation: 'removeFromSet', key}, true);
             throw error;
         }
     }
@@ -333,7 +421,7 @@ export class CacheManagerOperations {
             // Check if value exists
             return current.some(item => JSON.stringify(item) === JSON.stringify(value));
         } catch (error) {
-            handleCacheError(error, {operation: 'isInSet', key});
+            handleCacheError(error, {operation: 'isInSet', key}, true);
             return false;
         }
     }

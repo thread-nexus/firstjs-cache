@@ -2,6 +2,8 @@
  * Circuit breaker implementation for cache operations
  */
 import {EventEmitter} from 'events';
+import { logger } from './logger';
+import { metrics } from './metrics';
 
 /**
  * Circuit breaker states
@@ -89,19 +91,75 @@ export class CircuitBreaker extends EventEmitter {
             return fn();
         }
 
+        // Track metrics for circuit breaker state
+        metrics.gauge('circuit_breaker.state', this.stateAsNumber(), {
+            name: this.config.name || 'default'
+        });
+
         if (this.isOpen()) {
+            this.emit('rejected', { reason: 'circuit_open' });
+            logger.debug('Circuit breaker rejected operation', {
+                state: this.state,
+                failures: this.failureCount
+            });
+            
+            metrics.increment('circuit_breaker.rejected', 1, {
+                name: this.config.name || 'default',
+                reason: 'open'
+            });
+            
             if (fallback) {
                 return fallback();
             }
             throw new Error(`Circuit breaker is open`);
         }
 
+        const timerId = metrics.startTimer('circuit_breaker.execution');
         try {
             const result = await fn();
             this.recordSuccess();
+            metrics.stopTimer(timerId, { result: 'success' });
             return result;
         } catch (error) {
+            metrics.stopTimer(timerId, { result: 'failure' });
             return this.handleFailure(error as Error, fallback);
+        }
+    }
+    
+    /**
+     * Record a failure without executing an operation
+     */
+    fail(): void {
+        this.failureCount++;
+        
+        if (this.state === CircuitState.CLOSED && 
+            this.failureCount >= this.config.failureThreshold) {
+            this.openCircuit();
+        }
+        
+        metrics.increment('circuit_breaker.failures', 1, {
+            name: this.config.name || 'default'
+        });
+        
+        this.emit('failure', {
+            failureCount: this.failureCount,
+            state: this.state
+        });
+    }
+    
+    /**
+     * Convert circuit state to numeric value for metrics
+     */
+    private stateAsNumber(): number {
+        switch (this.state) {
+            case CircuitState.CLOSED:
+                return 0;
+            case CircuitState.HALF_OPEN:
+                return 0.5;
+            case CircuitState.OPEN:
+                return 1;
+            default:
+                return -1;
         }
     }
 
@@ -169,7 +227,7 @@ export class CircuitBreaker extends EventEmitter {
     }
 
     /**
-     * Clean up resources
+     * Cleanup resources
      */
     destroy(): void {
         this.removeAllListeners();

@@ -2,74 +2,24 @@ import {ICacheProvider} from '../interfaces/i-cache-provider';
 import {CacheEventType, emitCacheEvent} from '../events/cache-events';
 import {handleCacheError} from '../utils/error-utils';
 import {CacheOptions} from '../types';
+import {CACHE_OPERATION, DEFAULT_CACHE_CONFIG} from '../constants';
+import {CacheComputeRefresh} from './cache-compute-refresh';
+import {CacheComputeUtils} from './cache-compute-utils';
+import {ComputeOptions, ComputeResult, InternalCacheOptions} from './cache-compute-types';
 
 /**
- * Options for compute operations
- */
-interface ComputeOptions extends CacheOptions {
-    maxRetries?: number;
-    retryDelay?: number;
-    timeout?: number;
-    staleIfError?: boolean;
-}
-
-/**
- * Result of a compute operation
- */
-interface ComputeResult<T> {
-    value: T;
-    computeTime: number;
-    stale: boolean;
-}
-
-// Create a new extended options type that includes metadata
-interface ExtendedCacheOptions extends CacheOptions {
-    metadata?: {
-        computeTime?: number;
-        source?: string;
-        version?: string;
-        [key: string]: any;
-    };
-}
-
-// Create a proper interface for internal use that extends the public interface
-interface InternalCacheOptions {
-    ttl?: number;
-    tags?: string[];
-    // Standard properties from CacheOptions
-    compression?: boolean;
-    compressionThreshold?: number;
-    background?: boolean;
-    maxSize?: number;
-    maxItems?: number;
-    compressionLevel?: number;
-    refreshThreshold?: number;
-    statsInterval?: number;
-    providers?: string[];
-    defaultProvider?: string;
-    backgroundRefresh?: boolean;
-    operation?: string;
-    computeTime?: number;
-    maxRetries?: number;
-    compressed?: boolean;
-    // Additional internal properties for metadata
-    _metadata?: {
-        computeTime?: number;
-        source?: string;
-        timestamp?: number;
-        [key: string]: any;
-    };
-}
-
-/**
- * Cache compute implementation
+ * Represents a caching mechanism with compute capabilities. This class provides methods
+ * to fetch data from cache or compute it if not available, manage cache refresh operations,
+ * and handle the overall lifecycle of cached data.
  */
 export class CacheCompute {
     private readonly defaultTtl: number;
     private readonly backgroundRefresh: boolean;
     private readonly refreshThreshold: number;
-    private refreshPromises: Map<string, Promise<any>> = new Map();
-
+    
+    // Composition of functionality from other classes
+    private refresh: CacheComputeRefresh;
+    private utils: CacheComputeUtils;
     /**
      * Create a new cache compute instance
      *
@@ -84,9 +34,17 @@ export class CacheCompute {
             refreshThreshold?: number;
         } = {}
     ) {
-        this.defaultTtl = options.defaultTtl || 3600;
+        this.defaultTtl = options.defaultTtl || DEFAULT_CACHE_CONFIG.DEFAULT_TTL;
         this.backgroundRefresh = options.backgroundRefresh !== false;
-        this.refreshThreshold = options.refreshThreshold || 0.75;
+        this.refreshThreshold = options.refreshThreshold || DEFAULT_CACHE_CONFIG.DEFAULT_REFRESH_THRESHOLD;
+        
+        // Initialize composed functionality
+        this.refresh = new CacheComputeRefresh(provider, {
+            defaultTtl: this.defaultTtl,
+            backgroundRefresh: this.backgroundRefresh,
+            refreshThreshold: this.refreshThreshold
+        });
+        this.utils = new CacheComputeUtils();
     }
 
     /**
@@ -110,11 +68,11 @@ export class CacheCompute {
             if (cachedValue !== null) {
                 const metadata = await this.provider.getMetadata?.(key);
                 const refreshedAt = typeof metadata?.refreshedAt === 'number' ? new Date(metadata.refreshedAt) : metadata?.refreshedAt;
-                const isStale = this.isValueStale(refreshedAt, options);
+                const isStale = this.utils.isValueStale(refreshedAt, options, this.defaultTtl, this.refreshThreshold);
 
                 // Schedule background refresh if needed
-                if (isStale && this.shouldBackgroundRefresh(options)) {
-                    await this.scheduleBackgroundRefresh(key, fetcher, options);
+                if (isStale && this.utils.shouldBackgroundRefresh(options, this.backgroundRefresh)) {
+                    await this.refresh.scheduleBackgroundRefresh(key, fetcher, options);
                 }
 
                 return {
@@ -128,9 +86,9 @@ export class CacheCompute {
             return await this.computeAndCache(key, fetcher, options);
         } catch (error) {
             handleCacheError(error, {
-                operation: 'getOrCompute',
+                operation: 'compute',
                 key
-            });
+            }, false);
             throw error;
         }
     }
@@ -148,24 +106,13 @@ export class CacheCompute {
         fetcher: () => Promise<T>,
         options?: ComputeOptions
     ): Promise<void> {
-        try {
-            emitCacheEvent(CacheEventType.REFRESH_START, {key});
-            await this.computeAndCache(key, fetcher, options);
-            emitCacheEvent(CacheEventType.REFRESH_SUCCESS, {key});
-        } catch (error) {
-            emitCacheEvent(CacheEventType.REFRESH_ERROR, {
-                key,
-                error: error instanceof Error ? error : new Error(String(error))
-            });
-            throw error;
-        }
+        return this.refresh.scheduleRefresh(key, fetcher, options);
     }
-
     /**
      * Cancel background refresh for a key
      */
     cancelRefresh(key: string): void {
-        this.refreshPromises.delete(key);
+        this.refresh.cancelRefresh(key);
     }
 
     /**
@@ -175,10 +122,7 @@ export class CacheCompute {
         activeComputes: number;
         activeRefreshes: number;
     } {
-        return {
-            activeComputes: 0,
-            activeRefreshes: this.refreshPromises.size
-        };
+        return this.refresh.getRefreshStatus();
     }
 
     /**
@@ -188,10 +132,7 @@ export class CacheCompute {
         activeComputes: number;
         activeRefreshes: number;
     } {
-        return {
-            activeComputes: 0,
-            activeRefreshes: this.refreshPromises.size
-        };
+        return this.refresh.getRefreshStatus();
     }
 
     /**
@@ -206,7 +147,7 @@ export class CacheCompute {
 
         try {
             emitCacheEvent(CacheEventType.COMPUTE_START, {key});
-            const value = await this.executeWithRetry(() => fetcher(), options);
+            const value = await this.utils.executeWithRetry(() => fetcher(), options);
             const computeTime = performance.now() - startTime;
 
             // Create internal options with metadata
@@ -242,89 +183,5 @@ export class CacheCompute {
             });
             throw error;
         }
-    }
-
-    /**
-     * Execute with retry logic
-     */
-    private async executeWithRetry<T>(
-        operation: () => Promise<T>,
-        options?: ComputeOptions
-    ): Promise<T> {
-        const maxRetries = options?.maxRetries || 3;
-        const retryDelay = options?.retryDelay || 1000;
-
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                return await operation();
-            } catch (error) {
-                if (attempt >= maxRetries) {
-                    throw error;
-                }
-
-                const delay = retryDelay * Math.pow(2, attempt - 1);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-
-        throw new Error('Exceeded maximum number of retries');
-    }
-
-    /**
-     * Check if a value is stale
-     */
-    private isValueStale(
-        refreshedAt?: Date,
-        options?: CacheOptions
-    ): boolean {
-        if (!refreshedAt) return true;
-
-        const ttl = options?.ttl || this.defaultTtl;
-        const threshold = options?.refreshThreshold || this.refreshThreshold;
-
-        const age = Date.now() - refreshedAt.getTime();
-        return age > ttl * threshold * 1000;
-    }
-
-    /**
-     * Check if background refresh should be used
-     */
-    private shouldBackgroundRefresh(options?: CacheOptions): boolean {
-        return options?.backgroundRefresh ?? this.backgroundRefresh;
-    }
-
-    /**
-     * Schedule a background refresh
-     */
-    private async scheduleBackgroundRefresh<T>(
-        key: string,
-        fetcher: () => Promise<T>,
-        options?: ComputeOptions
-    ): Promise<void> {
-        // Check if refresh is already scheduled
-        if (this.refreshPromises.has(key)) {
-            return;
-        }
-
-        const refreshPromise = (async () => {
-            try {
-                emitCacheEvent(CacheEventType.REFRESH_START, {key});
-                await this.computeAndCache(key, fetcher, options);
-                emitCacheEvent(CacheEventType.REFRESH_SUCCESS, {key});
-            } catch (error) {
-                emitCacheEvent(CacheEventType.REFRESH_ERROR, {
-                    key,
-                    error: error instanceof Error ? error : new Error(String(error))
-                });
-            } finally {
-                this.refreshPromises.delete(key);
-            }
-        })();
-
-        this.refreshPromises.set(key, refreshPromise);
-
-        // Prevent refresh spam
-        await new Promise(resolve => setTimeout(resolve, 60000));
-        this.refreshPromises.delete(key);
     }
 }

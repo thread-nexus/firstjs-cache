@@ -1,299 +1,186 @@
-# @fourjs/cache
+# Cache Module
 
-A high-performance, feature-rich caching module with support for multiple providers, background refresh, and
-comprehensive monitoring.
+A comprehensive, multi-layer caching system for JavaScript applications with support for various storage backends.
 
 ## Features
 
-🚀 **High Performance**
-
-- Optimized hot-key caching
-- Automatic compression
-- Request deduplication
-- Batch operations
-
-🔄 **Multiple Cache Providers**
-
-- In-memory caching
-- Redis integration
-- Browser localStorage
-- Custom provider support
-
-📊 **Advanced Features**
-
-- Background refresh
-- Tag-based invalidation
-- TTL management
-- Event system
-- Real-time monitoring
-
-⚛️ **React Integration**
-
-- React hooks and components
-- Automatic cache invalidation
-- Development tools
-- Performance monitoring
+- **Multi-layer caching**: Combine memory, Redis, file system, and other providers
+- **Flexible configuration**: Extensive options for TTL, compression, validation
+- **Advanced patterns**: Support for cache-aside, write-through, background refresh
+- **Strong observability**: Built-in logging, metrics, and health checks
+- **Robust error handling**: Circuit breakers, retry mechanisms, fallbacks
+- **Type safety**: Full TypeScript support with generic types
 
 ## Installation
 
 ```bash
-npm install @fourjs/cache
-
-# Optional dependencies
-npm install redis # For Redis support
+npm install @fourjs/cache-module
 ```
 
 ## Quick Start
 
-### Basic Usage
-
 ```typescript
-import {createCache} from '@fourjs/cache';
+import { CacheManager } from '@fourjs/cache-module';
 
-// Create cache instance
-const cache = createCache({
-    defaultTtl: 3600,
-    backgroundRefresh: true
+// Create a cache manager with memory and Redis providers
+const cache = new CacheManager({
+  providers: {
+    memory: {
+      type: 'memory',
+      options: {
+        maxSize: 100000000, // 100MB
+        maxItems: 10000
+      }
+    },
+    redis: {
+      type: 'redis',
+      options: {
+        host: 'localhost',
+        port: 6379,
+        prefix: 'app:cache'
+      }
+    }
+  }
 });
 
 // Basic operations
-await cache.set('user:123', {name: 'John'});
+await cache.set('user:123', { name: 'Alice', role: 'admin' }, { ttl: 3600 });
 const user = await cache.get('user:123');
 
-// Compute with caching
-const result = await cache.getOrCompute(
-    'expensive:calculation',
-    async () => await performExpensiveCalculation()
+// Cache a function result (automatic key generation)
+const getUserData = cache.wrap(
+  async (userId) => {
+    // Expensive operation to fetch user data
+    return await database.fetchUser(userId);
+  },
+  (userId) => `user:${userId}:data`,
+  { ttl: 300 }
 );
+
+// Use the wrapped function
+const userData = await getUserData('123');
+
+// Invalidate cache entries
+await cache.invalidateByTag('user:123');
+await cache.invalidateByPrefix('user:');
+await cache.deleteByPattern('^user:[0-9]+$');
 ```
 
-### React Integration
+## Architecture
 
-```tsx
-import {CacheProvider, useCache} from '@fourjs/cache';
+The cache module follows a layered design with clear separation of concerns:
 
-function UserProfile({userId}) {
-    const {data, isLoading, error} = useCache(
-        `user:${userId}`,
-        async () => await fetchUserProfile(userId),
-        {ttl: 3600}
-    );
+1. **Core Layer**: Manages providers and orchestrates operations
+2. **Provider Layer**: Implements specific storage backends (Memory, Redis, etc.)
+3. **Utility Layer**: Provides supporting functionality (serialization, monitoring, etc.)
 
-    if (isLoading) return <Loading/>;
-    if (error) return <Error error={error}/>;
+### Storage Providers
 
-    return <Profile data={data}/>;
-}
+- **Memory**: In-process memory cache with LRU eviction
+- **Redis**: Distributed cache using Redis
+- **File System**: Persistent cache using the file system
+- **LocalStorage**: Browser-based persistent storage
+- **IndexedDB**: More robust browser storage for larger datasets
+- **Custom**: Implement your own provider by extending the `ICacheProvider` interface
 
-// Wrap your app with provider
-function App() {
-    return (
-        <CacheProvider>
-            <UserProfile userId="123"/>
-        </CacheProvider>
-    );
-}
-```
-
-### Multiple Providers
-
-```typescript
-import {createCache, MemoryAdapter, RedisAdapter} from '@fourjs/cache';
-
-const cache = createCache({
-    providers: [
-        {
-            name: 'memory',
-            instance: new MemoryAdapter({maxSize: '100mb'}),
-            priority: 1
-        },
-        {
-            name: 'redis',
-            instance: new RedisAdapter({
-                host: 'localhost',
-                port: 6379
-            }),
-            priority: 2
-        }
-    ]
-});
-```
+## Advanced Usage
 
 ### Background Refresh
 
 ```typescript
-const cache = createCache({
-    backgroundRefresh: true,
-    refreshThreshold: 0.75 // Refresh when 75% of TTL elapsed
+// Set up a cache entry with background refresh
+await cache.set('stats:daily', calculateStats(), {
+  ttl: 3600,                // 1 hour TTL
+  backgroundRefresh: true,  // Enable background refresh
+  refreshThreshold: 0.8     // Refresh when 80% of TTL has passed
 });
 
-// Value will be refreshed in background when stale
-const value = await cache.getOrCompute(
-    'key',
-    async () => await fetchData(),
-    {ttl: 3600}
-);
+// Get value (will trigger background refresh if stale)
+const stats = await cache.get('stats:daily');
 ```
 
-### Tag-Based Invalidation
+### Batching Operations
 
 ```typescript
-// Set values with tags
-await cache.set('user:123', userData, {
-    tags: ['user', 'profile']
-});
-
-await cache.set('user:123:posts', posts, {
-    tags: ['user', 'posts']
-});
-
-// Invalidate by tag
-await cache.invalidateByTag('posts');
-```
-
-### Batch Operations
-
-```typescript
-// Get multiple values
-const results = await cache.getMany([
-    'user:123',
-    'user:123:posts',
-    'user:123:settings'
-]);
+// Get multiple values at once
+const values = await cache.getMany(['key1', 'key2', 'key3']);
 
 // Set multiple values
 await cache.setMany({
-    'user:123': userData,
-    'user:123:posts': posts
-}, {ttl: 3600});
+  'key1': 'value1',
+  'key2': 'value2',
+  'key3': 'value3'
+}, { ttl: 300 });
 ```
 
-### Monitoring
+### Cache Tags
 
 ```typescript
-import {CacheMonitor} from '@fourjs/cache';
+// Set cache entries with tags
+await cache.set('user:123:profile', profileData, { 
+  tags: ['user:123', 'profile']
+});
+await cache.set('user:123:preferences', prefsData, { 
+  tags: ['user:123', 'preferences']
+});
 
-function Dashboard() {
-    return (
-        <CacheMonitor
-            refreshInterval = {5000}
-    showDetails = {true}
-    />
-)
-    ;
-}
+// Invalidate all entries with a specific tag
+await cache.invalidateByTag('user:123');
 ```
 
-### Event System
+### Circuit Breaker
 
 ```typescript
-import {subscribeToCacheEvents, CacheEventType} from '@fourjs/cache';
-
-// Subscribe to events
-const unsubscribe = subscribeToCacheEvents(
-    CacheEventType.GET_HIT,
-    (payload) => {
-        console.log('Cache hit:', payload);
-    }
-);
-
-// Cleanup
-unsubscribe();
-```
-
-### Custom Provider
-
-```typescript
-import {ICacheProvider} from '@fourjs/cache';
-
-class CustomProvider implements ICacheProvider {
-    async get(key: string): Promise<any> {
-        // Implementation
-    }
-
-    async set(key: string, value: any, options?: CacheOptions): Promise<void> {
-        // Implementation
-    }
-
-    // ... other methods
-}
-```
-
-## Advanced Features
-
-### Compression
-
-```typescript
-await cache.set('large:data', data, {
-    compression: true,
-    compressionThreshold: 1024 // Compress if > 1KB
+// The cache manager automatically handles circuit breaking
+// You can configure its behavior
+const cache = new CacheManager({
+  // ... other config
+  circuitBreaker: {
+    enabled: true,
+    failureThreshold: 5,      // Number of failures before opening
+    resetTimeout: 30000,      // 30 seconds until retry
+    halfOpenLimit: 3          // Number of requests allowed in half-open state
+  }
 });
 ```
 
-### Custom Serialization
+## Monitoring and Observability
+
+The cache module provides built-in monitoring capabilities:
 
 ```typescript
-const serializer = createSerializer({
-    typeHandlers: {
-        BigInt: {
-            serialize: (v) => v.toString(),
-            deserialize: (v) => BigInt(v)
-        }
-    }
-});
+// Get cache statistics
+const stats = await cache.getStats();
+console.log(stats);
+// {
+//   memory: { hits: 127, misses: 43, ... },
+//   redis: { hits: 89, misses: 21, ... }
+// }
 
-await cache.set('key', value, {serializer});
+// Health checks
+const health = await cache.healthCheck();
+console.log(health);
+// {
+//   status: 'healthy',
+//   providers: {
+//     memory: { status: 'healthy' },
+//     redis: { status: 'healthy' }
+//   }
+// }
 ```
 
-### Development Tools
+## Best Practices
 
-```tsx
-import {CacheDebugPanel} from '@fourjs/cache';
-
-function App() {
-    return (
-        <>
-            <YourApp/>
-            {process.env.NODE_ENV === 'development' && (
-                <CacheDebugPanel position="bottom-right"/>
-            )}
-        </>
-    );
-}
-```
-
-## API Reference
-
-See [API Documentation](./docs/API.md) for complete reference.
-
-## Configuration
-
-```typescript
-interface CacheConfig {
-    defaultTtl?: number;
-    defaultOptions?: CacheOptions;
-    deduplicateRequests?: boolean;
-    backgroundRefresh?: boolean;
-    refreshThreshold?: number;
-    throwOnErrors?: boolean;
-    logging?: boolean;
-    logStackTraces?: boolean;
-    logger?: (logEntry: any) => void;
-}
-```
-
-## Performance
-
-- Hot keys are cached in memory for fastest access
-- Automatic compression for large values
-- Request deduplication prevents redundant computations
-- Batch operations for efficient bulk processing
-- Background refresh prevents cache stampedes
+1. **Set appropriate TTLs** - Match the TTL to the volatility of the data
+2. **Use tags for related data** - Makes invalidation easier
+3. **Consider background refresh** - Prevents cache stampedes
+4. **Monitor cache hit rates** - Low hit rates may indicate issues
+5. **Implement proper error handling** - Use fallbacks when cache operations fail
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+Contributions are welcome! Please see the [Contributing Guide](CONTRIBUTING.md) for more details.
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+[MIT](LICENSE)

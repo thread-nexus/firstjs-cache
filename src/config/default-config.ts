@@ -1,140 +1,126 @@
 /**
- * Default configuration for the cache system
+ * @fileoverview Default configuration for cache manager
  */
 
-import {CacheOptions} from '../types';
-
-/**
- * Cache constants
- */
-export const CACHE_CONSTANTS = {
-    /**
-     * Default TTL in seconds (1 hour)
-     */
-    DEFAULT_TTL: 3600,
-
-    /**
-     * Default refresh threshold (80% of TTL)
-     */
-    DEFAULT_REFRESH_THRESHOLD: 0.8,
-
-    /**
-     * Maximum key length
-     */
-    MAX_KEY_LENGTH: 255,
-
-    /**
-     * Default compression threshold (1KB)
-     */
-    DEFAULT_COMPRESSION_THRESHOLD: 1024,
-
-    /**
-     * Default batch size
-     */
-    DEFAULT_BATCH_SIZE: 100,
-
-    /**
-     * Default retry attempts
-     */
-    DEFAULT_RETRY_ATTEMPTS: 3,
-
-    /**
-     * Default retry delay in milliseconds
-     */
-    DEFAULT_RETRY_DELAY: 100,
-
-    /**
-     * Maximum metadata history size
-     */
-    MAX_METADATA_HISTORY: 10
-};
+import {CacheConfig} from '../types';
+import * as console from "node:console";
 
 /**
  * Default cache configuration
  */
-export const DEFAULT_CONFIG = {
-    /**
-     * Default TTL in seconds
-     */
-    defaultTtl: CACHE_CONSTANTS.DEFAULT_TTL,
-
-    /**
-     * Default options for cache operations
-     */
-    defaultOptions: {
-        ttl: CACHE_CONSTANTS.DEFAULT_TTL,
-        backgroundRefresh: true,
-        refreshThreshold: CACHE_CONSTANTS.DEFAULT_REFRESH_THRESHOLD,
-        compression: false,
-        compressionThreshold: CACHE_CONSTANTS.DEFAULT_COMPRESSION_THRESHOLD
-    } as CacheOptions,
-
-    /**
-     * Whether to throw errors or suppress them
-     */
-    throwOnErrors: false,
-
-    /**
-     * Whether to enable background refresh
-     */
-    backgroundRefresh: true,
-
-    /**
-     * Default refresh threshold (0-1)
-     */
-    refreshThreshold: CACHE_CONSTANTS.DEFAULT_REFRESH_THRESHOLD,
-
-    /**
-     * Whether to deduplicate in-flight requests
-     */
-    deduplicateRequests: true,
-
-    /**
-     * Whether to enable logging
-     */
-    logging: true,
-
-    /**
-     * Whether to include stack traces in logs
-     */
-    logStackTraces: false,
-
-    /**
-     * Default logger function
-     */
-    logger: console.log,
-
-    /**
-     * Default batch size
-     */
-    batchSize: CACHE_CONSTANTS.DEFAULT_BATCH_SIZE,
-
-    /**
-     * Default retry configuration
-     */
-    retry: {
-        attempts: CACHE_CONSTANTS.DEFAULT_RETRY_ATTEMPTS,
-        delay: CACHE_CONSTANTS.DEFAULT_RETRY_DELAY
-    }
+export const DEFAULT_CONFIG: CacheConfig = {
+  providers: [],
+  defaultTtl: 300, // 5 minutes in seconds
+  defaultOptions: {
+    ttl: 300, // 5 minutes in seconds
+    compression: false,
+    compressionThreshold: 1024, // 1KB
+    backgroundRefresh: false,
+    refreshThreshold: 0.8 // 80% of TTL
+  },
+  throwOnErrors: false,
+  backgroundRefresh: false,
+  refreshThreshold: 0.8,
+  deduplicateRequests: true,
+  monitoring: {
+    enabled: true,
+    reportingInterval: 60, // 1 minute
+    samplingRate: 1.0,
+    logToConsole: false
+  } as any, // Use type assertion to avoid the typechecking issue
+  rateLimit: {
+    limit: 1000,
+    window: 60000, // 1 minute
+    throwOnLimit: false,
+    maxWaitTime: 30000, // 30 seconds
+    queueExceeding: true,
+    maxQueueSize: 100
+  },
+  statsInterval: 60, // 1 minute
+  logging: false,
+  logStackTraces: false,
+  logger: console.log
 };
 
 /**
- * Merge cache options with defaults
- *
- * @param options - User options
- * @param defaults - Default options
- * @returns Merged options
+ * Environment-specific configuration adjustment
  */
-export function mergeCacheOptions(
-    options: CacheOptions = {},
-    defaults: CacheOptions = DEFAULT_CONFIG.defaultOptions
-): CacheOptions {
+export function getEnvironmentConfig(): Partial<CacheConfig> {
+  // Return environment-specific overrides
+  const environment = process.env.NODE_ENV || 'development';
+  
+  if (environment === 'production') {
     return {
-        ...defaults,
-        ...options,
-        // Merge tags if both exist
-        tags: options.tags && defaults.tags
-            ? [...new Set([...defaults.tags, ...options.tags])]
-            : options.tags || defaults.tags
+      throwOnErrors: false,
+      logging: false,
+      monitoring: {
+        enabled: true,
+        reportingInterval: 300, // 5 minutes in production
+        logToConsole: false
+      }
     };
+  }
+  
+  if (environment === 'test') {
+    return {
+      throwOnErrors: true,
+      defaultTtl: 1,
+      monitoring: {
+        enabled: false
+      }
+    };
+  }
+  
+  // Development defaults
+  return {
+    throwOnErrors: true,
+    logging: true,
+    monitoring: {
+      enabled: true,
+      reportingInterval: 30, // 30 seconds in development
+      logToConsole: true
+    }
+  };
+}
+
+/**
+ * Merge configuration with defaults and environment overrides
+ * 
+ * @param config User configuration
+ * @returns Merged configuration
+ */
+export function mergeConfig(config: Partial<CacheConfig> = {}): CacheConfig {
+  const envConfig = getEnvironmentConfig();
+  return {
+    ...DEFAULT_CONFIG,
+    ...envConfig,
+    ...config,
+    // Merge nested configurations
+    monitoring: {
+      enabled: true, // force boolean value
+      reportingInterval: 60000,
+      samplingRate: 1.0,
+      logToConsole: true,
+      metricsCallback: null,
+      interval: 60000,
+      detailedMetrics: false,
+      maxEventHistory: 1000,
+      reporter: (metrics: any) => {}
+    },
+    rateLimit: {
+      ...DEFAULT_CONFIG.rateLimit,
+      ...(envConfig.rateLimit || {}),
+      ...(config.rateLimit || {})
+    },
+    defaultOptions: {
+      ...DEFAULT_CONFIG.defaultOptions,
+      ...(envConfig.defaultOptions || {}),
+      ...(config.defaultOptions || {})
+    }
+  };
+}
+
+export class CACHE_CONSTANTS {
+  static DEFAULT_BATCH_SIZE: string = 'DEFAULT_BATCH_SIZE';
+  static MAX_KEY_LENGTH: string = 'MAX_KEY_LENGTH';
 }

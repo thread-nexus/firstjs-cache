@@ -58,10 +58,10 @@ class RefreshQueue {
         const existingIndex = this.queue.findIndex(t => t.key === task.key);
 
         if (existingIndex !== -1) {
-            // Replace existing task
+            // Replace an existing task
             this.queue[existingIndex] = task;
         } else {
-            // Add new task
+            // Add a new task
             this.queue.push(task);
         }
 
@@ -111,7 +111,7 @@ class RefreshQueue {
             // Update cache
             await defaultCacheManager.set(task.key, value, task.options);
         } catch (error) {
-            handleCacheError(error, {operation: 'refreshTask', key: task.key});
+            handleCacheError(error, {operation: 'refreshTask', key: task.key}, true);
         }
     }
 }

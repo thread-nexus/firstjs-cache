@@ -68,7 +68,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
                 operation: 'get',
                 key,
                 provider: 'localStorage'
-            });
+            }, false);
             return null;
         }
     }
@@ -117,7 +117,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
                 operation: 'set',
                 key,
                 provider: 'localStorage'
-            });
+            }, false);
             throw error;
         }
     }
@@ -144,7 +144,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
                 operation: 'has',
                 key,
                 provider: 'localStorage'
-            });
+            }, false);
             return false;
         }
     }
@@ -175,7 +175,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
                 operation: 'delete',
                 key,
                 provider: 'localStorage'
-            });
+            }, false);
             return false;
         }
     }
@@ -201,7 +201,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'clear',
                 provider: 'localStorage'
-            });
+            }, false);
             throw error;
         }
     }
@@ -225,7 +225,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'keys',
                 provider: 'localStorage'
-            });
+            }, false);
             throw error;
         }
     }
@@ -269,18 +269,29 @@ export class LocalStorageAdapter implements IStorageAdapter {
      */
     async healthCheck(): Promise<HealthStatus> {
         try {
-            // Perform actual health check
+            // Test if storage is accessible
+            const testKey = `__health_check_${Date.now()}`;
+            const testValue = { timestamp: Date.now() };
+            await this.set(testKey, testValue);
+            await this.get(testKey);
+            await this.delete(testKey);
+            
+            const now = Date.now();
+            
             return {
                 status: 'healthy',
                 healthy: true,
-                timestamp: Date.now()
+                timestamp: now,
+                lastCheck: now
             };
         } catch (error) {
-            // Since HealthStatus now supports the error property:
+            const now = Date.now();
+            
             return {
                 status: 'unhealthy',
                 healthy: false,
-                timestamp: Date.now(),
+                timestamp: now,
+                lastCheck: now,
                 error: error instanceof Error ? error.message : String(error)
             };
         }
@@ -306,7 +317,7 @@ export class LocalStorageAdapter implements IStorageAdapter {
             handleCacheError(error, {
                 operation: 'initialize',
                 provider: 'localStorage'
-            });
+            }, false);
         }
     }
 

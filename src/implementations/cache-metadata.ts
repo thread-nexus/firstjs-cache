@@ -1,76 +1,23 @@
 /**
- * @fileoverview Cache metadata manager for tracking additional information about cache entries
+ * Cache metadata implementation
  */
 
-import {CacheEventType, emitCacheEvent} from '../events/cache-events';
 import {EntryMetadata} from '../types';
+import {TIME_CONSTANTS} from '../constants';
 
 /**
- * Metadata for a cache entry - compatible with EntryMetadata
+ * Options for metadata operations
  */
-export interface CacheEntryMetadata {
-    /**
-     * Tags associated with the cache entry
-     */
-    tags: string[];
-
-    /**
-     * When the entry was created - stored as Date but convertible to timestamp
-     */
-    createdAt: Date;
-
-    /**
-     * When the entry was last updated
-     */
-    updatedAt: Date;
-
-    /**
-     * Number of times the entry has been accessed
-     */
-    accessCount: number;
-
-    /**
-     * Last time the entry was accessed
-     */
-    lastAccessed?: Date;
-
-    /**
-     * Time to live in seconds
-     */
-    ttl?: number;
-
-    /**
-     * Access history
-     */
-    accessHistory?: Date[];
-
-    /**
-     * Size of the entry in bytes (required by EntryMetadata)
-     */
-    size: number;
-
-    /**
-     * Additional custom metadata
-     */
-    [key: string]: any;
-}
-
-/**
- * Options for setting metadata
- */
-export interface CacheMetadataOptions {
+interface CacheMetadataOptions {
     /**
      * Tags to associate with the cache entry
      */
     tags?: string[];
+
     /**
      * Time to live in seconds
      */
     ttl?: number;
-    /**
-     * Size of the entry in bytes
-     */
-    size?: number;
 
     /**
      * Additional custom metadata
@@ -79,315 +26,174 @@ export interface CacheMetadataOptions {
 }
 
 /**
- * Cache metadata manager
+ * Cache metadata implementation
  */
 export class CacheMetadata {
-    private metadata = new Map<string, CacheEntryMetadata>();
+    private metadata = new Map<string, EntryMetadata>();
+    private tagToKeys = new Map<string, Set<string>>();
+    private accessHistory = new Map<string, Date[]>();
+    private readonly maxHistoryLength: number;
 
     /**
-     * Create a new metadata entry
-     *
-     * @param key - Cache key
-     * @param tags - Tags to associate with the entry
-     * @param options - Additional metadata options
-     * @returns The created metadata entry
+     * Create a new cache metadata instance
      */
-    create(key: string, tags: string[] = [], options: CacheMetadataOptions = {}): CacheEntryMetadata {
-        if (!key || typeof key !== 'string' || key.trim() === '') {
-            throw new Error('Invalid cache key');
-        }
-
-        const now = new Date();
-        const entry: CacheEntryMetadata = {
-            tags: tags || [],
-            createdAt: now,
-            updatedAt: new Date(now.getTime() + 1), // Ensure updatedAt is greater than createdAt
-            accessCount: 0,
-            accessHistory: [],
-            size: options.size || 0, // Ensure size property is set
-            ...options
-        };
-
-        this.metadata.set(key, entry);
-
-        // Add required properties to event payload
-        emitCacheEvent(CacheEventType.METADATA_UPDATE, {
-            key,
-            metadata: entry,
-            type: CacheEventType.METADATA_UPDATE.toString(),
-            timestamp: Date.now()
-        });
-
-        return entry;
+    constructor(options: { maxHistoryLength?: number } = {}) {
+        this.maxHistoryLength = options.maxHistoryLength || 10;
     }
-
-    /**
-     * Create multiple metadata entries at once
-     *
-     * @param entries - Map of keys to metadata options
-     * @returns Map of keys to created metadata entries
-     */
-    bulkCreate(entries: Record<string, {
-        tags: string[],
-        options?: CacheMetadataOptions
-    }>): Record<string, CacheEntryMetadata> {
-        const result: Record<string, CacheEntryMetadata> = {};
-
-        for (const [key, {tags, options}] of Object.entries(entries)) {
-            result[key] = this.create(key, tags, options);
-        }
-
-        return result;
-    }
-
-    /**
-     * Set metadata for a cache key
-     *
-     * @param key - Cache key
-     * @param options - Metadata options
-     */
-    set(key: string, options: CacheMetadataOptions = {}): void {
-        const now = new Date();
-        const existingMetadata = this.metadata.get(key);
-
-        if (existingMetadata) {
-            // Update existing metadata
-            const updatedMetadata = {
-                ...existingMetadata,
-                tags: options.tags || existingMetadata.tags,
-                updatedAt: new Date(now.getTime() + 1), // Ensure updatedAt is greater than createdAt
-                ...options
-            };
-            this.metadata.set(key, updatedMetadata);
-        } else {
-            // Create new metadata
-            this.create(key, options.tags, options);
-        }
-    }
-
-    /**
-     * Update an existing metadata entry
-     *
-     * @param key - Cache key
-     * @param updates - Properties to update
-     * @returns The updated metadata entry or undefined if not found
-     */
-    update(key: string, updates: Partial<CacheEntryMetadata>): CacheEntryMetadata | undefined {
-        const entry = this.metadata.get(key);
-
-        if (!entry) {
-            throw new Error(`Metadata for key "${key}" not found`);
-        }
-
-        const updatedEntry = {
-            ...entry,
-            ...updates,
-            updatedAt: new Date()
-        };
-
-        this.metadata.set(key, updatedEntry);
-
-        // Add required properties to event payload
-        emitCacheEvent(CacheEventType.METADATA_UPDATE, {
-            key,
-            metadata: updatedEntry,
-            type: CacheEventType.METADATA_UPDATE.toString(),
-            timestamp: Date.now()
-        });
-
-        return updatedEntry;
-    }
-
     /**
      * Get metadata for a cache key
-     *
-     * @param key - Cache key
-     * @returns Metadata or undefined if not found
-     * Convert CacheEntryMetadata to EntryMetadata for compatibility
+     * 
+     * @param key - The cache key
+     * @returns Metadata for the key or undefined if not found
      */
     get(key: string): EntryMetadata | undefined {
-        const metadata = this.metadata.get(key);
-        if (!metadata) return undefined;
+        return this.metadata.get(key);
+    }
+    /**
+     * Set metadata for a cache key
+     * 
+     * @param key - The cache key
+     * @param data - Metadata to store
+     */
+    set(key: string, data: Partial<EntryMetadata>): void {
+            const now = new Date();
+        const existing = this.metadata.get(key);
 
-        // Convert CacheEntryMetadata to EntryMetadata
-        return {
-            tags: metadata.tags,
-            createdAt: metadata.createdAt.getTime(), // Convert Date to number
-            lastAccessed: metadata.lastAccessed ? metadata.lastAccessed.getTime() : metadata.createdAt.getTime(),
-            size: metadata.size,
-            accessCount: metadata.accessCount,
-            expiresAt: metadata.ttl ? metadata.createdAt.getTime() + (metadata.ttl * 1000) : undefined,
-            compressed: metadata.compressed || false,
-            // Include any other required properties
+        // Handle tags
+        if (data.tags) {
+            // Remove key from old tags
+            if (existing?.tags) {
+                for (const tag of existing.tags) {
+                    const keys = this.tagToKeys.get(tag);
+                    if (keys) {
+                        keys.delete(key);
+                        if (keys.size === 0) {
+                            this.tagToKeys.delete(tag);
+                        }
+                    }
+                }
+            }
+
+            // Add key to new tags
+            for (const tag of data.tags) {
+                let keys = this.tagToKeys.get(tag);
+                if (!keys) {
+                    keys = new Set<string>();
+                    this.tagToKeys.set(tag, keys);
+                }
+                keys.add(key);
+            }
+        }
+
+        // Create or update metadata
+        const metadata: EntryMetadata = {
+            createdAt: existing?.createdAt || now.getTime(),
+            updatedAt: now.getTime(),
+            accessCount: existing?.accessCount || 0,
+            tags: data.tags || existing?.tags || [],
+            lastAccessed: existing?.lastAccessed || now.getTime(), // ensure a number is assigned
+            ...data
         };
+
+        this.metadata.set(key, metadata);
     }
 
     /**
      * Delete metadata for a cache key
-     *
-     * @param key - Cache key
-     * @returns True if metadata was deleted, false if not found
+     * 
+     * @param key - The cache key
+     * @returns True if metadata was deleted, false otherwise
      */
     delete(key: string): boolean {
-        const deleted = this.metadata.delete(key);
+        const metadata = this.metadata.get(key);
+        if (!metadata) {
+            return false;
+}
 
-        if (deleted) {
-            // Add required properties to event payload
-            emitCacheEvent(CacheEventType.METADATA_DELETE, {
-                key,
-                type: CacheEventType.METADATA_DELETE.toString(),
-                timestamp: Date.now()
-            });
+        // Remove key from tags
+        if (metadata.tags) {
+            for (const tag of metadata.tags) {
+                const keys = this.tagToKeys.get(tag);
+                if (keys) {
+                    keys.delete(key);
+                    if (keys.size === 0) {
+                        this.tagToKeys.delete(tag);
+                    }
+                }
+            }
         }
 
-        return deleted;
+        // Remove access history
+        this.accessHistory.delete(key);
+
+        // Remove metadata
+        return this.metadata.delete(key);
     }
 
     /**
      * Clear all metadata
      */
     clear(): void {
-        const count = this.metadata.size;
         this.metadata.clear();
-
-        // Add required properties to event payload
-        emitCacheEvent(CacheEventType.METADATA_CLEAR, {
-            count,
-            type: CacheEventType.METADATA_CLEAR.toString(),
-            timestamp: Date.now()
-        });
+        this.tagToKeys.clear();
+        this.accessHistory.clear();
     }
 
     /**
-     * Record an access to a cache key
-     *
+     * Find keys by tag
+     * 
+     * @param tag - Tag to search for
+     * @returns Array of keys with the specified tag
+     */
+    findByTag(tag: string): string[] {
+        const keys = this.tagToKeys.get(tag);
+        return keys ? Array.from(keys) : [];
+    }
+
+    /**
+     * Record access to a cache key
+     * 
      * @param key - Cache key
      */
     recordAccess(key: string): void {
-        const entry = this.metadata.get(key);
+        const metadata = this.metadata.get(key);
+        if (metadata) {
+            metadata.accessCount++;
+            metadata.lastAccessed = Date.now(); // ensure a number is assigned
 
-        if (entry) {
-            entry.accessCount++;
-            const now = new Date();
-            entry.lastAccessed = now;
+            // Update access history
+            let history = this.accessHistory.get(key);
+            if (!history) {
+                history = [];
+                this.accessHistory.set(key, history);
+            }
 
-            // Track access history if available
-            if (Array.isArray(entry.accessHistory)) {
-                entry.accessHistory.push(now);
-
-                // Limit history size
-                if (entry.accessHistory.length > 10) {
-                    entry.accessHistory = entry.accessHistory.slice(-10);
-                }
-            } else {
-                entry.accessHistory = [now];
+            history.push(new Date());
+            if (history.length > this.maxHistoryLength) {
+                history.shift();
             }
         }
-    }
-
-    /**
-     * Get metadata entries by tag
-     *
-     * @param tag - Tag to search for
-     * @returns Array of matching entries with their keys
-     */
-    getByTag(tag: string): Array<{ key: string, metadata: CacheEntryMetadata }> {
-        const result: Array<{ key: string, metadata: CacheEntryMetadata }> = [];
-
-        for (const [key, meta] of this.metadata.entries()) {
-            if (meta.tags.includes(tag)) {
-                result.push({key, metadata: meta});
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Find cache keys by tag
-     *
-     * @param tag - Tag to search for
-     * @returns Array of matching keys
-     */
-    findByTag(tag: string): string[] {
-        const result: string[] = [];
-
-        for (const [key, meta] of this.metadata.entries()) {
-            if (meta.tags.includes(tag)) {
-                result.push(key);
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Find cache keys by prefix
-     *
-     * @param prefix - Key prefix to search for
-     * @returns Array of matching keys
-     */
-    findByPrefix(prefix: string): string[] {
-        const result: string[] = [];
-
-        for (const key of this.metadata.keys()) {
-            if (key.startsWith(prefix)) {
-                result.push(key);
-            }
-        }
-
-        return result;
-    }
-
-    /**
-     * Find cache keys by pattern
-     *
-     * @param pattern - Regular expression pattern to match keys
-     * @returns Array of matching keys
-     */
-    findByPattern(pattern: string): string[] {
-        const regex = new RegExp(pattern);
-        const result: string[] = [];
-
-        for (const key of this.metadata.keys()) {
-            if (regex.test(key)) {
-                result.push(key);
-            }
-        }
-
-        return result;
     }
 
     /**
      * Check if a metadata entry is expired
-     *
+     * 
      * @param key - Cache key
      * @returns True if expired, false otherwise
      */
     isExpired(key: string): boolean {
-        const entry = this.metadata.get(key);
-
-        if (!entry || !entry.ttl) {
+        const metadata = this.metadata.get(key);
+        if (!metadata || !metadata.ttl) {
             return false;
         }
 
-        const expirationTime = entry.createdAt.getTime() + (entry.ttl * 1000);
+        const expirationTime = metadata.createdAt + metadata.ttl * TIME_CONSTANTS.ONE_SECOND;
         return Date.now() > expirationTime;
     }
 
     /**
-     * Get access history for a key
-     *
-     * @param key - Cache key
-     * @returns Array of access timestamps or undefined if not found
-     */
-    getAccessHistory(key: string): Date[] | undefined {
-        return this.metadata.get(key)?.accessHistory;
-    }
-
-    /**
      * Get all cache keys with metadata
-     *
+     * 
      * @returns Array of all keys
      */
     keys(): string[] {
@@ -395,61 +201,30 @@ export class CacheMetadata {
     }
 
     /**
-     * Get the number of metadata entries
-     *
-     * @returns Number of entries
+     * Get access history for a key
+     * 
+     * @param key - Cache key
+     * @returns Array of access dates or empty array if not found
      */
-    size(): number {
-        return this.metadata.size;
+    getAccessHistory(key: string): Date[] {
+        return this.accessHistory.get(key) || [];
     }
 
     /**
-     * Get summary statistics about metadata
-     *
-     * @returns Metadata statistics
+     * Get expired keys
+     * 
+     * @returns Array of expired keys
      */
-    getStats(): Record<string, any> {
-        let totalAccesses = 0;
-        let tagCounts: Record<string, number> = {};
-
-        for (const meta of this.metadata.values()) {
-            totalAccesses += meta.accessCount;
-
-            // Count tag occurrences
-            if (meta.tags) {
-                for (const tag of meta.tags) {
-                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+    getExpiredKeys(): string[] {
+        const expired: string[] = [];
+        for (const [key, metadata] of this.metadata.entries()) {
+            if (metadata.ttl) {
+                const expirationTime = metadata.createdAt + metadata.ttl * TIME_CONSTANTS.ONE_SECOND;
+                if (Date.now() > expirationTime) {
+                    expired.push(key);
                 }
             }
         }
-
-        // Calculate average TTL and age
-        let totalTtl = 0;
-        let ttlCount = 0;
-        let totalAge = 0;
-        const now = Date.now();
-
-        for (const meta of this.metadata.values()) {
-            if (meta.ttl) {
-                totalTtl += meta.ttl;
-                ttlCount++;
-            }
-
-            if (meta.createdAt) {
-                totalAge += now - meta.createdAt.getTime();
-            }
-        }
-
-        return {
-            entryCount: this.metadata.size,
-            totalAccesses,
-            avgAccessesPerKey: this.metadata.size ? totalAccesses / this.metadata.size : 0,
-            avgTtl: ttlCount ? totalTtl / ttlCount : 0,
-            avgAge: this.metadata.size ? totalAge / this.metadata.size : 0,
-            tagStats: {
-                uniqueTags: Object.keys(tagCounts).length,
-                tagCounts
-            }
-        };
+        return expired;
     }
 }
